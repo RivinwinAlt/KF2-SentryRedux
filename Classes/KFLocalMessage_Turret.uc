@@ -1,5 +1,8 @@
+//This file defines the messages which a turret can send to players
 class KFLocalMessage_Turret extends LocalMessage
 	abstract;
+	//Implement localization of messages?
+
 
 static function ClientReceive(
 	PlayerController P,
@@ -56,6 +59,7 @@ static function string GetString(
 
 defaultproperties
 {
+	//Add a copy of the default local message dataset
    Name="Default__KFLocalMessage_Turret"
    ObjectArchetype=LocalMessage'Engine.Default__LocalMessage'
 }
