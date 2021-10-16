@@ -1,9 +1,10 @@
-//This file defines the messages which a turret can send to players
+//This file defines the messages which a turret can send to players and 
 class KFLocalMessage_Turret extends LocalMessage
 	abstract;
-	//Implement localization of messages?
+	//TODO Implement localization of messages? use P.myHUD.LocalizedMessage()
+	//TODO implement enums for message switch
 
-
+//Overrides from LocalMessage.uc to simplify and hardcode options.
 static function ClientReceive(
 	PlayerController P,
 	optional int Switch,
@@ -13,8 +14,9 @@ static function ClientReceive(
 	)
 {
 	local string MessageString;
+	//create a local variable to store a cast version of P into. seems slow.
 	local KFPlayerController KFP;
-
+	//Get static messageString using switch.
 	MessageString = static.GetString(Switch);
 	if ( MessageString != "" )
 	{
@@ -26,6 +28,7 @@ static function ClientReceive(
 	}
 }
 
+//Ovverrides from LocalMessage.uc to provide static strings
 static function string GetString(
     optional int Sw,
     optional bool bPRI1HUD,

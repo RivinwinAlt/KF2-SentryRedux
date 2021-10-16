@@ -34,6 +34,7 @@ function bool UsedBy(Pawn User)
 	{
 		foreach User.ChildActors(class'SentryUI_Network',SN)
 			break;
+		//This is the functionality that allows players to get more than one turret?
 		if( SN==None )
 		{
 			SN = Spawn(class'SentryUI_Network',User);
@@ -44,7 +45,7 @@ function bool UsedBy(Pawn User)
 	return true;
 }
 
-/** Checks if this actor is presently usable */
+//limits a turret to be accessed by one player at a time
 simulated function bool GetIsUsable( Pawn User )
 {
 	return KFPawn_Human(User)!=None;

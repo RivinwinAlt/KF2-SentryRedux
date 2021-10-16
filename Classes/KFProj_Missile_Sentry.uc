@@ -1,5 +1,10 @@
+//This class describes how a missile will act once it is spawned by the turret
 class KFProj_Missile_Sentry extends KFProj_Missile_Patriarch;
 
+/*TODO change the way headings are calculated and stored so that collision
+detection can be calulated in less steps and new headings can be curved to
+without repeating the initial collision check.
+*/
 var Pawn AimTarget;
 
 replication
@@ -12,33 +17,46 @@ replication
 simulated function PostBeginPlay()
 {
 	Super.PostBeginPlay();
+	//Every .05 of a second check the missiles heading. This equates to about 20FPS
 	SetTimer(0.05,true,'CheckHeading');
 }
 
 simulated function CheckHeading()
 {
+	//crappy vector names, they do NOT represent the x, y, and z axis
 	local vector X,Y,Z;
 	local float Dist;
 	
+	//if the target is killed or despawned stop checking heading
 	if( AimTarget==None || AimTarget.Health<=0 )
 	{
 		AimTarget = None;
 		ClearTimer('CheckHeading');
 		return;
 	}
+
+	//Find distance and direction to target
 	X = (AimTarget.Location-Location);
 	Dist = VSize(X);
+	//This math doesnt seam right. It should clamp the vectors length to
+	//be a limited length not exceeding distance to the target
 	X = X / FMax(Dist,0.1);
+
+	//trace towards target and see if theres a collision 
 	if( !FastTrace(AimTarget.Location,Location) )
 	{
-		// Check if we can curve to one direction to avoid hitting wall.
+		// Check if we can curve to one direction to avoid hitting wall(/floor/static actor).
+		//takes normal of current vector and an arbitrary one?
+		//TODO get normal of actor that caused collision instead
 		Y = Normal(X Cross vect(0,0,1));
 		Z = X Cross Y;
 	
+		//This code is excessive. It will always test the first three directions, should only test till good vector found
 		if( !TestDirection(X,Z,Dist) && !TestDirection(X,-Z,Dist) && !TestDirection(X,Y,Dist) )
 			TestDirection(X,-Y,Dist);
 	}
 	
+	//Change path to be closer to new path to produce curve rather than jerk
 	Y = Normal(Velocity);
 	if( (Y Dot X)>0.99 )
 		Y = X;
@@ -47,6 +65,8 @@ simulated function CheckHeading()
 	SetRotation(rotator(Velocity));
 }
 
+//Im not even going to touch this with comments until i optimize it
+//This function tests to see if the proposed curve away from a collision would be beneficial
 simulated final function bool TestDirection( out vector Aim, vector TestAxis, float Dist )
 {
 	local vector V;
@@ -70,13 +90,16 @@ simulated final function bool TestDirection( out vector Aim, vector TestAxis, fl
 	return false;
 }
 
+//On mesh collision with an actor check if actor is on the enemy team. currently hard coded so the missile is always team 0
 simulated event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
 {
 	if( KFPawn(Other)!=None && KFPawn(Other).GetTeamNum()==0 )
 		return;
+	//If the actor is an enemy act like a patriarch missile and blow up.
 	Super.Touch(Other, OtherComp, HitLocation, HitNormal);
 }
 
+//TODO expose some of these options in config
 defaultproperties
 {
    Begin Object Class=PointLightComponent Name=FlightPointLight Archetype=PointLightComponent'kfgamecontent.Default__KFProj_Missile_Patriarch:FlightPointLight'

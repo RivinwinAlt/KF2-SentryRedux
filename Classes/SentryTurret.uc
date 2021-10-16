@@ -1,9 +1,13 @@
 Class SentryTurret extends KFPawn
+//Uses config file; lets keep all options to one config file for now
+//TODO Rename config file across project
 	config(SentryTurret);
 
+//'transient' allows garbage collection to delete these variables when the turret is destroyed
 var transient SentryMainRep ContentRef;
 var transient SentryOverlay LocalOverlay;
 
+//LOL first typo found
 var float AccurancyMod;
 var AnimNodeSlot AnimationNode,UpperAnimNode;
 var SkelControlLookAt YawControl,PitchControl;
@@ -144,6 +148,8 @@ function UnsetBuilt()
 
 static final function UpdateConfig()
 {
+	//Create/Update main Config file. We'll use version=2
+	//just in case people copy/paste from OG config file.
 	if( Default.ConfigVersion!=1 )
 	{
 		Default.MaxTurretsPerUser = 3;
@@ -224,6 +230,7 @@ simulated final function UpdateDisplayMesh()
 		}
 	}
 }
+
 simulated final function SoundCue GrabCue( byte Index )
 {
 	return ContentRef!=None ? SoundCue(ContentRef.ObjRef.ReferencedObjects[Index]) : None;
