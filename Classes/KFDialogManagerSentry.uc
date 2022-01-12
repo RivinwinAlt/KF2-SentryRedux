@@ -16,7 +16,7 @@ defaultproperties
 {
     //Tick will occur after actors are updated
     TickGroup=TG_PostAsyncWork
-
+    
     //Add a copy of the default message managers dataset
     Name="Default__KFDialogManagerSentry"
     ObjectArchetype=KFDialogManager'KFGame.Default__KFDialogManager'

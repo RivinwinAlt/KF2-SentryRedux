@@ -1,16 +1,17 @@
+//Main Turret object class extends pawn, but notably not _Monster or _Human
 Class SentryTurret extends KFPawn
+
 //Uses config file; lets keep all options to one config file for now
 //TODO Rename config file across project
 	config(SentryTurret);
 
-//'transient' allows garbage collection to delete these variables when the turret is destroyed
 var transient SentryMainRep ContentRef;
 var transient SentryOverlay LocalOverlay;
 
 //LOL first typo found
 var float AccurancyMod;
-var AnimNodeSlot AnimationNode,UpperAnimNode;
-var SkelControlLookAt YawControl,PitchControl;
+var AnimNodeSlot AnimationNode, UpperAnimNode;
+var SkelControlLookAt YawControl, PitchControl;
 var Controller OwnerController;
 var SentryWeapon ActiveOwnerWeapon;
 var repnotify int SentryWorth;
@@ -1084,7 +1085,8 @@ defaultproperties
    Begin Object Class=PointLightComponent Name=PointLightComponent1
       Radius=120.000000
       Brightness=4.000000
-      LightColor=(B=255,G=0,R=255,A=255)
+      //Was purple, now red
+      LightColor=(B=0,G=0,R=255,A=255)
       CastShadows=False
       LightingChannels=(Outdoor=True)
       MaxBrightness=1.000000
