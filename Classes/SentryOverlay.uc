@@ -23,7 +23,7 @@ static final function SentryOverlay GetOverlay( PlayerController PC )
 		if( S!=None )
 			return S;
 	}
-	//If there isnt one make it.
+	//If there isnt one create it.
 	S = new (PC) class'SentryOverlay';
 	S.LocalPC = PC;
 	PC.Interactions.AddItem(S);
@@ -76,14 +76,13 @@ event PostRender(Canvas Canvas)
 		//This '?' is really a fast if() statement, it sets the color based on whether the player owns the turret
 		Canvas.DrawColor = (S.PlayerReplicationInfo==LocalPC.PlayerReplicationInfo) ? OwnerColor : OtherColor;
 		Str = S.GetInfo(); //This returns the health and owner name
-		//Scale the text in both the x and y directions
-		Canvas.TextSize(Str,XL,YL,Scale,Scale);
+		Canvas.TextSize(Str,XL,YL,Scale,Scale); //Scale the text in both the x and y directions
 
 		//This does two things: Centers the text on the turret, and makes closer turrets overlay further ones.
 		Canvas.SetPos(V.X-(XL*0.5),V.Y-(YL*0.5),0.25f/(ZDist+1.f));
 		Canvas.DrawText(Str,,Scale,Scale,DrawInfo); //Draw the text on screen
 		
-		//If the Turret is closer than 600 change the text and repeat the draw
+		//If the Turret is closer than 600 draw additional text
 		if( ZDist<600.f )
 		{
 			//This line kicks the draw point down below the previously drawn text
@@ -94,8 +93,7 @@ event PostRender(Canvas Canvas)
 			Canvas.DrawText(Str,,Scale,Scale,DrawInfo);
 		}
 		
-		//If the turret is closer than 100 draw the interaction text on screen?
-		//Im missing how this makes the text all nice with a background...
+		//If the turret is closer than 100 draw some interaction text
 		if( ZDist<100.f )
 		{
 			V.Y+=(YL*0.5);

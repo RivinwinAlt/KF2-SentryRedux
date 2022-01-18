@@ -1,10 +1,11 @@
 //This class handles replicating current server info onto the client:
 //Replicates: spawned turrets for overlays, turret archetypes, materials, triggering events
 //Replicates: any variable in the package that is known by name?
+
 Class SentryMainRep extends ReplicationInfo
 	transient;
 
-var repnotify ObjectReferencer ObjRef; //Always replicated when changed?
+var repnotify ObjectReferencer ObjRef;
 var ObjectReferencer BaseRef;
 var MaterialInstanceConstant TurSkins[3];
 var KFCharacterInfo_Monster TurretArch[3];
@@ -71,7 +72,7 @@ simulated final function InitRep()
 {
 	if( WorldInfo.NetMode!=NM_DedicatedServer )
 	{
-		//If client, pull down materials. This might be a 400ping issue
+		//If client, pull down materials. This might effect server performance
 		TurSkins[0] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[1]));
 		TurSkins[1] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[3]));
 		TurSkins[2] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[12]));
@@ -85,7 +86,6 @@ simulated final function InitRep()
 	if( WorldInfo.NetMode==NM_Client )
 		UpdateInstances();
 }
-
 simulated final function UpdateInstances()
 {
 	local SentryWeapon W;

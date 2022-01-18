@@ -488,12 +488,13 @@ defaultproperties
    ModeInfos(2)="[AltFire] (Hold) Construct new sentry turret"
    ModeInfos(3)="[AltFire] (Tap) Demolish your sentry turret (20% refund)"
    AdminInfo="ADMIN: Use Admin SentryHelp for commands"
+   InventoryGroup=IG_Equipment
+   AssociatedPerkClasses(0)=none
+   InventorySize=1
+   MagazineCapacity(0)=0
    bCanBeReloaded=False
    bReloadFromMagazine=False
-   InventoryGroup=IG_Equipment
-   InventorySize=1
    GroupPriority=5.000000
-   MagazineCapacity(0)=0
    SpareAmmoCapacity(0)=0
    Begin Object Class=KFMeleeHelperWeapon Name=MeleeHelper_0
       bUseDirectionalMelee=True
@@ -502,19 +503,16 @@ defaultproperties
       ChainSequence_F(1)=DIR_ForwardLeft
       ChainSequence_F(2)=DIR_ForwardRight
       ChainSequence_F(3)=DIR_ForwardLeft
-      ChainSequence_F(4)=()
       ChainSequence_L(1)=DIR_ForwardLeft
-      ChainSequence_L(2)=()
+      //ChainSequence_L(2)=
       ChainSequence_L(3)=DIR_Left
-      ChainSequence_L(4)=()
-      ChainSequence_L(5)=()
+      //ChainSequence_L(4)=
       ChainSequence_R(1)=DIR_ForwardRight
-      ChainSequence_R(2)=()
+      //ChainSequence_R(2)=
       ChainSequence_R(3)=DIR_Right
-      ChainSequence_R(4)=()
-      ChainSequence_R(5)=()
+      //ChainSequence_R(4)=
       MeleeImpactCamShakeScale=0.040000
-      MaxHitRange=260.000000
+      MaxHitRange=260.000000   //190.000000
       HitboxChain(0)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=170.000000))
       HitboxChain(1)=(BoneOffset=(X=0.000000,Y=3.000000,Z=150.000000))
       HitboxChain(2)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=130.000000))
@@ -523,15 +521,12 @@ defaultproperties
       HitboxChain(5)=(BoneOffset=(X=0.000000,Y=3.000000,Z=70.000000))
       HitboxChain(6)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=50.000000))
       HitboxChain(7)=(BoneOffset=(X=0.000000,Y=3.000000,Z=30.000000))
-      HitboxChain(8)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=10.000000))
-      Name="MeleeHelper_0"
-      ObjectArchetype=KFMeleeHelperWeapon'KFGame.Default__KFMeleeHelperWeapon'
+      HitboxChain(8)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=10.000000))      
    End Object
-   MeleeAttackHelper=KFMeleeHelperWeapon'tf2sentrymod.Default__SentryWeapon:MeleeHelper_0'
-   AssociatedPerkClasses(0)=None
-   AssociatedPerkClasses(1)=()
+   MeleeAttackHelper=KFMeleeHelperWeapon'Default__SentryWeapon:MeleeHelper_0'
+   
    bCanThrow=False
-   Begin Object Class=KFSkeletalMeshComponent Name=FirstPersonMesh Archetype=KFSkeletalMeshComponent'kfgamecontent.Default__KFWeap_Blunt_Pulverizer:FirstPersonMesh'
+   Begin Object Name=FirstPersonMesh
       MinTickTimeStep=0.025000
       SkeletalMesh=SkeletalMesh'WEP_1P_Pulverizer_MESH.Wep_1stP_Pulverizer_Rig_New'
       AnimTreeTemplate=AnimTree'CHR_1P_Arms_ARCH.WEP_1stP_Animtree_Master'
@@ -543,24 +538,17 @@ defaultproperties
       DepthPriorityGroup=SDPG_Foreground
       bOnlyOwnerSee=True
       LightingChannels=(bInitialized=True,Outdoor=True)
-      Scale3D=(X=1.600000,Y=1.600000,Z=1.250000)
-      bAllowPerObjectShadows=True
-      Name="FirstPersonMesh"
-      ObjectArchetype=KFSkeletalMeshComponent'kfgamecontent.Default__KFWeap_Blunt_Pulverizer:FirstPersonMesh'
+      Scale3D=(X=1.600000,Y=1.600000,Z=1.250000)   //(X=1.000000,Y=1.000000,Z=0.750000)
+      bAllowPerObjectShadows=True      
    End Object
    Mesh=FirstPersonMesh
-   ItemName="Sentry Hammer"
    bDropOnDeath=False
-   Begin Object Class=StaticMeshComponent Name=StaticPickupComponent Archetype=StaticMeshComponent'kfgamecontent.Default__KFWeap_Blunt_Pulverizer:StaticPickupComponent'
+   Begin Object Name=StaticPickupComponent
       StaticMesh=StaticMesh'WEP_3P_Pulverizer_MESH.Wep_Pulverizer_Pickup'
       ReplacementPrimitive=None
-      CastShadow=False
-      Name="StaticPickupComponent"
-      ObjectArchetype=StaticMeshComponent'kfgamecontent.Default__KFWeap_Blunt_Pulverizer:StaticPickupComponent'
+      CastShadow=False      
    End Object
    DroppedPickupMesh=StaticPickupComponent
    PickupFactoryMesh=StaticPickupComponent
-   Components(0)=PrevMesh
-   Name="Default__SentryWeapon"
-   ObjectArchetype=KFWeap_Blunt_Pulverizer'kfgamecontent.Default__KFWeap_Blunt_Pulverizer'
+   Components(0)=PrevMesh   
 }

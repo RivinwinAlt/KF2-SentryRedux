@@ -50,7 +50,6 @@ simulated final function SetTurret( SentryTurret T )
 		ActiveMenu.NetOwner = Self;
 		ActiveMenu.Init(LocalPlayer(PlayerOwner.Player));
 	}
-	//Server-side logic
 	if( WorldInfo.NetMode!=NM_Client )
 	{
 		if( TurretOwner.OwnerController==None ) // Claim ownership of this turret.

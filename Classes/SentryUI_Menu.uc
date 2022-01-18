@@ -103,7 +103,7 @@ defaultproperties
    SoundThemes(2)=(ThemeName="AAR",Theme=UISoundTheme'SoundsShared_UI.SoundTheme_AAR')
    Priority=10
    WidgetBindings(0)=(WidgetName="root1",WidgetClass=Class'GFxUI.GFxObject')
-   WidgetBindings(1)=(WidgetName="InventoryMenu",WidgetClass=Class'tf2sentrymod.SentryUI_UpgradeMenu')
+   WidgetBindings(1)=(WidgetName="InventoryMenu",WidgetClass=Class'SentryUI_UpgradeMenu')
    Name="Default__SentryUI_Menu"
    ObjectArchetype=GFxMoviePlayer'GFxUI.Default__GFxMoviePlayer'
 }

@@ -1,8 +1,6 @@
 //Main Turret object class extends pawn, but notably not _Monster or _Human
 Class SentryTurret extends KFPawn
-
-//Uses config file; lets keep all options to one config file for now
-//TODO Rename config file across project
+	//Uses config file; lets keep all options to one config file for now
 	config(SentryTurret);
 
 var transient SentryMainRep ContentRef;
@@ -26,7 +24,6 @@ var PointLightComponent TurretRedLight;
 var int AmmoLevel[2];
 
 const MAX_TURRET_LEVELS=3;
-
 const ETU_IronSightA=0;
 const ETU_IronSightB=1;
 const ETU_EagleEyeA=2;
@@ -38,9 +35,7 @@ const ETU_AmmoSMG=7;
 const ETU_AmmoSMGBig=8;
 const ETU_AmmoMissiles=9;
 const ETU_AmmoMissilesBig=10;
-const ETU_AmmoSMGMax=11;
-const ETU_AmmoMissilesMax=12;
-const ETU_MAXUPGRADES=13;
+const ETU_MAXUPGRADES=11;
 
 struct FTurretLevel
 {
@@ -54,14 +49,14 @@ var FTurretLevel Upgrades[ETU_MAXUPGRADES];
 var string UpgradeNames[ETU_MAXUPGRADES];
 
 // Server settings.
-var config byte MaxTurretsPerUser,MapMaxTurrets,HealthRegenRate;
+var config byte MaxTurretsPerUser, MapMaxTurrets, HealthRegenRate;
 var config int HealPerHit,MissileHitDamage;
 var config float MinPlacementDistance;
 var config int MaxAmmoCount[2];
 
 struct FTurretLevelCfg
 {
-	var config int Cost,Damage,Health;
+	var config int Cost, Damage, Health;
 };
 var config FTurretLevelCfg LevelCfgs[MAX_TURRET_LEVELS];
 
@@ -71,14 +66,14 @@ var config int ConfigVersion;
 /** A muzzle flash instance */
 var KFMuzzleFlash MuzzleFlash[4];
 
-var vector ScanLocation,DesScanLocation;
-var transient float ScanLocTimer,BuildTimer,NextMissileTimer,NextTakeHitSound,NextFireSoundTime;
+var vector ScanLocation, DesScanLocation;
+var transient float ScanLocTimer, BuildTimer, NextMissileTimer, NextTakeHitSound, NextFireSoundTime;
 
-var repnotify byte CannonFireCounter,AcquiredUpgrades;
+var repnotify byte CannonFireCounter, AcquiredUpgrades;
 var vector RepHitLocation;
 var repnotify Actor ViewFocusActor;
-var repnotify bool bFiringMode,bIsPendingFireMode;
-var transient bool bIsScanning,bLeftScanned,bRecentlyBuilt,bAlterFired,bAltMissileFired,bHeadHunter,bHasAutoRepair;
+var repnotify bool bFiringMode, bIsPendingFireMode;
+var transient bool bIsScanning, bLeftScanned, bRecentlyBuilt, bAlterFired, bAltMissileFired, bHeadHunter, bHasAutoRepair;
 var bool bIsUserCreated;
 
 replication
@@ -115,13 +110,12 @@ simulated function PostBeginPlay()
 		ActiveTrigger.SetBase(Self);
 	}
 
-
 	SetTimer(0.001,false,'CheckBuilt');
 }
 simulated function CheckBuilt()
 {
 	ClearTimer('CheckBuilt');
-	ClearTimer('UnsetBuilt');
+	ClearTimer('UnsetBuilt'); //but why?
 
 	if( WorldInfo.NetMode!=NM_Client )
 		bRecentlyBuilt = true;
@@ -149,9 +143,7 @@ function UnsetBuilt()
 
 static final function UpdateConfig()
 {
-	//Create/Update main Config file. We'll use version=2
-	//just in case people copy/paste from OG config file.
-	if( Default.ConfigVersion!=1 )
+	if( Default.ConfigVersion!=1 ) //increment version to reset/update old configs
 	{
 		Default.MaxTurretsPerUser = 3;
 		Default.MapMaxTurrets = 12;
@@ -177,7 +169,6 @@ static final function UpdateConfig()
 		Default.UpgradeCosts[ETU_AutoRepair] = 650;
 		Default.UpgradeCosts[ETU_AmmoSMG] = 45;
 		Default.UpgradeCosts[ETU_AmmoSMGBig] = 200;
-		Default.UpgradeCosts[ETU_AmmoSMGMax] = 2000;
 		Default.UpgradeCosts[ETU_AmmoMissiles] = 100;
 		Default.UpgradeCosts[ETU_AmmoMissilesBig] = 450;
 		Default.MaxAmmoCount[0] = 2000;
@@ -189,7 +180,7 @@ static final function UpdateConfig()
 
 simulated final function InitDisplay()
 {
-	UpdateDisplayMesh();
+	UpdateDisplayMesh(); //unnecessary function nesting
 }
 simulated final function UpdateDisplayMesh()
 {
@@ -231,7 +222,6 @@ simulated final function UpdateDisplayMesh()
 		}
 	}
 }
-
 simulated final function SoundCue GrabCue( byte Index )
 {
 	return ContentRef!=None ? SoundCue(ContentRef.ObjRef.ReferencedObjects[Index]) : None;
@@ -292,12 +282,13 @@ simulated final function AddHUDOverlay()
 
 function CheckUserAlive() // Check if owner player disconnects from server.
 {
-	if( OwnerController==None && !FindNewOwner() )
+	if( OwnerController==None /* && !FindNewOwner() */ ) //edited to disable taking over turrets when someone leaves
 		KilledBy(None);
 }
 
 final function bool FindNewOwner()
 {
+	// TODO: Check to see if the new owner would be over turret limit
 	local SentryUI_Network N;
 
 	foreach CurrentUsers(N)
@@ -308,6 +299,7 @@ final function bool FindNewOwner()
 		}
 	return false;
 }
+
 function SetTurretOwner( Controller Other, optional SentryWeapon W )
 {
 	SetTimer(4+FRand(),true,'CheckUserAlive');
@@ -326,6 +318,7 @@ simulated function string GetInfo()
 	local float F;
 
 	F = float(Health) / float(HealthMax) * 100.f;
+	// TODO: use rounding() and casting to avoid a ? operation
 	return "Owner: "$(PlayerReplicationInfo!=None ? PlayerReplicationInfo.PlayerName : "None")$" ("$(Health<HealthMax ? Clamp(F,1,99) : 100)$"% HP)";
 }
 simulated function string GetAmmoStatus()
@@ -593,6 +586,7 @@ function DelayedStartFire()
 {
 	TurretSetFiring(true);
 }
+
 simulated function TurretSetFiring( bool bFire, optional bool bInstant )
 {
 	bFiringMode = bFire;
@@ -1066,6 +1060,9 @@ function AdjustDamage(out int InDamage, out vector Momentum, Controller Instigat
 defaultproperties
 {
    AccurancyMod=1.000000
+   /*MaxTurretsPerUser=3
+   MapMaxTurrets=12
+   HealthRegenRate=10*/
    Begin Object Class=SpotLightComponent Name=SpotLight1
       OuterConeAngle=35.000000
       Radius=2000.000000
@@ -1085,8 +1082,7 @@ defaultproperties
    Begin Object Class=PointLightComponent Name=PointLightComponent1
       Radius=120.000000
       Brightness=4.000000
-      //Was purple, now red
-      LightColor=(B=0,G=0,R=255,A=255)
+      LightColor=(B=255,G=0,R=255,A=255)
       CastShadows=False
       LightingChannels=(Outdoor=True)
       MaxBrightness=1.000000
@@ -1121,11 +1117,30 @@ defaultproperties
    UpgradeNames(8)="5x SMG Ammo|Buy 500 SMG ammo.\n(No refund for excessive ammo)"
    UpgradeNames(9)="Missile Ammo|Buy 10 missiles.\n(No refund for excessive ammo)"
    UpgradeNames(10)="5x Missile Ammo|Buy 50 missiles.\n(No refund for excessive ammo)"
-   Begin Object Class=SkeletalMeshComponent Name=ThirdPersonHead0 Archetype=SkeletalMeshComponent'KFGame.Default__KFPawn:ThirdPersonHead0'
+
+   /*HealPerHit=35
+   MissileHitDamage=1500
+   MinPlacementDistance=250.000000
+   MaxAmmoCount(0)=2000
+   MaxAmmoCount(1)=50*/
+   /*LevelCfgs(0)=(Cost=2000,Damage=10,Health=350)
+   LevelCfgs(1)=(Cost=1500,Damage=11,Health=400)
+   LevelCfgs(2)=(Cost=2500,Damage=13,Health=600)*/
+   /*UpgradeCosts(0)=100
+   UpgradeCosts(1)=200
+   UpgradeCosts(2)=250
+   UpgradeCosts(3)=450
+   UpgradeCosts(4)=500
+   UpgradeCosts(5)=400
+   UpgradeCosts(6)=650
+   UpgradeCosts(7)=45
+   UpgradeCosts(8)=200
+   UpgradeCosts(9)=100
+   UpgradeCosts(10)=450*/
+   //ConfigVersion=1
+   Begin Object Name=ThirdPersonHead0
       ReplacementPrimitive=None
       bAcceptsDynamicDecals=True
-      Name="ThirdPersonHead0"
-      ObjectArchetype=SkeletalMeshComponent'KFGame.Default__KFPawn:ThirdPersonHead0'
    End Object
    ThirdPersonHeadMeshComponent=ThirdPersonHead0
    Begin Object Class=KFAfflictionManager Name=Afflictions_0 Archetype=KFAfflictionManager'KFGame.Default__KFPawn:Afflictions_0'
@@ -1134,8 +1149,8 @@ defaultproperties
       Name="Afflictions_0"
       ObjectArchetype=KFAfflictionManager'KFGame.Default__KFPawn:Afflictions_0'
    End Object
-   AfflictionHandler=KFAfflictionManager'tf2sentrymod.Default__SentryTurret:Afflictions_0'
-   Begin Object Class=KFSkeletalMeshComponent Name=FirstPersonArms Archetype=KFSkeletalMeshComponent'KFGame.Default__KFPawn:FirstPersonArms'
+   AfflictionHandler=KFAfflictionManager'Default__SentryTurret:Afflictions_0'
+   Begin Object Name=FirstPersonArms
       bIgnoreControllersWhenNotRendered=True
       bOverrideAttachmentOwnerVisibility=True
       bAllowBooleanPreshadows=False
@@ -1143,48 +1158,38 @@ defaultproperties
       DepthPriorityGroup=SDPG_Foreground
       bOnlyOwnerSee=True
       bAllowPerObjectShadows=True
-      Name="FirstPersonArms"
-      ObjectArchetype=KFSkeletalMeshComponent'KFGame.Default__KFPawn:FirstPersonArms'
    End Object
    ArmsMesh=FirstPersonArms
    Begin Object Class=KFSpecialMoveHandler Name=SpecialMoveHandler_0 Archetype=KFSpecialMoveHandler'KFGame.Default__KFPawn:SpecialMoveHandler_0'
       Name="SpecialMoveHandler_0"
       ObjectArchetype=KFSpecialMoveHandler'KFGame.Default__KFPawn:SpecialMoveHandler_0'
    End Object
-   SpecialMoveHandler=KFSpecialMoveHandler'tf2sentrymod.Default__SentryTurret:SpecialMoveHandler_0'
-   Begin Object Class=AkComponent Name=AmbientAkSoundComponent_1 Archetype=AkComponent'KFGame.Default__KFPawn:AmbientAkSoundComponent_1'
+   SpecialMoveHandler=KFSpecialMoveHandler'Default__SentryTurret:SpecialMoveHandler_0'
+   Begin Object Name=AmbientAkSoundComponent_1
       BoneName="Dummy"
       bStopWhenOwnerDestroyed=True
-      Name="AmbientAkSoundComponent_1"
-      ObjectArchetype=AkComponent'KFGame.Default__KFPawn:AmbientAkSoundComponent_1'
    End Object
    AmbientAkComponent=AmbientAkSoundComponent_1
-   Begin Object Class=AkComponent Name=AmbientAkSoundComponent_0 Archetype=AkComponent'KFGame.Default__KFPawn:AmbientAkSoundComponent_0'
+   Begin Object Name=AmbientAkSoundComponent_0
       BoneName="Dummy"
       bStopWhenOwnerDestroyed=True
       bForceOcclusionUpdateInterval=True
-      Name="AmbientAkSoundComponent_0"
-      ObjectArchetype=AkComponent'KFGame.Default__KFPawn:AmbientAkSoundComponent_0'
    End Object
    WeaponAkComponent=AmbientAkSoundComponent_0
    Begin Object Class=KFWeaponAmbientEchoHandler Name=WeaponAmbientEchoHandler_0 Archetype=KFWeaponAmbientEchoHandler'KFGame.Default__KFPawn:WeaponAmbientEchoHandler_0'
       Name="WeaponAmbientEchoHandler_0"
       ObjectArchetype=KFWeaponAmbientEchoHandler'KFGame.Default__KFPawn:WeaponAmbientEchoHandler_0'
    End Object
-   WeaponAmbientEchoHandler=KFWeaponAmbientEchoHandler'tf2sentrymod.Default__SentryTurret:WeaponAmbientEchoHandler_0'
-   Begin Object Class=AkComponent Name=FootstepAkSoundComponent Archetype=AkComponent'KFGame.Default__KFPawn:FootstepAkSoundComponent'
+   WeaponAmbientEchoHandler=KFWeaponAmbientEchoHandler'Default__SentryTurret:WeaponAmbientEchoHandler_0'
+   Begin Object Name=FootstepAkSoundComponent
       BoneName="Dummy"
       bStopWhenOwnerDestroyed=True
       bForceOcclusionUpdateInterval=True
-      Name="FootstepAkSoundComponent"
-      ObjectArchetype=AkComponent'KFGame.Default__KFPawn:FootstepAkSoundComponent'
    End Object
    FootstepAkComponent=FootstepAkSoundComponent
-   Begin Object Class=AkComponent Name=DialogAkSoundComponent Archetype=AkComponent'KFGame.Default__KFPawn:DialogAkSoundComponent'
+   Begin Object Name=DialogAkSoundComponent
       BoneName="Dummy"
       bStopWhenOwnerDestroyed=True
-      Name="DialogAkSoundComponent"
-      ObjectArchetype=AkComponent'KFGame.Default__KFPawn:DialogAkSoundComponent'
    End Object
    DialogAkComponent=DialogAkSoundComponent
    SightRadius=2200.000000
@@ -1193,7 +1198,8 @@ defaultproperties
    EyeHeight=70.000000
    Health=350
    HealthMax=350
-   ControllerClass=Class'tf2sentrymod.SentryTurretAI'
+   //MenuName="Sentry Gun"
+   ControllerClass=Class'SentryTurretAI'
    Begin Object Class=SkeletalMeshComponent Name=SkelMesh
       bUpdateSkelWhenNotRendered=False
       ReplacementPrimitive=None
@@ -1208,28 +1214,24 @@ defaultproperties
       ObjectArchetype=SkeletalMeshComponent'Engine.Default__SkeletalMeshComponent'
    End Object
    Mesh=SkelMesh
-   Begin Object Class=CylinderComponent Name=CollisionCylinder Archetype=CylinderComponent'KFGame.Default__KFPawn:CollisionCylinder'
+   Begin Object Name=CollisionCylinder
       CollisionHeight=50.000000
       CollisionRadius=30.000000
       ReplacementPrimitive=None
       CollideActors=True
       BlockActors=True
       BlockZeroExtent=False
-      Name="CollisionCylinder"
-      ObjectArchetype=CylinderComponent'KFGame.Default__KFPawn:CollisionCylinder'
    End Object
    CylinderComponent=CollisionCylinder
    Components(0)=CollisionCylinder
-   Begin Object Class=ArrowComponent Name=Arrow Archetype=ArrowComponent'KFGame.Default__KFPawn:Arrow'
+   Begin Object Name=Arrow
       ArrowColor=(B=255,G=200,R=150,A=255)
       bTreatAsASprite=True
       SpriteCategoryName="Pawns"
       ReplacementPrimitive=None
-      Name="Arrow"
-      ObjectArchetype=ArrowComponent'KFGame.Default__KFPawn:Arrow'
    End Object
    Components(1)=Arrow
-   Begin Object Class=KFSkeletalMeshComponent Name=KFPawnSkeletalMeshComponent Archetype=KFSkeletalMeshComponent'KFGame.Default__KFPawn:KFPawnSkeletalMeshComponent'
+   Begin Object Name=KFPawnSkeletalMeshComponent
       MinDistFactorForKinematicUpdate=0.200000
       bSkipAllUpdateWhenPhysicsAsleep=True
       bIgnoreControllersWhenNotRendered=True
@@ -1253,8 +1255,6 @@ defaultproperties
       PerObjectShadowCullDistance=2500.000000
       bAllowPerObjectShadows=True
       TickGroup=TG_DuringAsyncWork
-      Name="KFPawnSkeletalMeshComponent"
-      ObjectArchetype=KFSkeletalMeshComponent'KFGame.Default__KFPawn:KFPawnSkeletalMeshComponent'
    End Object
    Components(2)=KFPawnSkeletalMeshComponent
    Components(3)=AmbientAkSoundComponent_0
@@ -1264,6 +1264,4 @@ defaultproperties
    Components(7)=SkelMesh
    Physics=PHYS_Falling
    CollisionComponent=CollisionCylinder
-   Name="Default__SentryTurret"
-   ObjectArchetype=KFPawn'KFGame.Default__KFPawn'
 }

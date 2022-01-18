@@ -7,6 +7,5 @@ defaultproperties
    ImagePath="ui_weaponselect_tex.UI_WeaponSelect_Pulverizer"
    BuyPrice=500
    EffectiveRange=100
-   Name="Default__SentryWeaponDef"
-   ObjectArchetype=KFWeaponDefinition'KFGame.Default__KFWeaponDefinition'
+
 }

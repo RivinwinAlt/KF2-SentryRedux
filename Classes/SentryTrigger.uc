@@ -1,7 +1,7 @@
 //This is a colidable actor spawned around turrets to enable using the turret's menu.
 Class SentryTrigger extends Actor
 	transient
-	implements(KFInterface_Usable); //Allows putting up the [E to use] overlay
+	implements(KFInterface_Usable);
 
 var SentryTurret TurretOwner;
 
@@ -64,7 +64,7 @@ simulated function bool GetIsUsable( Pawn User )
 }
 
 /** Return the index for our interaction message. */
-//This returns a KF2 standard 'Use' message
+//This returns a KF2 standard 'Use' hud message
 simulated function int GetInteractionIndex( Pawn User )
 {
 	return IMT_AcceptObjective;
