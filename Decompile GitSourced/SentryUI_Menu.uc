@@ -93,14 +93,17 @@ function UpdateDisplay()
 		UpgradeMenu.Refresh();
 }
 
-
-// Decompiled with UE Explorer.
 defaultproperties
 {
-    MovieInfo=SwfMovie'UI_Managers.LoaderManager_SWF'
-    bAutoPlay=true
-    bCaptureInput=true
-    SoundThemes=/* Array type was not detected. */
-    Priority=10
-    WidgetBindings=/* Array type was not detected. */
+   MovieInfo=SwfMovie'UI_Managers.LoaderManager_SWF'
+   bAutoPlay=True
+   bCaptureInput=True
+   SoundThemes(0)=(ThemeName="SoundTheme_Crate",Theme=UISoundTheme'SoundsShared_UI.SoundTheme_Crate')
+   SoundThemes(1)=(ThemeName="ButtonSoundTheme",Theme=UISoundTheme'SoundsShared_UI.SoundTheme_Buttons')
+   SoundThemes(2)=(ThemeName="AAR",Theme=UISoundTheme'SoundsShared_UI.SoundTheme_AAR')
+   Priority=10
+   WidgetBindings(0)=(WidgetName="root1",WidgetClass=Class'GFxUI.GFxObject')
+   WidgetBindings(1)=(WidgetName="InventoryMenu",WidgetClass=Class'SentryUI_UpgradeMenu')
+   Name="Default__SentryUI_Menu"
+   ObjectArchetype=GFxMoviePlayer'GFxUI.Default__GFxMoviePlayer'
 }

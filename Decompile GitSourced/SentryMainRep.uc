@@ -103,10 +103,10 @@ simulated static final function MaterialInstanceConstant CloneMIC( MaterialInsta
 	return M;
 }
 
-
-// Decompiled with UE Explorer.
 defaultproperties
 {
-    BaseRef=ObjectReferencer'tf2sentry.Arch.TurretObjList'
-    NetUpdateFrequency=4.0
+   BaseRef=ObjectReferencer'tf2sentry.Arch.TurretObjList'
+   NetUpdateFrequency=4.000000
+   Name="Default__SentryMainRep"
+   ObjectArchetype=ReplicationInfo'Engine.Default__ReplicationInfo'
 }

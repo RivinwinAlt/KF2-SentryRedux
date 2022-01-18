@@ -268,10 +268,10 @@ Begin:
 	}
 }
 
-
-// Decompiled with UE Explorer.
 defaultproperties
 {
-    bOnlyRelevantToOwner=true
-    bAlwaysRelevant=false
+   bOnlyRelevantToOwner=True
+   bAlwaysRelevant=False
+   Name="Default__SentryUI_Network"
+   ObjectArchetype=ReplicationInfo'Engine.Default__ReplicationInfo'
 }

@@ -89,11 +89,11 @@ event PostRender(Canvas Canvas)
 	}
 }
 
-
-// Decompiled with UE Explorer.
 defaultproperties
 {
-    DrawInfo=(bClipText=true,bEnableShadow=true,GlowInfo=(bEnableGlow=false,GlowColor=(R=0.0,G=0.0,B=0.0,A=1.0),GlowOuterRadius=(X=0.0,Y=0.0),GlowInnerRadius=(X=0.0,Y=0.0)))
-    OwnerColor=(R=48,G=255,B=48,A=255)
-    OtherColor=(R=255,G=200,B=48,A=255)
+   DrawInfo=(bClipText=True,bEnableShadow=True,GlowInfo=(GlowColor=(R=0.000000,G=0.000000,B=0.000000,A=1.000000)))
+   OwnerColor=(B=48,G=255,R=48,A=255)
+   OtherColor=(B=48,G=200,R=255,A=255)
+   Name="Default__SentryOverlay"
+   ObjectArchetype=Interaction'Engine.Default__Interaction'
 }

@@ -56,26 +56,20 @@ simulated function int GetInteractionIndex( Pawn User )
 	return IMT_AcceptObjective;
 }
 
-
-// Decompiled with UE Explorer.
 defaultproperties
 {
-    begin object name=CollisionCylinder class=CylinderComponent
-        CollisionHeight=56.0
-        CollisionRadius=56.0
-        ReplacementPrimitive=none
-        CollideActors=true
-    object end
-    // Reference: CylinderComponent'Default__SentryTrigger.CollisionCylinder'
-    Components(0)=CollisionCylinder
-    bHidden=true
-    bCollideActors=true
-    begin object name=CollisionCylinder class=CylinderComponent
-        CollisionHeight=56.0
-        CollisionRadius=56.0
-        ReplacementPrimitive=none
-        CollideActors=true
-    object end
-    // Reference: CylinderComponent'Default__SentryTrigger.CollisionCylinder'
-    CollisionComponent=CollisionCylinder
+   Begin Object Class=CylinderComponent Name=CollisionCylinder
+      CollisionHeight=56.000000
+      CollisionRadius=56.000000
+      ReplacementPrimitive=None
+      CollideActors=True
+      Name="CollisionCylinder"
+      ObjectArchetype=CylinderComponent'Engine.Default__CylinderComponent'
+   End Object
+   Components(0)=CollisionCylinder
+   bHidden=True
+   bCollideActors=True
+   CollisionComponent=CollisionCylinder
+   Name="Default__SentryTrigger"
+   ObjectArchetype=Actor'Engine.Default__Actor'
 }

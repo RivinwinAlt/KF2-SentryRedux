@@ -468,80 +468,87 @@ static final function bool ParseLevelConfig( int Index, string S )
 	return true;
 }
 
-
-// Decompiled with UE Explorer.
 defaultproperties
 {
-    begin object name=PrevMesh class=SkeletalMeshComponent
-        ReplacementPrimitive=none
-        HiddenGame=true
-        bOnlyOwnerSee=true
-        AbsoluteTranslation=true
-        AbsoluteRotation=true
-        LightingChannels=(bInitialized=true,Indoor=true,Outdoor=true)
-        Translation=(X=0.0,Y=0.0,Z=-50.0)
-        Scale=2.50
-    object end
-    // Reference: SkeletalMeshComponent'Default__SentryWeapon.PrevMesh'
-    TurretPreview=PrevMesh
-    ModeInfos(0)="Sentry builder:"
-    ModeInfos(1)="[Fire] Repair sentry turret"
-    ModeInfos(2)="[AltFire] (Hold) Construct new sentry turret"
-    ModeInfos(3)="[AltFire] (Tap) Demolish your sentry turret (20% refund)"
-    AdminInfo="ADMIN: Use Admin SentryHelp for commands"
-    bCanBeReloaded=false
-    bReloadFromMagazine=false
-    InventoryGroup=EInventoryGroup.IG_Equipment
-    InventorySize=1
-    MagazineCapacity=0
-    GroupPriority=5.0
-    SpareAmmoCapacity=0
-    begin object name=MeleeHelper class=KFMeleeHelperWeapon
-        bUseDirectionalMelee=true
-        bHasChainAttacks=true
-        ChainSequence_F=/* Array type was not detected. */
-        ChainSequence_L=/* Array type was not detected. */
-        ChainSequence_R=/* Array type was not detected. */
-        MeleeImpactCamShakeScale=0.040
-        MaxHitRange=260.0
-        HitboxChain=/* Array type was not detected. */
-    object end
-    // Reference: KFMeleeHelperWeapon'Default__SentryWeapon.MeleeHelper'
-    MeleeAttackHelper=MeleeHelper
-    AssociatedPerkClasses=/* Array type was not detected. */
-    bCanThrow=false
-    begin object name=FirstPersonMesh class=KFSkeletalMeshComponent
-        SkeletalMesh=SkeletalMesh'WEP_1P_Pulverizer_MESH.Wep_1stP_Pulverizer_Rig_New'
-        AnimSets(0)=AnimSet'WEP_1P_Pulverizer_ANIM.Wep_1stP_Pulverizer_Anim'
-        Materials=/* Array type was not detected. */
-        ReplacementPrimitive=none
-        Scale3D=(X=1.60,Y=1.60,Z=1.250)
-    object end
-    // Reference: KFSkeletalMeshComponent'Default__SentryWeapon.FirstPersonMesh'
-    Mesh=FirstPersonMesh
-    bDropOnDeath=false
-    begin object name=StaticPickupComponent class=StaticMeshComponent
-        StaticMesh=StaticMesh'WEP_3P_Pulverizer_MESH.Wep_Pulverizer_Pickup'
-        ReplacementPrimitive=none
-    object end
-    // Reference: StaticMeshComponent'Default__SentryWeapon.StaticPickupComponent'
-    DroppedPickupMesh=StaticPickupComponent
-    begin object name=StaticPickupComponent class=StaticMeshComponent
-        StaticMesh=StaticMesh'WEP_3P_Pulverizer_MESH.Wep_Pulverizer_Pickup'
-        ReplacementPrimitive=none
-    object end
-    // Reference: StaticMeshComponent'Default__SentryWeapon.StaticPickupComponent'
-    PickupFactoryMesh=StaticPickupComponent
-    begin object name=PrevMesh class=SkeletalMeshComponent
-        ReplacementPrimitive=none
-        HiddenGame=true
-        bOnlyOwnerSee=true
-        AbsoluteTranslation=true
-        AbsoluteRotation=true
-        LightingChannels=(bInitialized=true,Indoor=true,Outdoor=true)
-        Translation=(X=0.0,Y=0.0,Z=-50.0)
-        Scale=2.50
-    object end
-    // Reference: SkeletalMeshComponent'Default__SentryWeapon.PrevMesh'
-    Components(0)=PrevMesh
+   Begin Object Class=SkeletalMeshComponent Name=PrevMesh
+      ReplacementPrimitive=None
+      HiddenGame=True
+      bOnlyOwnerSee=True
+      AbsoluteTranslation=True
+      AbsoluteRotation=True
+      LightingChannels=(bInitialized=True,Indoor=True,Outdoor=True)
+      Translation=(X=0.000000,Y=0.000000,Z=-50.000000)
+      Scale=2.500000
+      Name="PrevMesh"
+      ObjectArchetype=SkeletalMeshComponent'Engine.Default__SkeletalMeshComponent'
+   End Object
+   TurretPreview=PrevMesh
+   ModeInfos(0)="Sentry builder:"
+   ModeInfos(1)="[Fire] Repair sentry turret"
+   ModeInfos(2)="[AltFire] (Hold) Construct new sentry turret"
+   ModeInfos(3)="[AltFire] (Tap) Demolish your sentry turret (20% refund)"
+   AdminInfo="ADMIN: Use Admin SentryHelp for commands"
+   InventoryGroup=IG_Equipment
+   AssociatedPerkClasses(0)=none
+   InventorySize=1
+   MagazineCapacity(0)=0
+   bCanBeReloaded=False
+   bReloadFromMagazine=False
+   GroupPriority=5.000000
+   SpareAmmoCapacity(0)=0
+   Begin Object Class=KFMeleeHelperWeapon Name=MeleeHelper_0
+      bUseDirectionalMelee=True
+      bHasChainAttacks=True
+      ChainSequence_F(0)=DIR_ForwardRight
+      ChainSequence_F(1)=DIR_ForwardLeft
+      ChainSequence_F(2)=DIR_ForwardRight
+      ChainSequence_F(3)=DIR_ForwardLeft
+      ChainSequence_L(1)=DIR_ForwardLeft
+      //ChainSequence_L(2)=
+      ChainSequence_L(3)=DIR_Left
+      //ChainSequence_L(4)=
+      ChainSequence_R(1)=DIR_ForwardRight
+      //ChainSequence_R(2)=
+      ChainSequence_R(3)=DIR_Right
+      //ChainSequence_R(4)=
+      MeleeImpactCamShakeScale=0.040000
+      MaxHitRange=260.000000   //190.000000
+      HitboxChain(0)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=170.000000))
+      HitboxChain(1)=(BoneOffset=(X=0.000000,Y=3.000000,Z=150.000000))
+      HitboxChain(2)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=130.000000))
+      HitboxChain(3)=(BoneOffset=(X=0.000000,Y=3.000000,Z=110.000000))
+      HitboxChain(4)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=90.000000))
+      HitboxChain(5)=(BoneOffset=(X=0.000000,Y=3.000000,Z=70.000000))
+      HitboxChain(6)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=50.000000))
+      HitboxChain(7)=(BoneOffset=(X=0.000000,Y=3.000000,Z=30.000000))
+      HitboxChain(8)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=10.000000))      
+   End Object
+   MeleeAttackHelper=KFMeleeHelperWeapon'Default__SentryWeapon:MeleeHelper_0'
+   
+   bCanThrow=False
+   Begin Object Name=FirstPersonMesh
+      MinTickTimeStep=0.025000
+      SkeletalMesh=SkeletalMesh'WEP_1P_Pulverizer_MESH.Wep_1stP_Pulverizer_Rig_New'
+      AnimTreeTemplate=AnimTree'CHR_1P_Arms_ARCH.WEP_1stP_Animtree_Master'
+      AnimSets(0)=AnimSet'WEP_1P_Pulverizer_ANIM.Wep_1stP_Pulverizer_Anim'
+      bOverrideAttachmentOwnerVisibility=True
+      bAllowBooleanPreshadows=False
+      Materials(0)=MaterialInstanceConstant'WEP_3P_Pulverizer_MAT.3P_Pickup_Pulverizer_MIC'
+      ReplacementPrimitive=None
+      DepthPriorityGroup=SDPG_Foreground
+      bOnlyOwnerSee=True
+      LightingChannels=(bInitialized=True,Outdoor=True)
+      Scale3D=(X=1.600000,Y=1.600000,Z=1.250000)   //(X=1.000000,Y=1.000000,Z=0.750000)
+      bAllowPerObjectShadows=True      
+   End Object
+   Mesh=FirstPersonMesh
+   bDropOnDeath=False
+   Begin Object Name=StaticPickupComponent
+      StaticMesh=StaticMesh'WEP_3P_Pulverizer_MESH.Wep_Pulverizer_Pickup'
+      ReplacementPrimitive=None
+      CastShadow=False      
+   End Object
+   DroppedPickupMesh=StaticPickupComponent
+   PickupFactoryMesh=StaticPickupComponent
+   Components(0)=PrevMesh   
 }

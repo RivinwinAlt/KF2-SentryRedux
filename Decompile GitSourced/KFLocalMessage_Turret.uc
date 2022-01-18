@@ -54,3 +54,8 @@ static function string GetString(
 	}
 }
 
+defaultproperties
+{
+   Name="Default__KFLocalMessage_Turret"
+   ObjectArchetype=LocalMessage'Engine.Default__LocalMessage'
+}

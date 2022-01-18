@@ -21,7 +21,6 @@ var PointLightComponent TurretRedLight;
 var int AmmoLevel[2];
 
 const MAX_TURRET_LEVELS=3;
-
 const ETU_IronSightA=0;
 const ETU_IronSightB=1;
 const ETU_EagleEyeA=2;
@@ -33,9 +32,7 @@ const ETU_AmmoSMG=7;
 const ETU_AmmoSMGBig=8;
 const ETU_AmmoMissiles=9;
 const ETU_AmmoMissilesBig=10;
-const ETU_AmmoSMGMax=11;
-const ETU_AmmoMissilesMax=12;
-const ETU_MAXUPGRADES=13;
+const ETU_MAXUPGRADES=11;
 
 struct FTurretLevel
 {
@@ -170,7 +167,6 @@ static final function UpdateConfig()
 		Default.UpgradeCosts[ETU_AutoRepair] = 650;
 		Default.UpgradeCosts[ETU_AmmoSMG] = 45;
 		Default.UpgradeCosts[ETU_AmmoSMGBig] = 200;
-		Default.UpgradeCosts[ETU_AmmoSMGMax] = 2000;
 		Default.UpgradeCosts[ETU_AmmoMissiles] = 100;
 		Default.UpgradeCosts[ETU_AmmoMissilesBig] = 450;
 		Default.MaxAmmoCount[0] = 2000;
@@ -1055,147 +1051,211 @@ function AdjustDamage(out int InDamage, out vector Momentum, Controller Instigat
 	Super.AdjustDamage(InDamage,Momentum,InstigatedBy,HitLocation,DamageType,HitInfo,DamageCauser);
 }
 
-
-// Decompiled with UE Explorer.
 defaultproperties
 {
-    AccurancyMod=1.0
-    begin object name=SpotLight1 class=SpotLightComponent
-        OuterConeAngle=35.0
-        Radius=2000.0
-        FalloffExponent=3.0
-        Brightness=1.750
-        CastShadows=false
-        CastStaticShadows=false
-        CastDynamicShadows=false
-        bCastCompositeShadow=false
-        bCastPerObjectShadows=false
-        LightingChannels=(Outdoor=true)
-        MaxDrawDistance=3500.0
-    object end
-    // Reference: SpotLightComponent'Default__SentryTurret.SpotLight1'
-    TurretSpotLight=SpotLight1
-    begin object name=PointLightComponent1 class=PointLightComponent
-        Radius=120.0
-        Brightness=4.0
-        LightColor=(R=255,G=0,B=255,A=255)
-        CastShadows=false
-        LightingChannels=(Outdoor=true)
-        MaxBrightness=1.0
-        AnimationType=2
-        AnimationFrequency=1.0
-    object end
-    // Reference: PointLightComponent'Default__SentryTurret.PointLightComponent1'
-    TurretRedLight=PointLightComponent1
-    Levels[0]=(Icon=Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_01',RoF=0.30,Buyer=none,UIName="Level1")
-    Levels[1]=(Icon=Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_02',RoF=0.1250,Buyer=none,UIName="Level2")
-    Levels[2]=(Icon=Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_04',RoF=0.10,Buyer=none,UIName="Level3")
-    Upgrades[0]=(Icon=Texture2D'UI_Award_PersonalMulti.UI_Award_PersonalMulti-Headshots',RoF=0.0,Buyer=none,UIName="IronSight1")
-    Upgrades[1]=(Icon=Texture2D'UI_Award_PersonalSolo.UI_Award_PersonalSolo-Headshots',RoF=0.0,Buyer=none,UIName="IronSight2")
-    Upgrades[2]=(Icon=Texture2D'UI_PerkTalent_TEX.commando.UI_Talents_Commando_Impact',RoF=0.0,Buyer=none,UIName="EagleEye1")
-    Upgrades[3]=(Icon=Texture2D'UI_PerkTalent_TEX.commando.UI_Talents_Commando_AutoFire',RoF=0.0,Buyer=none,UIName="EagleEye2")
-    Upgrades[4]=(Icon=Texture2D'UI_Award_Team.UI_Award_Team-Headshots',RoF=0.0,Buyer=none,UIName="Headshot")
-    Upgrades[5]=(Icon=Texture2D'ui_firemodes_tex.UI_FireModeSelect_Rocket',RoF=0.0,Buyer=none,UIName="HomingRocket")
-    Upgrades[6]=(Icon=Texture2D'UI_PerkIcons_TEX.UI_PerkIcon_Medic',RoF=0.0,Buyer=none,UIName="AutoRepair")
-    Upgrades[7]=(Icon=Texture2D'ui_firemodes_tex.UI_FireModeSelect_BulletBurst',RoF=0.0,Buyer=none,UIName="Ammo")
-    Upgrades[8]=(Icon=Texture2D'ui_firemodes_tex.UI_FireModeSelect_BulletAuto',RoF=0.0,Buyer=none,UIName="AmmoBig")
-    Upgrades[9]=(Icon=Texture2D'ui_firemodes_tex.UI_FireModeSelect_Nail',RoF=0.0,Buyer=none,UIName="Missile")
-    Upgrades[10]=(Icon=Texture2D'ui_firemodes_tex.UI_FireModeSelect_NailsBurst',RoF=0.0,Buyer=none,UIName="MissileBig")
-    UpgradeNames[0]="Iron Sight 1|This upgrade gives this turret level 1 firing precision.\\n+30 % accurancy."
-    UpgradeNames[1]="Iron Sight 2|This upgrade gives this turret level 2 firing precision.\\n+60 % accurancy."
-    UpgradeNames[2]="Eagle Eye 1|This upgrade gives this turret level 1 sight distance bonus.\\n+50 % sight distance."
-    UpgradeNames[3]="Eagle Eye 2|This upgrade gives this turret level 2 sight distance bonus.\\n+100 % sight distance."
-    UpgradeNames[4]="Head Hunter|This upgrade makes the turret aim at zed heads instead of body."
-    UpgradeNames[5]="Homing Missiles|This upgrade makes the level 3 turret fire homing missiles instead of regular missiles.\\n-Requires level 3 turret to purchase!"
-    UpgradeNames[6]="Auto Repair|This upgrade makes the turret auto regain health slowly over time when haven't taken damage for 30 seconds."
-    UpgradeNames[7]="SMG Ammo|Buy 100 SMG ammo.\\n(No refund for excessive ammo)"
-    UpgradeNames[8]="5x SMG Ammo|Buy 500 SMG ammo.\\n(No refund for excessive ammo)"
-    UpgradeNames[9]="Missile Ammo|Buy 10 missiles.\\n(No refund for excessive ammo)"
-    UpgradeNames[10]="5x Missile Ammo|Buy 50 missiles.\\n(No refund for excessive ammo)"
-    begin object name=ThirdPersonHead0 class=SkeletalMeshComponent
-        ReplacementPrimitive=none
-    object end
-    // Reference: SkeletalMeshComponent'Default__SentryTurret.ThirdPersonHead0'
-    ThirdPersonHeadMeshComponent=ThirdPersonHead0
-    AfflictionHandler=KFAfflictionManager'Default__SentryTurret.Afflictions'
-    begin object name=FirstPersonArms class=KFSkeletalMeshComponent
-        ReplacementPrimitive=none
-    object end
-    // Reference: KFSkeletalMeshComponent'Default__SentryTurret.FirstPersonArms'
-    ArmsMesh=FirstPersonArms
-    SpecialMoveHandler=KFSpecialMoveHandler'Default__SentryTurret.SpecialMoveHandler'
-    AmbientAkComponent=AkComponent'Default__SentryTurret.AmbientAkSoundComponent_1'
-    WeaponAkComponent=AkComponent'Default__SentryTurret.AmbientAkSoundComponent'
-    WeaponAmbientEchoHandler=KFWeaponAmbientEchoHandler'Default__SentryTurret.WeaponAmbientEchoHandler'
-    FootstepAkComponent=AkComponent'Default__SentryTurret.FootstepAkSoundComponent'
-    DialogAkComponent=AkComponent'Default__SentryTurret.DialogAkSoundComponent'
-    SightRadius=2200.0
-    Mass=5500.0
-    BaseEyeHeight=70.0
-    EyeHeight=70.0
-    Health=350
-    HealthMax=350
-    ControllerClass=class'SentryTurretAI'
-    begin object name=SkelMesh class=SkeletalMeshComponent
-        bUpdateSkelWhenNotRendered=false
-        ReplacementPrimitive=none
-        RBChannel=ERBCollisionChannel.RBCC_GameplayPhysics
-        CollideActors=true
-        BlockZeroExtent=true
-        LightingChannels=(bInitialized=true,Indoor=true,Outdoor=true)
-        RBCollideWithChannels=(Default=true,GameplayPhysics=true,EffectPhysics=true,BlockingVolume=true)
-        Translation=(X=0.0,Y=0.0,Z=-50.0)
-        Scale=2.50
-    object end
-    // Reference: SkeletalMeshComponent'Default__SentryTurret.SkelMesh'
-    Mesh=SkelMesh
-    begin object name=CollisionCylinder class=CylinderComponent
-        CollisionHeight=50.0
-        CollisionRadius=30.0
-        ReplacementPrimitive=none
-    object end
-    // Reference: CylinderComponent'Default__SentryTurret.CollisionCylinder'
-    CylinderComponent=CollisionCylinder
-    begin object name=CollisionCylinder class=CylinderComponent
-        CollisionHeight=50.0
-        CollisionRadius=30.0
-        ReplacementPrimitive=none
-    object end
-    // Reference: CylinderComponent'Default__SentryTurret.CollisionCylinder'
-    Components(0)=CollisionCylinder
-    begin object name=Arrow class=ArrowComponent
-        ReplacementPrimitive=none
-    object end
-    // Reference: ArrowComponent'Default__SentryTurret.Arrow'
-    Components(1)=Arrow
-    begin object name=KFPawnSkeletalMeshComponent class=KFSkeletalMeshComponent
-        ReplacementPrimitive=none
-    object end
-    // Reference: KFSkeletalMeshComponent'Default__SentryTurret.KFPawnSkeletalMeshComponent'
-    Components(2)=KFPawnSkeletalMeshComponent
-    Components(3)=AkComponent'Default__SentryTurret.AmbientAkSoundComponent'
-    Components(4)=AkComponent'Default__SentryTurret.AmbientAkSoundComponent_1'
-    Components(5)=AkComponent'Default__SentryTurret.FootstepAkSoundComponent'
-    Components(6)=AkComponent'Default__SentryTurret.DialogAkSoundComponent'
-    begin object name=SkelMesh class=SkeletalMeshComponent
-        bUpdateSkelWhenNotRendered=false
-        ReplacementPrimitive=none
-        RBChannel=ERBCollisionChannel.RBCC_GameplayPhysics
-        CollideActors=true
-        BlockZeroExtent=true
-        LightingChannels=(bInitialized=true,Indoor=true,Outdoor=true)
-        RBCollideWithChannels=(Default=true,GameplayPhysics=true,EffectPhysics=true,BlockingVolume=true)
-        Translation=(X=0.0,Y=0.0,Z=-50.0)
-        Scale=2.50
-    object end
-    // Reference: SkeletalMeshComponent'Default__SentryTurret.SkelMesh'
-    Components(7)=SkelMesh
-    Physics=EPhysics.PHYS_Falling
-    begin object name=CollisionCylinder class=CylinderComponent
-        CollisionHeight=50.0
-        CollisionRadius=30.0
-        ReplacementPrimitive=none
-    object end
-    // Reference: CylinderComponent'Default__SentryTurret.CollisionCylinder'
-    CollisionComponent=CollisionCylinder
+   AccurancyMod=1.000000
+   /*MaxTurretsPerUser=3
+   MapMaxTurrets=12
+   HealthRegenRate=10*/
+   Begin Object Class=SpotLightComponent Name=SpotLight1
+      OuterConeAngle=35.000000
+      Radius=2000.000000
+      FalloffExponent=3.000000
+      Brightness=1.750000
+      CastShadows=False
+      CastStaticShadows=False
+      CastDynamicShadows=False
+      bCastCompositeShadow=False
+      bCastPerObjectShadows=False
+      LightingChannels=(Outdoor=True)
+      MaxDrawDistance=3500.000000
+      Name="SpotLight1"
+      ObjectArchetype=SpotLightComponent'Engine.Default__SpotLightComponent'
+   End Object
+   TurretSpotLight=SpotLight1
+   Begin Object Class=PointLightComponent Name=PointLightComponent1
+      Radius=120.000000
+      Brightness=4.000000
+      LightColor=(B=255,G=0,R=255,A=255)
+      CastShadows=False
+      LightingChannels=(Outdoor=True)
+      MaxBrightness=1.000000
+      AnimationType=2
+      AnimationFrequency=1.000000
+      Name="PointLightComponent1"
+      ObjectArchetype=PointLightComponent'Engine.Default__PointLightComponent'
+   End Object
+   TurretRedLight=PointLightComponent1
+   Levels(0)=(Icon=Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_01',RoF=0.300000,UIName="Level1")
+   Levels(1)=(Icon=Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_02',RoF=0.125000,UIName="Level2")
+   Levels(2)=(Icon=Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_04',RoF=0.100000,UIName="Level3")
+   Upgrades(0)=(Icon=Texture2D'UI_Award_PersonalMulti.UI_Award_PersonalMulti-Headshots',UIName="IronSight1")
+   Upgrades(1)=(Icon=Texture2D'UI_Award_PersonalSolo.UI_Award_PersonalSolo-Headshots',UIName="IronSight2")
+   Upgrades(2)=(Icon=Texture2D'UI_PerkTalent_TEX.commando.UI_Talents_Commando_Impact',UIName="EagleEye1")
+   Upgrades(3)=(Icon=Texture2D'UI_PerkTalent_TEX.commando.UI_Talents_Commando_AutoFire',UIName="EagleEye2")
+   Upgrades(4)=(Icon=Texture2D'UI_Award_Team.UI_Award_Team-Headshots',UIName="Headshot")
+   Upgrades(5)=(Icon=Texture2D'ui_firemodes_tex.UI_FireModeSelect_Rocket',UIName="HomingRocket")
+   Upgrades(6)=(Icon=Texture2D'UI_PerkIcons_TEX.UI_PerkIcon_Medic',UIName="AutoRepair")
+   Upgrades(7)=(Icon=Texture2D'ui_firemodes_tex.UI_FireModeSelect_BulletBurst',UIName="Ammo")
+   Upgrades(8)=(Icon=Texture2D'ui_firemodes_tex.UI_FireModeSelect_BulletAuto',UIName="AmmoBig")
+   Upgrades(9)=(Icon=Texture2D'ui_firemodes_tex.UI_FireModeSelect_Nail',UIName="Missile")
+   Upgrades(10)=(Icon=Texture2D'ui_firemodes_tex.UI_FireModeSelect_NailsBurst',UIName="MissileBig")
+   UpgradeNames(0)="Iron Sight 1|This upgrade gives this turret level 1 firing precision.\n+30 % accurancy."
+   UpgradeNames(1)="Iron Sight 2|This upgrade gives this turret level 2 firing precision.\n+60 % accurancy."
+   UpgradeNames(2)="Eagle Eye 1|This upgrade gives this turret level 1 sight distance bonus.\n+50 % sight distance."
+   UpgradeNames(3)="Eagle Eye 2|This upgrade gives this turret level 2 sight distance bonus.\n+100 % sight distance."
+   UpgradeNames(4)="Head Hunter|This upgrade makes the turret aim at zed heads instead of body."
+   UpgradeNames(5)="Homing Missiles|This upgrade makes the level 3 turret fire homing missiles instead of regular missiles.\n-Requires level 3 turret to purchase!"
+   UpgradeNames(6)="Auto Repair|This upgrade makes the turret auto regain health slowly over time when haven't taken damage for 30 seconds."
+   UpgradeNames(7)="SMG Ammo|Buy 100 SMG ammo.\n(No refund for excessive ammo)"
+   UpgradeNames(8)="5x SMG Ammo|Buy 500 SMG ammo.\n(No refund for excessive ammo)"
+   UpgradeNames(9)="Missile Ammo|Buy 10 missiles.\n(No refund for excessive ammo)"
+   UpgradeNames(10)="5x Missile Ammo|Buy 50 missiles.\n(No refund for excessive ammo)"
+
+   /*HealPerHit=35
+   MissileHitDamage=1500
+   MinPlacementDistance=250.000000
+   MaxAmmoCount(0)=2000
+   MaxAmmoCount(1)=50*/
+   /*LevelCfgs(0)=(Cost=2000,Damage=10,Health=350)
+   LevelCfgs(1)=(Cost=1500,Damage=11,Health=400)
+   LevelCfgs(2)=(Cost=2500,Damage=13,Health=600)*/
+   /*UpgradeCosts(0)=100
+   UpgradeCosts(1)=200
+   UpgradeCosts(2)=250
+   UpgradeCosts(3)=450
+   UpgradeCosts(4)=500
+   UpgradeCosts(5)=400
+   UpgradeCosts(6)=650
+   UpgradeCosts(7)=45
+   UpgradeCosts(8)=200
+   UpgradeCosts(9)=100
+   UpgradeCosts(10)=450*/
+   //ConfigVersion=1
+   Begin Object Name=ThirdPersonHead0
+      ReplacementPrimitive=None
+      bAcceptsDynamicDecals=True
+   End Object
+   ThirdPersonHeadMeshComponent=ThirdPersonHead0
+   Begin Object Class=KFAfflictionManager Name=Afflictions_0 Archetype=KFAfflictionManager'KFGame.Default__KFPawn:Afflictions_0'
+      FireFullyCharredDuration=2.500000
+      FireCharPercentThreshhold=0.250000
+      Name="Afflictions_0"
+      ObjectArchetype=KFAfflictionManager'KFGame.Default__KFPawn:Afflictions_0'
+   End Object
+   AfflictionHandler=KFAfflictionManager'Default__SentryTurret:Afflictions_0'
+   Begin Object Name=FirstPersonArms
+      bIgnoreControllersWhenNotRendered=True
+      bOverrideAttachmentOwnerVisibility=True
+      bAllowBooleanPreshadows=False
+      ReplacementPrimitive=None
+      DepthPriorityGroup=SDPG_Foreground
+      bOnlyOwnerSee=True
+      bAllowPerObjectShadows=True
+   End Object
+   ArmsMesh=FirstPersonArms
+   Begin Object Class=KFSpecialMoveHandler Name=SpecialMoveHandler_0 Archetype=KFSpecialMoveHandler'KFGame.Default__KFPawn:SpecialMoveHandler_0'
+      Name="SpecialMoveHandler_0"
+      ObjectArchetype=KFSpecialMoveHandler'KFGame.Default__KFPawn:SpecialMoveHandler_0'
+   End Object
+   SpecialMoveHandler=KFSpecialMoveHandler'Default__SentryTurret:SpecialMoveHandler_0'
+   Begin Object Name=AmbientAkSoundComponent_1
+      BoneName="Dummy"
+      bStopWhenOwnerDestroyed=True
+   End Object
+   AmbientAkComponent=AmbientAkSoundComponent_1
+   Begin Object Name=AmbientAkSoundComponent_0
+      BoneName="Dummy"
+      bStopWhenOwnerDestroyed=True
+      bForceOcclusionUpdateInterval=True
+   End Object
+   WeaponAkComponent=AmbientAkSoundComponent_0
+   Begin Object Class=KFWeaponAmbientEchoHandler Name=WeaponAmbientEchoHandler_0 Archetype=KFWeaponAmbientEchoHandler'KFGame.Default__KFPawn:WeaponAmbientEchoHandler_0'
+      Name="WeaponAmbientEchoHandler_0"
+      ObjectArchetype=KFWeaponAmbientEchoHandler'KFGame.Default__KFPawn:WeaponAmbientEchoHandler_0'
+   End Object
+   WeaponAmbientEchoHandler=KFWeaponAmbientEchoHandler'Default__SentryTurret:WeaponAmbientEchoHandler_0'
+   Begin Object Name=FootstepAkSoundComponent
+      BoneName="Dummy"
+      bStopWhenOwnerDestroyed=True
+      bForceOcclusionUpdateInterval=True
+   End Object
+   FootstepAkComponent=FootstepAkSoundComponent
+   Begin Object Name=DialogAkSoundComponent
+      BoneName="Dummy"
+      bStopWhenOwnerDestroyed=True
+   End Object
+   DialogAkComponent=DialogAkSoundComponent
+   SightRadius=2200.000000
+   Mass=5500.000000
+   BaseEyeHeight=70.000000
+   EyeHeight=70.000000
+   Health=350
+   HealthMax=350
+   //MenuName="Sentry Gun"
+   ControllerClass=Class'SentryTurretAI'
+   Begin Object Class=SkeletalMeshComponent Name=SkelMesh
+      bUpdateSkelWhenNotRendered=False
+      ReplacementPrimitive=None
+      RBChannel=RBCC_GameplayPhysics
+      CollideActors=True
+      BlockZeroExtent=True
+      LightingChannels=(bInitialized=True,Indoor=True,Outdoor=True)
+      RBCollideWithChannels=(Default=True,GameplayPhysics=True,EffectPhysics=True,BlockingVolume=True)
+      Translation=(X=0.000000,Y=0.000000,Z=-50.000000)
+      Scale=2.500000
+      Name="SkelMesh"
+      ObjectArchetype=SkeletalMeshComponent'Engine.Default__SkeletalMeshComponent'
+   End Object
+   Mesh=SkelMesh
+   Begin Object Name=CollisionCylinder
+      CollisionHeight=50.000000
+      CollisionRadius=30.000000
+      ReplacementPrimitive=None
+      CollideActors=True
+      BlockActors=True
+      BlockZeroExtent=False
+   End Object
+   CylinderComponent=CollisionCylinder
+   Components(0)=CollisionCylinder
+   Begin Object Name=Arrow
+      ArrowColor=(B=255,G=200,R=150,A=255)
+      bTreatAsASprite=True
+      SpriteCategoryName="Pawns"
+      ReplacementPrimitive=None
+   End Object
+   Components(1)=Arrow
+   Begin Object Name=KFPawnSkeletalMeshComponent
+      MinDistFactorForKinematicUpdate=0.200000
+      bSkipAllUpdateWhenPhysicsAsleep=True
+      bIgnoreControllersWhenNotRendered=True
+      bHasPhysicsAssetInstance=True
+      bUpdateKinematicBonesFromAnimation=False
+      bPerBoneMotionBlur=True
+      bOverrideAttachmentOwnerVisibility=True
+      bChartDistanceFactor=True
+      ReplacementPrimitive=None
+      RBChannel=RBCC_Pawn
+      RBDominanceGroup=20
+      bOwnerNoSee=True
+      bAcceptsDynamicDecals=True
+      bUseOnePassLightingOnTranslucency=True
+      CollideActors=True
+      BlockZeroExtent=True
+      BlockRigidBody=True
+      RBCollideWithChannels=(Default=True,Pawn=True,Vehicle=True,BlockingVolume=True)
+      Translation=(X=0.000000,Y=0.000000,Z=-86.000000)
+      ScriptRigidBodyCollisionThreshold=200.000000
+      PerObjectShadowCullDistance=2500.000000
+      bAllowPerObjectShadows=True
+      TickGroup=TG_DuringAsyncWork
+   End Object
+   Components(2)=KFPawnSkeletalMeshComponent
+   Components(3)=AmbientAkSoundComponent_0
+   Components(4)=AmbientAkSoundComponent_1
+   Components(5)=FootstepAkSoundComponent
+   Components(6)=DialogAkSoundComponent
+   Components(7)=SkelMesh
+   Physics=PHYS_Falling
+   CollisionComponent=CollisionCylinder
 }

@@ -109,3 +109,8 @@ function Callback_Equip( int ItemDefinition )
 	Manager.NetOwner.BuyPowerup(ItemDefinition);
 }
 
+defaultproperties
+{
+   Name="Default__SentryUI_UpgradeMenu"
+   ObjectArchetype=GFxObject'GFxUI.Default__GFxObject'
+}
