@@ -27,8 +27,8 @@ final function UpdateText()
 		LocalizedObject.SetString("all","Levels");
 		LocalizedObject.SetString("weaponSkins","Upgrades");
 		LocalizedObject.SetString("cosmetics","Ammunition");
-		LocalizedObject.SetString("craftingMats","N/A");
-		LocalizedObject.SetString("items","N/A");
+		LocalizedObject.SetString("craftingMats",""); //"N/A"
+		LocalizedObject.SetString("items",""); //"N/A"
 	}
 	OldWorth = Manager.NetOwner.TurretOwner.SentryWorth;
 	LocalizedObject.SetString("filters","Value: "$OldWorth$Chr(163));

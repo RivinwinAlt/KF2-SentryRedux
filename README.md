@@ -42,3 +42,4 @@ Changed the purple light on the turret to be red
 
 ### Resources:
 [Example project of a non-branded turret in UDK3](https://docs.unrealengine.com/udk/Three/MasteringUnrealScriptStates.html#TUTORIAL%2011.5%20%E2%80%93%20TURRET,%20PART%20I:%20MU_AUTOTURRET%20CLASS%20AND%20STRUCT%20DECLARATION)
+[UDK3 Custom Menu Scripting](https://sites.google.com/site/tessaleetutorials/home/custom-menu-in-udk)
