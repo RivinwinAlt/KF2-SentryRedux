@@ -77,13 +77,13 @@ defaultproperties
       CollisionRadius=56.000000
       ReplacementPrimitive=None
       CollideActors=True
-      Name="CollisionCylinder"
-      ObjectArchetype=CylinderComponent'Engine.Default__CylinderComponent'
+      //Name="CollisionCylinder"
+      //ObjectArchetype=CylinderComponent'Engine.Default__CylinderComponent'
    End Object
    Components(0)=CollisionCylinder
    bHidden=True
    bCollideActors=True
    CollisionComponent=CollisionCylinder
-   Name="Default__SentryTrigger"
-   ObjectArchetype=Actor'Engine.Default__Actor'
+   //Name="Default__SentryTrigger"
+   //ObjectArchetype=Actor'Engine.Default__Actor'
 }

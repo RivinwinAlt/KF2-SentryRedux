@@ -111,6 +111,6 @@ defaultproperties
    DrawInfo=(bClipText=True,bEnableShadow=True,GlowInfo=(GlowColor=(R=0.000000,G=0.000000,B=0.000000,A=1.000000)))
    OwnerColor=(B=48,G=255,R=48,A=255)
    OtherColor=(B=48,G=200,R=255,A=255)
-   Name="Default__SentryOverlay"
-   ObjectArchetype=Interaction'Engine.Default__Interaction'
+   //Name="Default__SentryOverlay"
+   //ObjectArchetype=Interaction'Engine.Default__Interaction'
 }

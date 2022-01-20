@@ -104,6 +104,6 @@ defaultproperties
    Priority=10
    WidgetBindings(0)=(WidgetName="root1",WidgetClass=Class'GFxUI.GFxObject')
    WidgetBindings(1)=(WidgetName="InventoryMenu",WidgetClass=Class'SentryUI_UpgradeMenu')
-   Name="Default__SentryUI_Menu"
-   ObjectArchetype=GFxMoviePlayer'GFxUI.Default__GFxMoviePlayer'
+   //Name="Default__SentryUI_Menu"
+   //ObjectArchetype=GFxMoviePlayer'GFxUI.Default__GFxMoviePlayer'
 }

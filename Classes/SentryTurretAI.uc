@@ -160,6 +160,6 @@ state FightEnemy
 
 defaultproperties
 {
-   Name="Default__SentryTurretAI"
-   ObjectArchetype=AIController'Engine.Default__AIController'
+   //Name="Default__SentryTurretAI"
+   //ObjectArchetype=AIController'Engine.Default__AIController'
 }

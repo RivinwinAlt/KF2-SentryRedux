@@ -21,7 +21,10 @@ simulated function PostBeginPlay()
 	Super.PostBeginPlay();
 	R = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
 	if( WorldInfo.NetMode!=NM_Client )
+	{
 		Level1Cost = Class'SentryTurret'.Default.LevelCfgs[0].Cost;
+		Mesh.SetMaterial(0,R.HammerSkin);
+	}
 	if( WorldInfo.NetMode!=NM_DedicatedServer )
 	{
 		SetCostInfoStr();
@@ -34,6 +37,17 @@ simulated final function InitDisplay( SentryMainRep R )
 {
 	TurretPreview.SetSkeletalMesh(R.TurretArch[0].CharacterMesh);
 	TurretPreview.SetMaterial(0,R.TurSkins[0]);
+
+	/*`log("Attempting to set custom hammer material");
+	if(R.HammerSkin != None) {
+		Mesh.SetMaterial(0,R.HammerSkin);
+	}
+	else {
+		`log("R.HammerSkin is NULL, attempting direct reference");
+		Mesh.SetMaterial(0,MaterialInstanceConstant'SentryHammer.Mat.Wep_1stP_SentryHammer_MIC');
+	}
+	
+	`log("Finished trying to set material");*/
 }
 
 simulated final function SetCostInfoStr()
@@ -57,7 +71,7 @@ simulated function DrawInfo( Canvas Canvas, float FontScale )
 	local float X,Y,XL,YL;
 	local byte i;
 
-	FontScale*=1.5;
+	FontScale*=1.2;
 	X = Canvas.ClipX*0.99;
 	Y = Canvas.ClipY*0.2;
 
@@ -65,7 +79,7 @@ simulated function DrawInfo( Canvas Canvas, float FontScale )
 	
 	for( i=0; i<ModeInfos.Length; ++i )
 	{
-		Canvas.TextSize(ModeInfos[i],XL,YL,FontScale,FontScale);
+		Canvas.TextSize(ModeInfos[2],XL,YL,FontScale,FontScale); //ModeInfos[2] is currently the longest string
 		Canvas.SetPos(X-XL,Y);
 		Canvas.DrawText(ModeInfos[i],,FontScale,FontScale);
 		Y+=YL;
@@ -212,8 +226,9 @@ reliable server function ServerDeployTurret()
 	}
 	
 	R.Yaw = Instigator.Rotation.Yaw;
-	Pos = Instigator.Location+vector(R)*120.f;
+	Pos = Instigator.Location+vector(R)*120.f; //120 units in front of player
 
+	//HL=out HitLocation, HN=out HitNormal,
 	if( Trace(HL,HN,Pos-vect(0,0,300),Pos,false,vect(30,30,50))==None )
 	{
 		if( PlayerController(Instigator.Controller)!=None )
@@ -221,6 +236,8 @@ reliable server function ServerDeployTurret()
 		return;
 	}
 
+
+	//Check if too near another turret
 	foreach WorldInfo.AllPawns(class'SentryTurret',S,HL,class'SentryTurret'.Default.MinPlacementDistance)
 		if( S.IsAliveAndWell() )
 		{
@@ -229,6 +246,7 @@ reliable server function ServerDeployTurret()
 			return;
 		}
 
+	//spawn a new turret
 	S = Instigator.Spawn(class'SentryTurret',,,Pos,R);
 	if( S!=None )
 	{
@@ -245,18 +263,27 @@ reliable server function ServerDeployTurret()
 simulated function Tick( float Delta )
 {
 	local rotator R;
-	local vector X;
+	local vector X, Pos, HN;
 
 	Super.Tick(Delta);
 	
 	if( bPendingDeploy )
 	{
 		R.Yaw = Instigator.Rotation.Yaw;
-		X = vector(R);
 
 		if( TurretPreview.HiddenGame )
 			TurretPreview.SetHidden(false);
-		TurretPreview.SetTranslation(Instigator.Location+X*120.f);
+
+		X = Instigator.Location+vector(R)*120.f;
+		if(Trace(Pos,HN,X-vect(0,0,330),X,false) != None)
+		{
+			TurretPreview.SetTranslation(Pos);
+		}else
+		{
+			TurretPreview.SetTranslation(X);
+		}
+
+		//TurretPreview.SetTranslation(Instigator.Location+X*120.f);
 		TurretPreview.SetRotation(R);
 	}
 	else if( !TurretPreview.HiddenGame )
@@ -315,7 +342,10 @@ simulated state DeployTurret extends WeaponFiring
 	simulated function BeginState(Name PrevStateName)
 	{
 		bPendingDeploy = false;
-		SetTimer(0.5,false,'BeginDeployment');
+
+		// 0.3 is the amount of time right click has to be held down to deploy. decreased from .5 to feel more responsive
+		//TODO: place in config
+		SetTimer(0.3,false,'BeginDeployment');
 	}
 	simulated function EndState( Name NextStateName )
 	{
@@ -477,17 +507,19 @@ defaultproperties
       AbsoluteTranslation=True
       AbsoluteRotation=True
       LightingChannels=(bInitialized=True,Indoor=True,Outdoor=True)
-      Translation=(X=0.000000,Y=0.000000,Z=-50.000000)
+      Translation=(X=0.000000,Y=0.000000,Z=-50.000000) //z was -50
       Scale=2.500000
       Name="PrevMesh"
       ObjectArchetype=SkeletalMeshComponent'Engine.Default__SkeletalMeshComponent'
    End Object
    TurretPreview=PrevMesh
+
    ModeInfos(0)="Sentry builder:"
    ModeInfos(1)="[Fire] Repair sentry turret"
-   ModeInfos(2)="[AltFire] (Hold) Construct new sentry turret"
-   ModeInfos(3)="[AltFire] (Tap) Demolish your sentry turret (20% refund)"
-   AdminInfo="ADMIN: Use Admin SentryHelp for commands"
+   ModeInfos(2)="[AltFire + Hold] Construct sentry turret"
+   ModeInfos(3)="[AltFire] Demolish turret (20% refund)"
+   AdminInfo="Use Admin SentryHelp for commands"
+
    InventoryGroup=IG_Equipment
    AssociatedPerkClasses(0)=none
    InventorySize=1
@@ -496,44 +528,38 @@ defaultproperties
    bReloadFromMagazine=False
    GroupPriority=5.000000
    SpareAmmoCapacity(0)=0
-   Begin Object Class=KFMeleeHelperWeapon Name=MeleeHelper_0
-      bUseDirectionalMelee=True
-      bHasChainAttacks=True
-      ChainSequence_F(0)=DIR_ForwardRight
-      ChainSequence_F(1)=DIR_ForwardLeft
-      ChainSequence_F(2)=DIR_ForwardRight
-      ChainSequence_F(3)=DIR_ForwardLeft
-      ChainSequence_L(1)=DIR_ForwardLeft
-      //ChainSequence_L(2)=
-      ChainSequence_L(3)=DIR_Left
-      //ChainSequence_L(4)=
-      ChainSequence_R(1)=DIR_ForwardRight
-      //ChainSequence_R(2)=
-      ChainSequence_R(3)=DIR_Right
-      //ChainSequence_R(4)=
-      MeleeImpactCamShakeScale=0.040000
-      MaxHitRange=260.000000   //190.000000
-      HitboxChain(0)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=170.000000))
-      HitboxChain(1)=(BoneOffset=(X=0.000000,Y=3.000000,Z=150.000000))
-      HitboxChain(2)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=130.000000))
-      HitboxChain(3)=(BoneOffset=(X=0.000000,Y=3.000000,Z=110.000000))
-      HitboxChain(4)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=90.000000))
-      HitboxChain(5)=(BoneOffset=(X=0.000000,Y=3.000000,Z=70.000000))
-      HitboxChain(6)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=50.000000))
-      HitboxChain(7)=(BoneOffset=(X=0.000000,Y=3.000000,Z=30.000000))
-      HitboxChain(8)=(BoneOffset=(X=0.000000,Y=-3.000000,Z=10.000000))      
-   End Object
-   MeleeAttackHelper=KFMeleeHelperWeapon'Default__SentryWeapon:MeleeHelper_0'
+
+   Begin Object Name=MeleeHelper_0
+		MaxHitRange=260 //used to be 190
+		WorldImpactEffects=KFImpactEffectInfo'FX_Impacts_ARCH.Blunted_melee_impact'
+		// Override automatic hitbox creation (advanced)
+		HitboxChain.Add((BoneOffset=(Y=-3,Z=170)))
+		HitboxChain.Add((BoneOffset=(Y=+3,Z=150)))
+		HitboxChain.Add((BoneOffset=(Y=-3,Z=130)))
+		HitboxChain.Add((BoneOffset=(Y=+3,Z=110)))
+		HitboxChain.Add((BoneOffset=(Y=-3,Z=90)))
+		HitboxChain.Add((BoneOffset=(Y=+3,Z=70)))
+		HitboxChain.Add((BoneOffset=(Y=-3,Z=50)))
+		HitboxChain.Add((BoneOffset=(Y=+3,Z=30)))
+		HitboxChain.Add((BoneOffset=(Y=-3,Z=10)))
+		// modified combo sequences
+		MeleeImpactCamShakeScale=0.04f //0.5
+		ChainSequence_F=(DIR_ForwardRight, DIR_ForwardLeft, DIR_ForwardRight, DIR_ForwardLeft)
+		ChainSequence_B=(DIR_BackwardRight, DIR_ForwardLeft, DIR_BackwardLeft, DIR_ForwardRight)
+		ChainSequence_L=(DIR_Right, DIR_ForwardLeft, DIR_ForwardRight, DIR_Left, DIR_Right)
+		ChainSequence_R=(DIR_Left, DIR_ForwardRight, DIR_ForwardLeft, DIR_Right, DIR_Left)
+	End Object
    
    bCanThrow=False
-   Begin Object Name=FirstPersonMesh
+   /*Begin Object Name=FirstPersonMesh
       MinTickTimeStep=0.025000
       SkeletalMesh=SkeletalMesh'WEP_1P_Pulverizer_MESH.Wep_1stP_Pulverizer_Rig_New'
       AnimTreeTemplate=AnimTree'CHR_1P_Arms_ARCH.WEP_1stP_Animtree_Master'
       AnimSets(0)=AnimSet'WEP_1P_Pulverizer_ANIM.Wep_1stP_Pulverizer_Anim'
       bOverrideAttachmentOwnerVisibility=True
       bAllowBooleanPreshadows=False
-      Materials(0)=MaterialInstanceConstant'WEP_3P_Pulverizer_MAT.3P_Pickup_Pulverizer_MIC'
+      //Materials(0)=MaterialInstanceConstant'WEP_3P_Pulverizer_MAT.3P_Pickup_Pulverizer_MIC'
+      Materials(0)=MaterialInstanceConstant'SentryHammer.Mat.Wep_1stP_SentryHammer_MIC'
       ReplacementPrimitive=None
       DepthPriorityGroup=SDPG_Foreground
       bOnlyOwnerSee=True
@@ -541,14 +567,23 @@ defaultproperties
       Scale3D=(X=1.600000,Y=1.600000,Z=1.250000)   //(X=1.000000,Y=1.000000,Z=0.750000)
       bAllowPerObjectShadows=True      
    End Object
-   Mesh=FirstPersonMesh
-   bDropOnDeath=False
+   Mesh=FirstPersonMesh*/
+
+   FirstPersonMeshName="SentryHammer.Mesh.Wep_1stP_SentryHammer_Rig"
+   //FirstPersonMeshName="WEP_1P_Pulverizer_MESH.Wep_1stP_Pulverizer_Rig_New"
+   FirstPersonAnimSetNames(0)="WEP_1P_Pulverizer_ANIM.Wep_1stP_Pulverizer_Anim"
+   AttachmentArchetypeName="WEP_Pulverizer_ARCH.Wep_Pulverizer_3P"
+	MuzzleFlashTemplateName="WEP_Pulverizer_ARCH.Wep_Pulverizer_MuzzleFlash"
+	PickupMeshName="WEP_3P_Pulverizer_MESH.Wep_Pulverizer_Pickup"
+
+   /*bDropOnDeath=False
    Begin Object Name=StaticPickupComponent
       StaticMesh=StaticMesh'WEP_3P_Pulverizer_MESH.Wep_Pulverizer_Pickup'
       ReplacementPrimitive=None
       CastShadow=False      
    End Object
    DroppedPickupMesh=StaticPickupComponent
-   PickupFactoryMesh=StaticPickupComponent
-   Components(0)=PrevMesh   
+   PickupFactoryMesh=StaticPickupComponent*/
+
+   Components.Add(PrevMesh) //(0)=
 }

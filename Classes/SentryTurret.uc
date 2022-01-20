@@ -288,15 +288,28 @@ function CheckUserAlive() // Check if owner player disconnects from server.
 
 final function bool FindNewOwner()
 {
-	// TODO: Check to see if the new owner would be over turret limit
 	local SentryUI_Network N;
+	local KFWeapon KFW;
+	local KFInventoryManager KFIM;
 
 	foreach CurrentUsers(N)
-		if( N.PlayerOwner!=None && N.PlayerOwner.Pawn!=None && N.PlayerOwner.Pawn.IsAliveAndWell() )
+	{
+		if( N.PlayerOwner!=None && N.PlayerOwner.Pawn!=None && N.PlayerOwner.Pawn.IsAliveAndWell())
 		{
-			SetTurretOwner(N.PlayerOwner);
-			return true;
+			KFIM = KFInventoryManager(N.PlayerOwner.Pawn.InvManager);
+			if (KFIM != None)
+    		{
+        		foreach KFIM.InventoryActors(class'KFWeapon', KFW)
+        		{
+            		if (KFW.Class == class'SentryWeapon' && SentryWeapon(KFW).NumTurrets < MaxTurretsPerUser)
+            		{
+						SetTurretOwner(N.PlayerOwner);
+						return true;
+					}
+				}
+			}
 		}
+	}
 	return false;
 }
 
@@ -1075,21 +1088,21 @@ defaultproperties
       bCastPerObjectShadows=False
       LightingChannels=(Outdoor=True)
       MaxDrawDistance=3500.000000
-      Name="SpotLight1"
-      ObjectArchetype=SpotLightComponent'Engine.Default__SpotLightComponent'
+      //Name="SpotLight1"
+      //ObjectArchetype=SpotLightComponent'Engine.Default__SpotLightComponent'
    End Object
    TurretSpotLight=SpotLight1
    Begin Object Class=PointLightComponent Name=PointLightComponent1
       Radius=120.000000
       Brightness=4.000000
-      LightColor=(B=255,G=0,R=255,A=255)
+      LightColor=(B=0,G=0,R=255,A=255)
       CastShadows=False
       LightingChannels=(Outdoor=True)
       MaxBrightness=1.000000
       AnimationType=2
       AnimationFrequency=1.000000
-      Name="PointLightComponent1"
-      ObjectArchetype=PointLightComponent'Engine.Default__PointLightComponent'
+      //Name="PointLightComponent1"
+      //ObjectArchetype=PointLightComponent'Engine.Default__PointLightComponent'
    End Object
    TurretRedLight=PointLightComponent1
    Levels(0)=(Icon=Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_01',RoF=0.300000,UIName="Level1")

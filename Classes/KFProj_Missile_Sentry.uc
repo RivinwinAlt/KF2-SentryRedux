@@ -38,8 +38,7 @@ simulated function CheckHeading()
 	//Find distance and direction to target
 	X = (AimTarget.Location-Location);
 	Dist = VSize(X);
-	//This math doesnt seam right. It should clamp the vectors length to
-	//be a limited length not exceeding distance to the target
+	//multiplys x by 10 or more?
 	X = X / FMax(Dist,0.1);
 
 	//trace towards target and see if theres a collision 
@@ -93,26 +92,39 @@ simulated final function bool TestDirection( out vector Aim, vector TestAxis, fl
 //On mesh collision with an actor check if actor is on the enemy team. currently hard coded so the missile is always team 0
 simulated event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
 {
+	//dont blow up when touching players
 	if( KFPawn(Other)!=None && KFPawn(Other).GetTeamNum()==0 )
 		return;
-	//If the actor is an enemy act like a patriarch missile and blow up.
+	//If touching something else act like a patriarch missile
 	Super.Touch(Other, OtherComp, HitLocation, HitNormal);
+}
+
+simulated function Destroyed()
+{
+	ClearTimer('CheckHeading');
+
+	super.Destroyed();
 }
 
 //TODO expose some of these options in config
 defaultproperties
 {
-   Begin Object Name=FlightPointLight
-      Radius=120.000000
-      FalloffExponent=10.000000
-      Brightness=1.500000
-      LightColor=(B=255,G=20,R=95,A=255)
-      CastShadows=False
-      CastStaticShadows=False
-      CastDynamicShadows=False
-      LightingChannels=(Outdoor=True)      
-   End Object
-   FlightLight=FlightPointLight
+	Damage=1000.000000
+
+	Begin Object Name=FlightPointLight
+	   LightColor=(R=255,G=20,B=95,A=255)
+		Brightness=1.5f
+		Radius=120.f
+		FalloffExponent=10.f
+		CastShadows=false
+		CastStaticShadows=false
+		CastDynamicShadows=false
+		bCastPerObjectShadows=false
+		bEnabled=true
+		LightingChannels=(Indoor=TRUE,Outdoor=TRUE,bInitialized=TRUE)
+	End Object
+	FlightLight=FlightPointLight
+
    Begin Object Name=ExploTemplate0
       ExplosionEffects=KFImpactEffectInfo'WEP_Patriarch_ARCH.Missile_Explosion'
       Damage=1000.000000
@@ -126,24 +138,5 @@ defaultproperties
       CamShakeInnerRadius=200.000000
       CamShakeOuterRadius=700.000000      
    End Object
-   ExplosionTemplate=KFGameExplosion'tf2sentrymod.Default__KFProj_Missile_Sentry:ExploTemplate0'
-   Begin Object Name=AmbientAkSoundComponent
-      bStopWhenOwnerDestroyed=True
-      bForceOcclusionUpdateInterval=True
-      OcclusionUpdateInterval=0.100000      
-   End Object
-   AmbientComponent=AmbientAkSoundComponent
-   Damage=1000.000000
-   Begin Object Name=CollisionCylinder
-      CollisionHeight=5.000000
-      CollisionRadius=5.000000
-      ReplacementPrimitive=None
-      CollideActors=True
-      BlockNonZeroExtent=False
-   End Object
-   CylinderComponent=CollisionCylinder
-   Components(0)=CollisionCylinder
-   Components(1)=FlightPointLight
-   Components(2)=AmbientAkSoundComponent
-   CollisionComponent=CollisionCylinder
+   ExplosionTemplate=ExploTemplate0
 }

@@ -8,6 +8,7 @@ Class SentryMainRep extends ReplicationInfo
 var repnotify ObjectReferencer ObjRef;
 var ObjectReferencer BaseRef;
 var MaterialInstanceConstant TurSkins[3];
+var MaterialInstanceConstant HammerSkin;
 var KFCharacterInfo_Monster TurretArch[3];
 
 replication
@@ -76,6 +77,9 @@ simulated final function InitRep()
 		TurSkins[0] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[1]));
 		TurSkins[1] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[3]));
 		TurSkins[2] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[12]));
+		/*`log("Loading hammer material");
+		HammerSkin = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[14]));
+		`log("Loaded hammer material into memory");*/
 	}
 	//Copy archetypes to local variables?
 	TurretArch[0] = KFCharacterInfo_Monster(ObjRef.ReferencedObjects[0]);
@@ -122,6 +126,6 @@ defaultproperties
 {
    BaseRef=ObjectReferencer'tf2sentry.Arch.TurretObjList'
    NetUpdateFrequency=4.000000
-   Name="Default__SentryMainRep"
-   ObjectArchetype=ReplicationInfo'Engine.Default__ReplicationInfo'
+   //Name="Default__SentryMainRep"
+   //ObjectArchetype=ReplicationInfo'Engine.Default__ReplicationInfo'
 }

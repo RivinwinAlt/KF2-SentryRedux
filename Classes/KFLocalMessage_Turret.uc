@@ -64,6 +64,6 @@ static function string GetString(
 defaultproperties
 {
 	//Add a copy of the default local message dataset
-   Name="Default__KFLocalMessage_Turret"
-   ObjectArchetype=LocalMessage'Engine.Default__LocalMessage'
+   //Name="Default__KFLocalMessage_Turret"
+   //ObjectArchetype=LocalMessage'Engine.Default__LocalMessage'
 }

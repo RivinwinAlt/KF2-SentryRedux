@@ -3,9 +3,8 @@ class SentryWeaponDef extends KFWeaponDefinition
 
 defaultproperties
 {
-   WeaponClassPath="TF2SentryMod.SentryWeapon"
+   WeaponClassPath="SentryRemake.SentryWeapon"
    ImagePath="ui_weaponselect_tex.UI_WeaponSelect_Pulverizer"
    BuyPrice=500
    EffectiveRange=100
-
 }

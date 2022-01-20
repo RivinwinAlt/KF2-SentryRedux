@@ -272,6 +272,6 @@ defaultproperties
 {
    bOnlyRelevantToOwner=True
    bAlwaysRelevant=False
-   Name="Default__SentryUI_Network"
-   ObjectArchetype=ReplicationInfo'Engine.Default__ReplicationInfo'
+   //Name="Default__SentryUI_Network"
+   //ObjectArchetype=ReplicationInfo'Engine.Default__ReplicationInfo'
 }

@@ -111,6 +111,6 @@ function Callback_Equip( int ItemDefinition )
 
 defaultproperties
 {
-   Name="Default__SentryUI_UpgradeMenu"
-   ObjectArchetype=GFxObject'GFxUI.Default__GFxObject'
+   //Name="Default__SentryUI_UpgradeMenu"
+   //ObjectArchetype=GFxObject'GFxUI.Default__GFxObject'
 }
