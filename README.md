@@ -17,29 +17,26 @@ Try to comment all blocks of code as they are understood and reworked. This will
 
 
 ### Project Goals:
-- Be able to rotate turret during placement
-- Expose most constant variables in config files.
-- Ensure the mod is as lightweight as possible for servers without sacrificing functionality.
-- Integrate perks that boost or alter turrets.
-or
-- More turret varieties
-  - Perkified versions
-- Integrate more buyable upgrades.
-  - swivel speed
-  - firerate
-- Fix longstanding bugs.
-  - ~~Replace green hammer~~
-  - ~~Patch taking over existing turrets~~
-- Trying to make it as the Sentry shows up as empty in your inventory.
-- Turret will not scan until it finds its first target; fix this.
-- Faster rockets would be nice.
-- Change the Rocket logic
+- Fix long-standing bugs
+- Implement new features
+- Expose most variables in the config file
+- Get permission to publish original assets from Marco/Slav
+- Minimize computational overhead for server
+- Minimize package size for clients
+- Clean up code for future expansion and upkeep
+
+
+### [Project Roadmap](ROADMAP.md)
+
 
 ### Completed Changes
-Reduced placement delay from 0.5 to 0.3
-Sped up rocket (2000 -> 3000)
-Changed the purple light on the turret to be red
+- Made purple light red
+- Decreased delay when right clicking to place turret
+- Sped up sentry missiles
+- Reduced missile tracking overhead
+- Replaced sentry hammer model with a temporary nicer one
+- Turret preview hugs the ground when placing
 
 ### Resources:
-[Example project of a non-branded turret in UDK3](https://docs.unrealengine.com/udk/Three/MasteringUnrealScriptStates.html#TUTORIAL%2011.5%20%E2%80%93%20TURRET,%20PART%20I:%20MU_AUTOTURRET%20CLASS%20AND%20STRUCT%20DECLARATION)
-[UDK3 Custom Menu Scripting](https://sites.google.com/site/tessaleetutorials/home/custom-menu-in-udk)
+[Example project of an unbranded turret in UDK3](https://docs.unrealengine.com/udk/Three/MasteringUnrealScriptStates.html#TUTORIAL%2011.5%20%E2%80%93%20TURRET,%20PART%20I:%20MU_AUTOTURRET%20CLASS%20AND%20STRUCT%20DECLARATION)
+[UDK3 Custom Menu Scripting using Flash and Kismet](https://sites.google.com/site/tessaleetutorials/home/custom-menu-in-udk)
