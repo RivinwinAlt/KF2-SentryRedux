@@ -1131,26 +1131,6 @@ defaultproperties
    UpgradeNames(9)="Missile Ammo|Buy 10 missiles.\n(No refund for excessive ammo)"
    UpgradeNames(10)="5x Missile Ammo|Buy 50 missiles.\n(No refund for excessive ammo)"
 
-   /*HealPerHit=35
-   MissileHitDamage=1500
-   MinPlacementDistance=250.000000
-   MaxAmmoCount(0)=2000
-   MaxAmmoCount(1)=50*/
-   /*LevelCfgs(0)=(Cost=2000,Damage=10,Health=350)
-   LevelCfgs(1)=(Cost=1500,Damage=11,Health=400)
-   LevelCfgs(2)=(Cost=2500,Damage=13,Health=600)*/
-   /*UpgradeCosts(0)=100
-   UpgradeCosts(1)=200
-   UpgradeCosts(2)=250
-   UpgradeCosts(3)=450
-   UpgradeCosts(4)=500
-   UpgradeCosts(5)=400
-   UpgradeCosts(6)=650
-   UpgradeCosts(7)=45
-   UpgradeCosts(8)=200
-   UpgradeCosts(9)=100
-   UpgradeCosts(10)=450*/
-   //ConfigVersion=1
    Begin Object Name=ThirdPersonHead0
       ReplacementPrimitive=None
       bAcceptsDynamicDecals=True

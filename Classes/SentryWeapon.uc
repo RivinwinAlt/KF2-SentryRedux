@@ -551,39 +551,14 @@ defaultproperties
 	End Object
    
    bCanThrow=False
-   /*Begin Object Name=FirstPersonMesh
-      MinTickTimeStep=0.025000
-      SkeletalMesh=SkeletalMesh'WEP_1P_Pulverizer_MESH.Wep_1stP_Pulverizer_Rig_New'
-      AnimTreeTemplate=AnimTree'CHR_1P_Arms_ARCH.WEP_1stP_Animtree_Master'
-      AnimSets(0)=AnimSet'WEP_1P_Pulverizer_ANIM.Wep_1stP_Pulverizer_Anim'
-      bOverrideAttachmentOwnerVisibility=True
-      bAllowBooleanPreshadows=False
-      //Materials(0)=MaterialInstanceConstant'WEP_3P_Pulverizer_MAT.3P_Pickup_Pulverizer_MIC'
-      Materials(0)=MaterialInstanceConstant'SentryHammer.Mat.Wep_1stP_SentryHammer_MIC'
-      ReplacementPrimitive=None
-      DepthPriorityGroup=SDPG_Foreground
-      bOnlyOwnerSee=True
-      LightingChannels=(bInitialized=True,Outdoor=True)
-      Scale3D=(X=1.600000,Y=1.600000,Z=1.250000)   //(X=1.000000,Y=1.000000,Z=0.750000)
-      bAllowPerObjectShadows=True      
-   End Object
-   Mesh=FirstPersonMesh*/
 
    FirstPersonMeshName="SentryHammer.Mesh.Wep_1stP_SentryHammer_Rig"
-   //FirstPersonMeshName="WEP_1P_Pulverizer_MESH.Wep_1stP_Pulverizer_Rig_New"
    FirstPersonAnimSetNames(0)="WEP_1P_Pulverizer_ANIM.Wep_1stP_Pulverizer_Anim"
    AttachmentArchetypeName="WEP_Pulverizer_ARCH.Wep_Pulverizer_3P"
 	MuzzleFlashTemplateName="WEP_Pulverizer_ARCH.Wep_Pulverizer_MuzzleFlash"
 	PickupMeshName="WEP_3P_Pulverizer_MESH.Wep_Pulverizer_Pickup"
 
-   /*bDropOnDeath=False
-   Begin Object Name=StaticPickupComponent
-      StaticMesh=StaticMesh'WEP_3P_Pulverizer_MESH.Wep_Pulverizer_Pickup'
-      ReplacementPrimitive=None
-      CastShadow=False      
-   End Object
-   DroppedPickupMesh=StaticPickupComponent
-   PickupFactoryMesh=StaticPickupComponent*/
+   bDropOnDeath=False
 
    Components.Add(PrevMesh) //(0)=
 }

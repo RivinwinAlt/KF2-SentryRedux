@@ -17,14 +17,28 @@ Try to comment all blocks of code as they are understood and reworked. This will
 
 
 ### Project Goals:
+- Be able to rotate turret during placement
 - Expose most constant variables in config files.
 - Ensure the mod is as lightweight as possible for servers without sacrificing functionality.
 - Integrate perks that boost or alter turrets.
+or
+- More turret varieties
+  - Perkified versions
 - Integrate more buyable upgrades.
+  - swivel speed
+  - firerate
 - Fix longstanding bugs.
   - ~~Replace green hammer~~
   - ~~Patch taking over existing turrets~~
+- Trying to make it as the Sentry shows up as empty in your inventory.
+- Turret will not scan until it finds its first target; fix this.
+- Faster rockets would be nice.
+- Change the Rocket logic
 
+### Completed Changes
+Reduced placement delay from 0.5 to 0.3
+Sped up rocket (2000 -> 3000)
+Changed the purple light on the turret to be red
 
 ### Resources:
 [Example project of a non-branded turret in UDK3](https://docs.unrealengine.com/udk/Three/MasteringUnrealScriptStates.html#TUTORIAL%2011.5%20%E2%80%93%20TURRET,%20PART%20I:%20MU_AUTOTURRET%20CLASS%20AND%20STRUCT%20DECLARATION)

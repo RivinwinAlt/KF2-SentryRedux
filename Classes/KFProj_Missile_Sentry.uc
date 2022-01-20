@@ -35,12 +35,14 @@ simulated function CheckHeading()
 		return;
 	}
 
+
 	//Find distance and direction to target
 	X = (AimTarget.Location-Location);
 	Dist = VSize(X);
 	//multiplys x by 10 or more?
 	X = X / FMax(Dist,0.1);
 
+	/* REMOVED AVOIDING OBSTICLES
 	//trace towards target and see if theres a collision 
 	if( !FastTrace(AimTarget.Location,Location) )
 	{
@@ -54,6 +56,7 @@ simulated function CheckHeading()
 		if( !TestDirection(X,Z,Dist) && !TestDirection(X,-Z,Dist) && !TestDirection(X,Y,Dist) )
 			TestDirection(X,-Y,Dist);
 	}
+	*/
 	
 	//Change path to be closer to new path to produce curve rather than jerk
 	Y = Normal(Velocity);
@@ -109,6 +112,8 @@ simulated function Destroyed()
 //TODO expose some of these options in config
 defaultproperties
 {
+	Speed=3000 //Increased from 2000
+	MaxSpeed=3000 //Increased from 2000
 	Damage=1000.000000
 
 	Begin Object Name=FlightPointLight
