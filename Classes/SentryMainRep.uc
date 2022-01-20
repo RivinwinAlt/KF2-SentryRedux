@@ -73,19 +73,26 @@ simulated final function InitRep()
 {
 	if( WorldInfo.NetMode!=NM_DedicatedServer )
 	{
-		//If client, pull down materials. This might effect server performance
+		TurSkins[0] = MaterialInstanceConstant'tf2sentry.Tex.Sentry1Red';
+		TurSkins[1] = MaterialInstanceConstant'tf2sentry.Tex.Sentry2Red';
+		TurSkins[2] = MaterialInstanceConstant'tf2sentry.Tex.Sentry3Red';
+		//If client copy materials
+		/*
 		TurSkins[0] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[1]));
 		TurSkins[1] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[3]));
 		TurSkins[2] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[12]));
-		/*`log("Loading hammer material");
-		HammerSkin = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[14]));
-		`log("Loaded hammer material into memory");*/
+		*/
 	}
-	//Copy archetypes to local variables?
-	TurretArch[0] = KFCharacterInfo_Monster(ObjRef.ReferencedObjects[0]);
+
+	TurretArch[0] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret1Arch';
+	TurretArch[1] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret2Arch';
+	TurretArch[2] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret3Arch';
+	//Copy archetypes to local variables
+	/*TurretArch[0] = KFCharacterInfo_Monster(ObjRef.ReferencedObjects[0]);
 	TurretArch[1] = KFCharacterInfo_Monster(ObjRef.ReferencedObjects[2]);
 	TurretArch[2] = KFCharacterInfo_Monster(ObjRef.ReferencedObjects[11]);
-	
+	*/
+
 	//If client, update spawned turrets with local assets
 	if( WorldInfo.NetMode==NM_Client )
 		UpdateInstances();

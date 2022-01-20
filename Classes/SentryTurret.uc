@@ -635,13 +635,14 @@ simulated function TurretSetFiring( bool bFire, optional bool bInstant )
 }
 simulated function PlayOutOfAmmo()
 {
-	PlaySoundBase(GrabCue(13),true);
+	//PlaySoundBase(GrabCue(13),true);
+	PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_empty_Cue',true);
 }
 
 simulated function ScanSound()
 {
 	local SoundCue C;
-	
+	/*
 	if( !bIsScanning || Health<=0 )
 		return;
 	if( PowerLevel==0 )
@@ -649,6 +650,16 @@ simulated function ScanSound()
 	else if( PowerLevel==1 )
 		C = GrabCue(9);
 	else C = GrabCue(10);
+	if( C==None )
+		return;
+	*/
+	if( !bIsScanning || Health<=0 )
+		return;
+	if( PowerLevel==0 )
+		C = SoundCue'tf2sentry.Sounds.sentry_scan_Cue';
+	else if( PowerLevel==1 )
+		C = SoundCue'tf2sentry.Sounds.sentry_scan2_Cue';
+	else C = SoundCue'tf2sentry.Sounds.sentry_scan3_Cue';
 	if( C==None )
 		return;
 
@@ -691,11 +702,18 @@ simulated function FireShot()
 		if( NextFireSoundTime<WorldInfo.TimeSeconds )
 		{
 			NextFireSoundTime = WorldInfo.TimeSeconds+0.15;
+			/*
 			if( PowerLevel==0 )
 				PlaySoundBase(GrabCue(6),true);
 			else if( PowerLevel==1 )
 				PlaySoundBase(GrabCue(7),true);
 			else PlaySoundBase(GrabCue(8),true);
+			*/
+			if( PowerLevel==0 )
+				PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_shoot_Cue',true);
+			else if( PowerLevel==1 )
+				PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_shoot2_Cue',true);
+			else PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_shoot3_Cue',true);
 		}
 	}
 	TraceFire();
@@ -993,7 +1011,8 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 	
 	if( WorldInfo.NetMode!=NM_DedicatedServer )
 	{
-		PlaySoundBase(GrabCue(4),true);
+		//PlaySoundBase(GrabCue(4),true);
+		PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_explode_Cue',true);
 		WorldInfo.MyEmitterPool.SpawnEmitter( ParticleSystem'WEP_3P_EMP_EMIT.FX_EMP_Grenade_Explosion', Location);
 		WorldInfo.MyEmitterPool.SpawnEmitter( ParticleSystem'WEP_3P_MKII_EMIT.FX_MKII_Grenade_Explosion', Location);
 	}
