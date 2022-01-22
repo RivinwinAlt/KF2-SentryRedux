@@ -52,7 +52,7 @@ var string UpgradeNames[ETU_MAXUPGRADES];
 
 // Server settings.
 var config byte MaxTurretsPerUser, MapMaxTurrets, HealthRegenRate;
-var config int HealPerHit,MissileHitDamage;
+var config int HealPerHit, MissileHitDamage, HealthLostNoOwner;
 var config float MinPlacementDistance;
 var config int MaxAmmoCount[2];
 
@@ -146,6 +146,8 @@ function UnsetBuilt()
 
 static final function UpdateConfig()
 {
+	local bool ErrorFound = false;
+
 	if( Default.ConfigVersion!=1 ) // Increment version to reset/update old configs
 	{
 		Default.MaxTurretsPerUser = 3;
@@ -176,16 +178,24 @@ static final function UpdateConfig()
 		Default.UpgradeCosts[ETU_AmmoMissilesBig] = 450;
 		Default.MaxAmmoCount[0] = 2000;
 		Default.MaxAmmoCount[1] = 50;
+		Default.HealthLostNoOwner = 70;
+		Default.RefundPercent = 70;
 		Default.ConfigVersion = 1;
 		StaticSaveConfig();
 	}
-}
 
-/*simulated final function InitDisplay()
-{
-	UpdateDisplayMesh(); // Unnecessary function nesting?
+	if(HealthLostNoOwner < 0) {
+		Default.HealthLostNoOwner = 0;
+		ErrorFound = true;
+	}
+	if(RefundPercent != clamp(RefundPercent, 0, 100)) {
+		Default.RefundPercent = clamp(RefundPercent, 0, 100);
+		ErrorFound = true;
+	}
+
+
+	if(ErrorFound) StaticSaveConfig();
 }
-*/
 
 simulated final function UpdateDisplayMesh()
 {
@@ -285,7 +295,7 @@ function CheckUserAlive() // Check if owner player disconnects from server.
 {
 	if( OwnerController==None && !FindNewOwner() ) // Try to assign a player using the menu as owner
 	{
-		Health -= 70; // 70 equates to 20 damage at power level 1
+		Health -= HealthLostNoOwner;
 		if(Health <= 0)
 			KilledBy(None);
 	}
@@ -328,9 +338,9 @@ simulated function string GetInfo()
 {
 	local float F;
 
-	F = float(Health) / float(HealthMax) * 100.f;
+	F = ceil((float(Health) / float(HealthMax)) * 100.f);
 	// TODO: use rounding() and casting to avoid second ? operation
-	return "Owner: "$(PlayerReplicationInfo!=None ? PlayerReplicationInfo.PlayerName : "None")$" ("$(Health<HealthMax ? Clamp(F,1,99) : 100)$"% HP)";
+	return "Owner: "$(PlayerReplicationInfo!=None ? PlayerReplicationInfo.PlayerName : "None")$" ("$ int(F) /* (Health<HealthMax ? Clamp(F,1,99) : 100) */ $"% HP)";
 }
 simulated function string GetAmmoStatus()
 {
@@ -422,7 +432,7 @@ function TryToSellTurret( Controller User )
 	if( OwnerController==User )
 	{
 		if( User.PlayerReplicationInfo!=None )
-			User.PlayerReplicationInfo.Score += (SentryWorth * 0.7); // float is refund value
+			User.PlayerReplicationInfo.Score += (SentryWorth * RefundPercent); // float is refund value
 		KilledBy(None);
 	}
 	else if( PlayerController(User)!=None )

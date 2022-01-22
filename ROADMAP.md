@@ -19,8 +19,8 @@ Goals are in order of what should be acomplished. Input is welcome.
 
 ### Goal 3: Source turret models and animations / recieve permission to use old ones
 - ~~Step 1: Get original assets used in TF2 Sentry mod~~
-- Step 2A: Get permission from Marco to work off of them
-- Step 2B: Replace assets with newly sourced ones.
+- ~~Step 2A: Get permission from Marco/Slav to work off of them~~
+- Step 2B: Replace assets with newly sourced ones
 - Step 3: Create a TF2 wrench and animations
 
 
@@ -53,10 +53,15 @@ and/or
 - ~~Turret Preview hugs ground when placing~~
 - ~~Decrease delay when right clicking~~
 - ~~Faster rockets would be nice.~~
+- Implement new default balancing:
+  - Lower turret cost
+  - Higher ammo cost
+  - Higher refund percentage
+- Custom .swf upgrade menu
 
 ### Unsorted
-Rebalance: finitial cost lower, ammo price higher
-balance money return on sell to 50%-70%
 disable right click to sell
 fix lod to avoid pop-in
 disable emp effect on sell
+"MeleeDuration is zero" KFWeap_EngWrench.BeginMeleeAtack:0544 log spam
+wrong sound cue when turret is hit? cant replicate
