@@ -1,7 +1,9 @@
-class SentryWeapon extends KFWeap_Blunt_Pulverizer;
+class KFWeap_EngWrench extends KFWeap_Blunt_Pulverizer;
 
 var repnotify int Level1Cost;
 var SkeletalMeshComponent TurretPreview;
+var KFCharacterInfo_Monster BaseTurretArch;
+var MaterialInstanceConstant BaseTurSkin;
 var array<string> ModeInfos;
 var string AdminInfo;
 var byte NumTurrets;
@@ -16,38 +18,25 @@ replication
 
 simulated function PostBeginPlay()
 {
-	local SentryMainRep R;
 
 	Super.PostBeginPlay();
-	R = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
+
 	if( WorldInfo.NetMode!=NM_Client )
 	{
 		Level1Cost = Class'SentryTurret'.Default.LevelCfgs[0].Cost;
-		Mesh.SetMaterial(0,R.HammerSkin);
 	}
 	if( WorldInfo.NetMode!=NM_DedicatedServer )
 	{
 		SetCostInfoStr();
-		if( R!=None )
-			InitDisplay(R);
+		InitDisplay();
 	}
 }
 
-simulated final function InitDisplay( SentryMainRep R )
+simulated final function InitDisplay()
 {
-	TurretPreview.SetSkeletalMesh(R.TurretArch[0].CharacterMesh);
-	TurretPreview.SetMaterial(0,R.TurSkins[0]);
-
-	/*`log("Attempting to set custom hammer material");
-	if(R.HammerSkin != None) {
-		Mesh.SetMaterial(0,R.HammerSkin);
-	}
-	else {
-		`log("R.HammerSkin is NULL, attempting direct reference");
-		Mesh.SetMaterial(0,MaterialInstanceConstant'SentryHammer.Mat.Wep_1stP_SentryHammer_MIC');
-	}
-	
-	`log("Finished trying to set material");*/
+	TurretPreview.SetSkeletalMesh(BaseTurretArch.CharacterMesh);
+	TurretPreview.CreateAndSetMaterialInstanceConstant(0);
+	TurretPreview.SetMaterial(0, BaseTurSkin);
 }
 
 simulated final function SetCostInfoStr()
@@ -110,10 +99,12 @@ reliable client function ClientWeaponSet(bool bOptionalSet, optional bool bDoNot
 	}
 	Super(Weapon).ClientWeaponSet(bOptionalSet, bDoNotActivate);
 }
+
 function SetOriginalValuesFromPickup( KFWeapon PickedUpWeapon )
 {
 	bGivenAtStart = PickedUpWeapon.bGivenAtStart;
 }
+
 function AttachThirdPersonWeapon(KFPawn P)
 {
 	// Create weapon attachment (server only)
@@ -174,8 +165,9 @@ simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocat
 		{
 			if( CurrentFireMode==DEFAULT_FIREMODE )
 				HitActor.HealDamage(class'SentryTurret'.Default.HealPerHit,Instigator.Controller,None);
-			else if( CurrentFireMode==HEAVY_ATK_FIREMODE )
+			/*else if( CurrentFireMode==HEAVY_ATK_FIREMODE )
 				SentryTurret(HitActor).TryToSellTurret(Instigator.Controller);
+			*/ //Temporarily disabled, make configurable 
 		}
 		if ( !IsTimerActive(nameof(BeginPulverizerFire)) )
 			SetTimer(0.001f, false, nameof(BeginPulverizerFire));
@@ -500,6 +492,10 @@ static final function bool ParseLevelConfig( int Index, string S )
 
 defaultproperties
 {
+
+	BaseTurretArch = KFCharacterInfo_Monster'tf2sentry.Arch.Turret1Arch';
+	BaseTurSkin = MaterialInstanceConstant'tf2sentry.Tex.Sentry1Red';
+
    Begin Object Class=SkeletalMeshComponent Name=PrevMesh
       ReplacementPrimitive=None
       HiddenGame=True
@@ -509,8 +505,6 @@ defaultproperties
       LightingChannels=(bInitialized=True,Indoor=True,Outdoor=True)
       Translation=(X=0.000000,Y=0.000000,Z=-50.000000) //z was -50
       Scale=2.500000
-      Name="PrevMesh"
-      ObjectArchetype=SkeletalMeshComponent'Engine.Default__SkeletalMeshComponent'
    End Object
    TurretPreview=PrevMesh
 
@@ -542,23 +536,40 @@ defaultproperties
 		HitboxChain.Add((BoneOffset=(Y=-3,Z=50)))
 		HitboxChain.Add((BoneOffset=(Y=+3,Z=30)))
 		HitboxChain.Add((BoneOffset=(Y=-3,Z=10)))
-		// modified combo sequences
-		MeleeImpactCamShakeScale=0.04f //0.5
+		MeleeImpactCamShakeScale=0.01f // 0.04f
 		ChainSequence_F=(DIR_ForwardRight, DIR_ForwardLeft, DIR_ForwardRight, DIR_ForwardLeft)
 		ChainSequence_B=(DIR_BackwardRight, DIR_ForwardLeft, DIR_BackwardLeft, DIR_ForwardRight)
 		ChainSequence_L=(DIR_Right, DIR_ForwardLeft, DIR_ForwardRight, DIR_Left, DIR_Right)
 		ChainSequence_R=(DIR_Left, DIR_ForwardRight, DIR_ForwardLeft, DIR_Right, DIR_Left)
+		/*CHAIN SEQUENCES FROM DECOMPILE
+		ChainSequence_F(0)=DIR_ForwardRight
+      ChainSequence_F(1)=DIR_ForwardLeft
+      ChainSequence_F(2)=DIR_ForwardRight
+      ChainSequence_F(3)=DIR_ForwardLeft
+      ChainSequence_F(4)=()
+      ChainSequence_L(1)=DIR_ForwardLeft
+      ChainSequence_L(2)=()
+      ChainSequence_L(3)=DIR_Left
+      ChainSequence_L(4)=()
+      ChainSequence_L(5)=()
+      ChainSequence_R(1)=DIR_ForwardRight
+      ChainSequence_R(2)=()
+      ChainSequence_R(3)=DIR_Right
+      ChainSequence_R(4)=()
+      ChainSequence_R(5)=()
+		*/
 	End Object
    
    bCanThrow=False
+   bDropOnDeath=False
 
    FirstPersonMeshName="SentryHammer.Mesh.Wep_1stP_SentryHammer_Rig"
    FirstPersonAnimSetNames(0)="WEP_1P_Pulverizer_ANIM.Wep_1stP_Pulverizer_Anim"
-   AttachmentArchetypeName="WEP_Pulverizer_ARCH.Wep_Pulverizer_3P"
+
+   //AttachmentArchetypeName="WEP_Pulverizer_ARCH.Wep_Pulverizer_3P"
+   AttachmentArchetypeName="SentryHammer.Wep_SentryHammer_3P"
 	MuzzleFlashTemplateName="WEP_Pulverizer_ARCH.Wep_Pulverizer_MuzzleFlash"
 	PickupMeshName="WEP_3P_Pulverizer_MESH.Wep_Pulverizer_Pickup"
 
-   bDropOnDeath=False
-
-   Components.Add(PrevMesh) //(0)=
+   Components.Add(PrevMesh)
 }

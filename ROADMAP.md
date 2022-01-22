@@ -33,7 +33,7 @@ Goals are in order of what should be acomplished. Input is welcome.
 ### Goal 5: Fix long-standing bugs
 - ~~Change purple light on turret to red~~
 - ~~Replace green hammer~~
-- Patch taking over existing turrets (Patched, Needs Testing)
+- ~~Patch taking over existing turrets beyond max number~~
 - Turret will not scan until it finds its first target; fix this.
 - Stop the Sentry Hammer from showing as EMPTY in inventory
 
@@ -53,3 +53,10 @@ and/or
 - ~~Turret Preview hugs ground when placing~~
 - ~~Decrease delay when right clicking~~
 - ~~Faster rockets would be nice.~~
+
+### Unsorted
+Rebalance: finitial cost lower, ammo price higher
+balance money return on sell to 50%-70%
+disable right click to sell
+fix lod to avoid pop-in
+disable emp effect on sell

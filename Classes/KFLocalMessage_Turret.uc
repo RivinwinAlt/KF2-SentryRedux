@@ -1,11 +1,11 @@
-//This file defines the messages which a turret can send to players
+// Defines the messages which a turret can send to players
 
 class KFLocalMessage_Turret extends LocalMessage
 	abstract;
 	//TODO Implement localization of messages? use P.myHUD.LocalizedMessage()
 	//TODO implement enums for message switch
 
-//Overrides LocalMessage.uc to simplify and hardcode options.
+// Overrides to simplify and hardcode messages
 static function ClientReceive(
 	PlayerController P,
 	optional int Switch,
@@ -14,22 +14,23 @@ static function ClientReceive(
 	optional Object OptionalObject
 	)
 {
-	local string MessageString;
-	//create a local variable to store a cast version of P into. seems slow.
-	local KFPlayerController KFP;
-	//Get static messageString using a switch/case.
-	MessageString = static.GetString(Switch);
+	local string MessageString; // Holds the message to send
+	local KFPlayerController KFP; // Create a local variable to store a cast version of P into. P is not a pawn
+
+	MessageString = static.GetString(Switch); // Get static string using a switch/case.
 	if ( MessageString != "" )
 	{
 		KFP = KFPlayerController(P);
 		if( KFP!=None && KFP.MyGFxHUD!=None )
 			KFP.MyGFxHUD.ShowNonCriticalMessage(MessageString);
+			
+		// How and where does it determine if the message is for the console? Is this necessary? Does it mean the player is using a console(XBox, etc)?
 		if(IsConsoleMessage(Switch) && LocalPlayer(P.Player) != None && LocalPlayer(P.Player).ViewportClient != None)
 			LocalPlayer(P.Player).ViewportClient.ViewportConsole.OutputText( "<Turret>: "$MessageString );
 	}
 }
 
-//Overrides LocalMessage.uc to provide static english strings
+//Overrides to provide static english strings
 static function string GetString(
     optional int Sw,
     optional bool bPRI1HUD,
@@ -63,7 +64,4 @@ static function string GetString(
 
 defaultproperties
 {
-	//Add a copy of the default local message dataset
-   //Name="Default__KFLocalMessage_Turret"
-   //ObjectArchetype=LocalMessage'Engine.Default__LocalMessage'
 }

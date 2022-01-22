@@ -1,16 +1,20 @@
-//This class determines how a missile will act once it is spawned by the turret
-class KFProj_Missile_Sentry extends KFProj_Missile_Patriarch;
 
-/*TODO change the way headings are calculated and stored so that collision
-detection can be calulated in less steps and new headings can be curved to
-without repeating the initial collision check.
-*/
+// Determines how a missile will act once it is spawned by a turret
+// TODO change missile target when original dies?
+
+class KFProj_Missile_Sentry extends KFProjectile
+	hidedropdown;
+
 var Pawn AimTarget;
+var float InitialSpeed;
+var vector Dir;
+
+/** Flight light */
+var PointLightComponent FlightLight;
 
 replication
 {
-	// Variables the server should send ALL clients.
-	if( true )
+	if ( true )
 		AimTarget;
 }
 
@@ -23,11 +27,10 @@ simulated function PostBeginPlay()
 
 simulated function CheckHeading()
 {
-	//crappy vector names, they do NOT represent the x, y, and z axis
-	local vector X,Y,Z;
+	local vector TarRay, Heading;
 	local float Dist;
 	
-	//if the target is killed or despawned stop checking heading
+	// If the target is killed or despawned stop checking heading and exit
 	if( AimTarget==None || AimTarget.Health<=0 )
 	{
 		AimTarget = None;
@@ -37,87 +40,107 @@ simulated function CheckHeading()
 
 
 	//Find distance and direction to target
-	X = (AimTarget.Location-Location);
-	Dist = VSize(X);
-	//multiplys x by 10 or more?
-	X = X / FMax(Dist,0.1);
+	TarRay = (AimTarget.Location-Location);
+	Dist = VSize(TarRay);
 
-	/* REMOVED AVOIDING OBSTICLES
-	//trace towards target and see if theres a collision 
-	if( !FastTrace(AimTarget.Location,Location) )
-	{
-		// Check if we can curve to one direction to avoid hitting wall.
-		//takes normal of current vector and an arbitrary one?
-		//TODO get normal of actor that caused collision instead
-		Y = Normal(X Cross vect(0,0,1));
-		Z = X Cross Y;
-	
-		//This code could probably be optimized to check as little as possible
-		if( !TestDirection(X,Z,Dist) && !TestDirection(X,-Z,Dist) && !TestDirection(X,Y,Dist) )
-			TestDirection(X,-Y,Dist);
-	}
-	*/
-	
-	//Change path to be closer to new path to produce curve rather than jerk
-	Y = Normal(Velocity);
-	if( (Y Dot X)>0.99 )
-		Y = X;
-	else Y = Normal(Y+X*0.1);
-	Velocity = Y*Speed;
-	SetRotation(rotator(Velocity));
+	// Reduces Ray length down to 1.0 by deviding by itself
+	// TarRay = TarRay / FMax(Dist,0.1); // FMax avoids dividing by 0 or negatives
+	// REPLACED WITH
+	if(Dist > 1)
+		TarRay = Normal(TarRay);
+
+	// Change path to be closer to new path to produce curve rather than jerk
+	Heading = Normal(Velocity);
+	if( (Heading Dot TarRay) > 0.95 )
+		Heading = TarRay;
+	else Heading = Normal(Heading + (TarRay * 0.1));
+
+	Velocity = Heading * Speed; // Should be able to set Velocity to a constant?
+	SetRotation(rotator(Velocity)); // Set rotation to that of either Velocity or Heading
 }
 
-//Im not even going to touch this with comments until i optimize it
-//This function tests to see if the proposed curve away from a collision would be beneficial
-simulated final function bool TestDirection( out vector Aim, vector TestAxis, float Dist )
+simulated protected function PrepareExplosionTemplate()
 {
-	local vector V;
+	super.PrepareExplosionTemplate();
+	
+	/** Since bIgnoreInstigator is transient, its value must be defined here */
+	ExplosionTemplate.bIgnoreInstigator = true;
+}
 
-	// Test with a ~35 degrees angle arc.
-	V = Location+Aim*(Dist*0.5)+TestAxis*0.22;
-	if( FastTrace(V,Location) && FastTrace(AimTarget.Location,V) )
+simulated event Tick( float DeltaTime )
+{
+	super.Tick( DeltaTime );
+
+	if( FlightLight != none && WorldInfo.NetMode != NM_DedicatedServer )
 	{
-		Aim = Normal(V-Location);
+		FlightLight.Radius = 120.f + FlightLight.default.Radius * Abs( Cos(WorldInfo.TimeSeconds * (DeltaTime * 800.f)) );
+	}
+
+	// Finalize rotation
+	SetRotation( rotator(Velocity) );
+}
+
+/** Overloaded to apply direct damage on hit */
+simulated function bool TraceProjHitZones(Pawn P, vector EndTrace, vector StartTrace, out array<ImpactInfo> out_Hits)
+{
+	if( P != none )
+	{
+		P.TakeDamage( Damage, InstigatorController, StartTrace, MomentumTransfer * Normal(Velocity), MyDamageType,, self );
 		return true;
 	}
-	if( Dist>1500.f ) // Test with a small arc.
-	{
-		V = Location+Aim*(Dist*0.5)+TestAxis*200.f;
-		if( FastTrace(V,Location) && FastTrace(AimTarget.Location,V) )
-		{
-			Aim = Normal(V-Location);
-			return true;
-		}
-	}
+
 	return false;
 }
 
-//On mesh collision with an actor check if actor is on the enemy team. currently hard coded so the missile is always team 0
+/** Stops projectile simulation without destroying it.  Projectile is resting, essentially. */
+simulated protected function StopSimulating()
+{
+	super.StopSimulating();
+
+	FlightLight.SetEnabled( false );
+	DetachComponent( FlightLight );
+	FlightLight = none;
+}
+
 simulated event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
 {
-	//dont blow up when touching players
+	// Dont blow up when touching players
 	if( KFPawn(Other)!=None && KFPawn(Other).GetTeamNum()==0 )
 		return;
-	//If touching something else act like a patriarch missile
+	// If touching something else explode. Maybe. Dud?
 	Super.Touch(Other, OtherComp, HitLocation, HitNormal);
 }
 
 simulated function Destroyed()
 {
 	ClearTimer('CheckHeading');
-
 	super.Destroyed();
 }
 
-//TODO expose some of these options in config
 defaultproperties
 {
-	Speed=3000 //Increased from 2000
-	MaxSpeed=3000 //Increased from 2000
-	Damage=1000.000000
+	Physics=PHYS_Projectile
+	Speed=3000
+	MaxSpeed=3000
+	ProjFlightTemplate=ParticleSystem'WEP_RPG7_EMIT.FX_RPG7_Projectile'
+	//ProjFlightTemplate=ParticleSystem'ZED_Patriarch_EMIT.FX_Patriarch_Rocket_Projectile'
+	ExplosionActorClass=class'KFExplosionActor'
 
-	Begin Object Name=FlightPointLight
-	   LightColor=(R=255,G=20,B=95,A=255)
+	Damage=1000.0
+	MyDamageType=class'KFDT_Explosive_PatMissile'
+	MomentumTransfer=1000.f
+
+	// CollideActors=true allows detection via OverlappingActors or CollidingActors (for Siren scream)
+	Begin Object Name=CollisionCylinder
+		CollisionRadius=5.f
+		CollisionHeight=5.f
+		BlockNonZeroExtent=false
+		CollideActors=true
+	End Object
+
+	// Flight light
+	Begin Object Class=PointLightComponent Name=FlightPointLight
+	    LightColor=(R=255,G=20,B=95,A=255)
 		Brightness=1.5f
 		Radius=120.f
 		FalloffExponent=10.f
@@ -129,19 +152,63 @@ defaultproperties
 		LightingChannels=(Indoor=TRUE,Outdoor=TRUE,bInitialized=TRUE)
 	End Object
 	FlightLight=FlightPointLight
+	Components.Add(FlightPointLight)
 
-   Begin Object Name=ExploTemplate0
-      ExplosionEffects=KFImpactEffectInfo'WEP_Patriarch_ARCH.Missile_Explosion'
-      Damage=1000.000000
-      DamageRadius=750.000000
-      DamageFalloffExponent=2.000000
-      ActorClassToIgnoreForDamage=Class'KFGame.KFPawn_Human'
-      MyDamageType=Class'kfgamecontent.KFDT_Explosive_PatMissile'
-      ExplosionSound=AkEvent'WW_WEP_SA_RPG7.Play_WEP_SA_RPG7_Explosion'      
-      ExploLightFadeOutTime=0.500000
-      CamShake=KFCameraShake'FX_CameraShake_Arch.Grenades.Default_Grenade'
-      CamShakeInnerRadius=200.000000
-      CamShakeOuterRadius=700.000000      
-   End Object
-   ExplosionTemplate=ExploTemplate0
+	// Grenade explosion light
+	Begin Object Class=PointLightComponent Name=ExplosionPointLight
+	    LightColor=(R=245,G=190,B=140,A=255)
+		Brightness=4.f
+		Radius=1400.f
+		FalloffExponent=10.f
+		CastShadows=False
+		CastStaticShadows=FALSE
+		CastDynamicShadows=False
+		bCastPerObjectShadows=false
+		bEnabled=FALSE
+		LightingChannels=(Indoor=TRUE,Outdoor=TRUE,bInitialized=TRUE)
+	End Object
+
+	// explosion
+	Begin Object Class=KFGameExplosion Name=ExploTemplate0
+		Damage=1000.0
+		DamageRadius=750
+		DamageFalloffExponent=2.f
+		DamageDelay=0.f
+
+		ActorClassToIgnoreForDamage=Class'KFGame.KFPawn_Human'
+
+		// Damage Effects
+		MyDamageType=class'KFDT_Explosive_PatMissile'
+		KnockDownStrength=100
+		FractureMeshRadius=200.0
+		FracturePartVel=500.0
+		ExplosionEffects=KFImpactEffectInfo'WEP_Patriarch_ARCH.Missile_Explosion'
+		ExplosionSound=AkEvent'WW_WEP_SA_RPG7.Play_WEP_SA_RPG7_Explosion'
+
+        // Dynamic Light
+        ExploLight=ExplosionPointLight
+        ExploLightStartFadeOutTime=0.0
+        ExploLightFadeOutTime=0.5
+
+		// Camera Shake
+		CamShake=CameraShake'FX_CameraShake_Arch.Grenades.Default_Grenade'
+		CamShakeInnerRadius=200
+		CamShakeOuterRadius=700
+		CamShakeFalloff=1.f
+		bOrientCameraShakeTowardsEpicenter=true
+	End Object
+	ExplosionTemplate=ExploTemplate0
+
+	Begin Object Class=AkComponent name=AmbientAkSoundComponent
+		bStopWhenOwnerDestroyed=true
+        bForceOcclusionUpdateInterval=true
+        OcclusionUpdateInterval=0.1f
+    End Object
+    AmbientComponent=AmbientAkSoundComponent
+    Components.Add(AmbientAkSoundComponent)
+
+	bAutoStartAmbientSound=true
+	bStopAmbientSoundOnExplode=true
+	AmbientSoundPlayEvent=AkEvent'WW_ZED_Patriarch.Play_Mini_Rocket_Trail_1'
+    //AmbientSoundStopEvent=AkEvent'WW_ZED_Husk.ZED_Husk_SFX_Ranged_Shot_LP_Stop'
 }

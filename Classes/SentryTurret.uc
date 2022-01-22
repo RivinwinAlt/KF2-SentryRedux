@@ -6,12 +6,11 @@ Class SentryTurret extends KFPawn
 var transient SentryMainRep ContentRef;
 var transient SentryOverlay LocalOverlay;
 
-//LOL first typo found
-var float AccurancyMod;
+var float AccuracyMod;
 var AnimNodeSlot AnimationNode, UpperAnimNode;
 var SkelControlLookAt YawControl, PitchControl;
 var Controller OwnerController;
-var SentryWeapon ActiveOwnerWeapon;
+var KFWeap_EngWrench ActiveOwnerWeapon;
 var repnotify int SentryWorth;
 var SentryTrigger ActiveTrigger;
 var repnotify byte PowerLevel;
@@ -36,6 +35,9 @@ const ETU_AmmoSMGBig=8;
 const ETU_AmmoMissiles=9;
 const ETU_AmmoMissilesBig=10;
 const ETU_MAXUPGRADES=11;
+
+var MaterialInstanceConstant TurSkins[3];
+var KFCharacterInfo_Monster TurretArch[3];
 
 struct FTurretLevel
 {
@@ -87,10 +89,10 @@ simulated function PostBeginPlay()
 {
 	Super.PostBeginPlay();
 	ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
-	if( ContentRef!=None )
-		InitDisplay();
+
 	if( WorldInfo.NetMode!=NM_DedicatedServer )
 		AddHUDOverlay();
+		UpdateDisplayMesh();
 	if( WorldInfo.NetMode!=NM_Client && !bDeleteMe )
 	{
 		AmmoLevel[0] = MaxAmmoCount[0]/10;
@@ -115,7 +117,7 @@ simulated function PostBeginPlay()
 simulated function CheckBuilt()
 {
 	ClearTimer('CheckBuilt');
-	ClearTimer('UnsetBuilt'); //but why?
+	ClearTimer('UnsetBuilt');
 
 	if( WorldInfo.NetMode!=NM_Client )
 		bRecentlyBuilt = true;
@@ -139,11 +141,12 @@ simulated function CheckBuilt()
 function UnsetBuilt()
 {
 	bRecentlyBuilt = false;
+	bIsScanning=true; // 1/21/22 attempting start scanning animation after built
 }
 
 static final function UpdateConfig()
 {
-	if( Default.ConfigVersion!=1 ) //increment version to reset/update old configs
+	if( Default.ConfigVersion!=1 ) // Increment version to reset/update old configs
 	{
 		Default.MaxTurretsPerUser = 3;
 		Default.MapMaxTurrets = 12;
@@ -178,10 +181,12 @@ static final function UpdateConfig()
 	}
 }
 
-simulated final function InitDisplay()
+/*simulated final function InitDisplay()
 {
-	UpdateDisplayMesh(); //unnecessary function nesting
+	UpdateDisplayMesh(); // Unnecessary function nesting?
 }
+*/
+
 simulated final function UpdateDisplayMesh()
 {
 	RemoveMuzzles();
@@ -195,10 +200,10 @@ simulated final function UpdateDisplayMesh()
 		Mesh.DetachComponent(TurretRedLight);
 	}
 
-	Mesh.SetSkeletalMesh(ContentRef.TurretArch[PowerLevel].CharacterMesh);
-	Mesh.AnimSets = ContentRef.TurretArch[PowerLevel].AnimSets;
-	Mesh.SetAnimTreeTemplate(ContentRef.TurretArch[PowerLevel].AnimTreeTemplate);
-	Mesh.SetPhysicsAsset(ContentRef.TurretArch[PowerLevel].PhysAsset);
+	Mesh.SetSkeletalMesh(TurretArch[PowerLevel].CharacterMesh);
+	Mesh.AnimSets = TurretArch[PowerLevel].AnimSets;
+	Mesh.SetAnimTreeTemplate(TurretArch[PowerLevel].AnimTreeTemplate);
+	Mesh.SetPhysicsAsset(TurretArch[PowerLevel].PhysAsset);
 
 	if( WorldInfo.NetMode!=NM_DedicatedServer )
 	{
@@ -208,23 +213,19 @@ simulated final function UpdateDisplayMesh()
 		switch( PowerLevel )
 		{
 		case 0:
-			Mesh.SetMaterial(0,ContentRef.TurSkins[0]);
+			Mesh.SetMaterial(0,TurSkins[0]);
 			break;
 		case 1:
-			Mesh.SetMaterial(0,ContentRef.TurSkins[0]);
-			Mesh.SetMaterial(1,ContentRef.TurSkins[1]);
+			Mesh.SetMaterial(0,TurSkins[0]);
+			Mesh.SetMaterial(1,TurSkins[1]);
 			break;
 		case 2:
-			Mesh.SetMaterial(0,ContentRef.TurSkins[2]);
-			Mesh.SetMaterial(1,ContentRef.TurSkins[0]);
-			Mesh.SetMaterial(2,ContentRef.TurSkins[1]);
+			Mesh.SetMaterial(0,TurSkins[2]);
+			Mesh.SetMaterial(1,TurSkins[0]);
+			Mesh.SetMaterial(2,TurSkins[1]);
 			break;
 		}
 	}
-}
-simulated final function SoundCue GrabCue( byte Index )
-{
-	return ContentRef!=None ? SoundCue(ContentRef.ObjRef.ReferencedObjects[Index]) : None;
 }
 
 simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
@@ -282,38 +283,35 @@ simulated final function AddHUDOverlay()
 
 function CheckUserAlive() // Check if owner player disconnects from server.
 {
-	if( OwnerController==None /* && !FindNewOwner() */ ) //edited to disable taking over turrets when someone leaves
-		KilledBy(None);
+	if( OwnerController==None && !FindNewOwner() ) // Try to assign a player using the menu as owner
+	{
+		Health -= 70; // 70 equates to 20 damage at power level 1
+		if(Health <= 0)
+			KilledBy(None);
+	}
 }
 
 final function bool FindNewOwner()
 {
 	local SentryUI_Network N;
-	local KFWeapon KFW;
-	local KFInventoryManager KFIM;
+	local KFWeap_EngWrench KFW;
 
 	foreach CurrentUsers(N)
 	{
 		if( N.PlayerOwner!=None && N.PlayerOwner.Pawn!=None && N.PlayerOwner.Pawn.IsAliveAndWell())
 		{
-			KFIM = KFInventoryManager(N.PlayerOwner.Pawn.InvManager);
-			if (KFIM != None)
-    		{
-        		foreach KFIM.InventoryActors(class'KFWeapon', KFW)
-        		{
-            		if (KFW.Class == class'SentryWeapon' && SentryWeapon(KFW).NumTurrets < MaxTurretsPerUser)
-            		{
-						SetTurretOwner(N.PlayerOwner);
-						return true;
-					}
-				}
+			KFW = KFWeap_EngWrench(N.PlayerOwner.Pawn.FindInventoryType(class'KFWeap_EngWrench'));
+            if (KFW != None && KFW.NumTurrets < MaxTurretsPerUser)
+            {
+				SetTurretOwner(N.PlayerOwner);
+				return true;
 			}
 		}
 	}
 	return false;
 }
 
-function SetTurretOwner( Controller Other, optional SentryWeapon W )
+function SetTurretOwner( Controller Other, optional KFWeap_EngWrench W )
 {
 	SetTimer(4+FRand(),true,'CheckUserAlive');
 	OwnerController = Other;
@@ -321,7 +319,7 @@ function SetTurretOwner( Controller Other, optional SentryWeapon W )
 	bIsUserCreated = true;
 	
 	// Increment owned turret count.
-	ActiveOwnerWeapon = W!=None ? W : SentryWeapon(Other.Pawn.FindInventoryType(class'SentryWeapon'));
+	ActiveOwnerWeapon = W!=None ? W : KFWeap_EngWrench(Other.Pawn.FindInventoryType(class'KFWeap_EngWrench'));
 	if( ActiveOwnerWeapon!=None )
 		++ActiveOwnerWeapon.NumTurrets;
 }
@@ -331,7 +329,7 @@ simulated function string GetInfo()
 	local float F;
 
 	F = float(Health) / float(HealthMax) * 100.f;
-	// TODO: use rounding() and casting to avoid a ? operation
+	// TODO: use rounding() and casting to avoid second ? operation
 	return "Owner: "$(PlayerReplicationInfo!=None ? PlayerReplicationInfo.PlayerName : "None")$" ("$(Health<HealthMax ? Clamp(F,1,99) : 100)$"% HP)";
 }
 simulated function string GetAmmoStatus()
@@ -424,7 +422,7 @@ function TryToSellTurret( Controller User )
 	if( OwnerController==User )
 	{
 		if( User.PlayerReplicationInfo!=None )
-			User.PlayerReplicationInfo.Score += (SentryWorth * 0.2);
+			User.PlayerReplicationInfo.Score += (SentryWorth * 0.7); // float is refund value
 		KilledBy(None);
 	}
 	else if( PlayerController(User)!=None )
@@ -556,10 +554,10 @@ final function ApplyUpgrade( byte Index )
 simulated final function SetUpgrades()
 {
 	if( HasUpgradeFlags(ETU_IronSightB) )
-		AccurancyMod = 0.4f;
+		AccuracyMod = 0.4f;
 	else if( HasUpgradeFlags(ETU_IronSightA) )
-		AccurancyMod = 0.7f;
-	else AccurancyMod = 1.f;
+		AccuracyMod = 0.7f;
+	else AccuracyMod = 1.f;
 	
 	if( WorldInfo.NetMode!=NM_Client )
 	{
@@ -642,17 +640,6 @@ simulated function PlayOutOfAmmo()
 simulated function ScanSound()
 {
 	local SoundCue C;
-	/*
-	if( !bIsScanning || Health<=0 )
-		return;
-	if( PowerLevel==0 )
-		C = GrabCue(5);
-	else if( PowerLevel==1 )
-		C = GrabCue(9);
-	else C = GrabCue(10);
-	if( C==None )
-		return;
-	*/
 	if( !bIsScanning || Health<=0 )
 		return;
 	if( PowerLevel==0 )
@@ -670,6 +657,7 @@ simulated function EndScanning()
 {
 	bIsScanning = false;
 	SetViewFocus(ViewFocusActor);
+	//TODO: stop scanning sound cue
 }
 
 simulated function FireShot()
@@ -702,13 +690,6 @@ simulated function FireShot()
 		if( NextFireSoundTime<WorldInfo.TimeSeconds )
 		{
 			NextFireSoundTime = WorldInfo.TimeSeconds+0.15;
-			/*
-			if( PowerLevel==0 )
-				PlaySoundBase(GrabCue(6),true);
-			else if( PowerLevel==1 )
-				PlaySoundBase(GrabCue(7),true);
-			else PlaySoundBase(GrabCue(8),true);
-			*/
 			if( PowerLevel==0 )
 				PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_shoot_Cue',true);
 			else if( PowerLevel==1 )
@@ -829,7 +810,7 @@ simulated function TraceFire()
 		RepHitLocation = Location+vector(Rotation)*2000.f;
 
 	Dir = Normal(RepHitLocation-Start);
-	Dir = Normal(Dir+VRand()*(0.075*AccurancyMod*FRand()));
+	Dir = Normal(Dir+VRand()*(0.075*AccuracyMod*FRand()));
 	End = Start + Dir*10000.f;
 	foreach TraceActors(class'Actor',A,HL,HN,End,Start,,H)
 	{
@@ -891,6 +872,7 @@ simulated function DrawImpact( Actor A, vector HitLocation, vector HitNormal )
 
 	if (MuzzleFlash[i] == None )
 	{
+		// This implies the muzzle flash is the same for both indexes. Why use an array?
 		MuzzleFlash[i] = new(self) Class'KFMuzzleFlash'(KFMuzzleFlash'WEP_AA12_ARCH.Wep_AA12Shotgun_MuzzleFlash_3P');
 		MuzzleFlash[i].AttachMuzzleFlash(Mesh,M,M);
 		MuzzleFlash[i].MuzzleFlash.PSC.SetScale(2.5);
@@ -928,7 +910,7 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 {
 	local int i;
 
-	// Notify users of this.
+	// Notify users of this?
 	for( i=(CurrentUsers.Length-1); i>=0; --i )
 		CurrentUsers[i].Destroy();
 
@@ -1011,8 +993,8 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 	
 	if( WorldInfo.NetMode!=NM_DedicatedServer )
 	{
-		//PlaySoundBase(GrabCue(4),true);
 		PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_explode_Cue',true);
+		// TODO: dont play emp grenade when selling
 		WorldInfo.MyEmitterPool.SpawnEmitter( ParticleSystem'WEP_3P_EMP_EMIT.FX_EMP_Grenade_Explosion', Location);
 		WorldInfo.MyEmitterPool.SpawnEmitter( ParticleSystem'WEP_3P_MKII_EMIT.FX_MKII_Grenade_Explosion', Location);
 	}
@@ -1091,10 +1073,17 @@ function AdjustDamage(out int InDamage, out vector Momentum, Controller Instigat
 
 defaultproperties
 {
-   AccurancyMod=1.000000
-   /*MaxTurretsPerUser=3
-   MapMaxTurrets=12
-   HealthRegenRate=10*/
+
+
+   AccuracyMod=1.000000
+   SightRadius=2200.000000
+   Mass=5500.000000
+   BaseEyeHeight=70.000000
+   EyeHeight=70.000000
+   Health=350
+   HealthMax=350
+   ControllerClass=Class'SentryTurretAI'
+
    Begin Object Class=SpotLightComponent Name=SpotLight1
       OuterConeAngle=35.000000
       Radius=2000.000000
@@ -1107,10 +1096,9 @@ defaultproperties
       bCastPerObjectShadows=False
       LightingChannels=(Outdoor=True)
       MaxDrawDistance=3500.000000
-      //Name="SpotLight1"
-      //ObjectArchetype=SpotLightComponent'Engine.Default__SpotLightComponent'
    End Object
    TurretSpotLight=SpotLight1
+
    Begin Object Class=PointLightComponent Name=PointLightComponent1
       Radius=120.000000
       Brightness=4.000000
@@ -1120,10 +1108,17 @@ defaultproperties
       MaxBrightness=1.000000
       AnimationType=2
       AnimationFrequency=1.000000
-      //Name="PointLightComponent1"
-      //ObjectArchetype=PointLightComponent'Engine.Default__PointLightComponent'
-   End Object
-   TurretRedLight=PointLightComponent1
+  	End Object
+  	TurretRedLight=PointLightComponent1
+
+  	TurretArch[0] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret1Arch';
+	TurretArch[1] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret2Arch';
+	TurretArch[2] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret3Arch';
+	TurSkins[0] = MaterialInstanceConstant'tf2sentry.Tex.Sentry1Red';
+	TurSkins[1] = MaterialInstanceConstant'tf2sentry.Tex.Sentry2Red';
+	TurSkins[2] = MaterialInstanceConstant'tf2sentry.Tex.Sentry3Red';
+
+
    Levels(0)=(Icon=Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_01',RoF=0.300000,UIName="Level1")
    Levels(1)=(Icon=Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_02',RoF=0.125000,UIName="Level2")
    Levels(2)=(Icon=Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_04',RoF=0.100000,UIName="Level3")
@@ -1155,13 +1150,13 @@ defaultproperties
       bAcceptsDynamicDecals=True
    End Object
    ThirdPersonHeadMeshComponent=ThirdPersonHead0
+
    Begin Object Class=KFAfflictionManager Name=Afflictions_0 Archetype=KFAfflictionManager'KFGame.Default__KFPawn:Afflictions_0'
       FireFullyCharredDuration=2.500000
       FireCharPercentThreshhold=0.250000
-      Name="Afflictions_0"
-      ObjectArchetype=KFAfflictionManager'KFGame.Default__KFPawn:Afflictions_0'
    End Object
    AfflictionHandler=KFAfflictionManager'Default__SentryTurret:Afflictions_0'
+
    Begin Object Name=FirstPersonArms
       bIgnoreControllersWhenNotRendered=True
       bOverrideAttachmentOwnerVisibility=True
@@ -1172,46 +1167,41 @@ defaultproperties
       bAllowPerObjectShadows=True
    End Object
    ArmsMesh=FirstPersonArms
+
    Begin Object Class=KFSpecialMoveHandler Name=SpecialMoveHandler_0 Archetype=KFSpecialMoveHandler'KFGame.Default__KFPawn:SpecialMoveHandler_0'
-      Name="SpecialMoveHandler_0"
-      ObjectArchetype=KFSpecialMoveHandler'KFGame.Default__KFPawn:SpecialMoveHandler_0'
    End Object
    SpecialMoveHandler=KFSpecialMoveHandler'Default__SentryTurret:SpecialMoveHandler_0'
+
    Begin Object Name=AmbientAkSoundComponent_1
       BoneName="Dummy"
       bStopWhenOwnerDestroyed=True
    End Object
    AmbientAkComponent=AmbientAkSoundComponent_1
+
    Begin Object Name=AmbientAkSoundComponent_0
       BoneName="Dummy"
       bStopWhenOwnerDestroyed=True
       bForceOcclusionUpdateInterval=True
    End Object
    WeaponAkComponent=AmbientAkSoundComponent_0
+
    Begin Object Class=KFWeaponAmbientEchoHandler Name=WeaponAmbientEchoHandler_0 Archetype=KFWeaponAmbientEchoHandler'KFGame.Default__KFPawn:WeaponAmbientEchoHandler_0'
-      Name="WeaponAmbientEchoHandler_0"
-      ObjectArchetype=KFWeaponAmbientEchoHandler'KFGame.Default__KFPawn:WeaponAmbientEchoHandler_0'
    End Object
    WeaponAmbientEchoHandler=KFWeaponAmbientEchoHandler'Default__SentryTurret:WeaponAmbientEchoHandler_0'
+
    Begin Object Name=FootstepAkSoundComponent
       BoneName="Dummy"
       bStopWhenOwnerDestroyed=True
       bForceOcclusionUpdateInterval=True
    End Object
    FootstepAkComponent=FootstepAkSoundComponent
+
    Begin Object Name=DialogAkSoundComponent
       BoneName="Dummy"
       bStopWhenOwnerDestroyed=True
    End Object
    DialogAkComponent=DialogAkSoundComponent
-   SightRadius=2200.000000
-   Mass=5500.000000
-   BaseEyeHeight=70.000000
-   EyeHeight=70.000000
-   Health=350
-   HealthMax=350
-   //MenuName="Sentry Gun"
-   ControllerClass=Class'SentryTurretAI'
+
    Begin Object Class=SkeletalMeshComponent Name=SkelMesh
       bUpdateSkelWhenNotRendered=False
       ReplacementPrimitive=None
@@ -1222,10 +1212,9 @@ defaultproperties
       RBCollideWithChannels=(Default=True,GameplayPhysics=True,EffectPhysics=True,BlockingVolume=True)
       Translation=(X=0.000000,Y=0.000000,Z=-50.000000)
       Scale=2.500000
-      Name="SkelMesh"
-      ObjectArchetype=SkeletalMeshComponent'Engine.Default__SkeletalMeshComponent'
    End Object
    Mesh=SkelMesh
+
    Begin Object Name=CollisionCylinder
       CollisionHeight=50.000000
       CollisionRadius=30.000000
@@ -1235,14 +1224,16 @@ defaultproperties
       BlockZeroExtent=False
    End Object
    CylinderComponent=CollisionCylinder
-   Components(0)=CollisionCylinder
+   Components.Add(CollisionCylinder)
+
    Begin Object Name=Arrow
       ArrowColor=(B=255,G=200,R=150,A=255)
       bTreatAsASprite=True
       SpriteCategoryName="Pawns"
       ReplacementPrimitive=None
    End Object
-   Components(1)=Arrow
+   Components.Add(Arrow)
+
    Begin Object Name=KFPawnSkeletalMeshComponent
       MinDistFactorForKinematicUpdate=0.200000
       bSkipAllUpdateWhenPhysicsAsleep=True
@@ -1268,12 +1259,13 @@ defaultproperties
       bAllowPerObjectShadows=True
       TickGroup=TG_DuringAsyncWork
    End Object
-   Components(2)=KFPawnSkeletalMeshComponent
-   Components(3)=AmbientAkSoundComponent_0
-   Components(4)=AmbientAkSoundComponent_1
-   Components(5)=FootstepAkSoundComponent
-   Components(6)=DialogAkSoundComponent
-   Components(7)=SkelMesh
+   Components.Add(KFPawnSkeletalMeshComponent)
+
+   Components.Add(AmbientAkSoundComponent_0)
+   Components.Add(AmbientAkSoundComponent_1)
+   Components.Add(FootstepAkSoundComponent)
+   Components.Add(DialogAkSoundComponent)
+   Components.Add(SkelMesh)
    Physics=PHYS_Falling
    CollisionComponent=CollisionCylinder
 }

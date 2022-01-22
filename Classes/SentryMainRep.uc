@@ -1,15 +1,10 @@
-//This class handles replicating current server info onto the client:
-//Replicates: spawned turrets for overlays, turret archetypes, materials, triggering events
-//Replicates: any variable in the package that is known by name?
+//Handles replicating current server info to the client
 
 Class SentryMainRep extends ReplicationInfo
 	transient;
 
 var repnotify ObjectReferencer ObjRef;
 var ObjectReferencer BaseRef;
-var MaterialInstanceConstant TurSkins[3];
-var MaterialInstanceConstant HammerSkin;
-var KFCharacterInfo_Monster TurretArch[3];
 
 replication
 {
@@ -17,16 +12,16 @@ replication
 		ObjRef;
 }
 
-//This function helps ensure there is always one spawned instance of this class on the server.
+// Ensures there is always one spawned instance of this class on the server.
 simulated static final function SentryMainRep FindContentRep( WorldInfo Level )
 {
 	local SentryMainRep H;
 	
-	//Search through spawned actors for an existing instance of this class.
+	//Search through spawned actors for an existing instance of this class
 	foreach Level.DynamicActors(class'SentryMainRep',H)
-		if( H.ObjRef!=None )
+		if( H!=None )
 			return H;
-	//If player isnt connected to a server (or is a server itself) spawn a new instance of this class.
+	// If server and none exists spawn a new instance
 	if( Level.NetMode!=NM_Client )
 	{
 		H = Level.Spawn(class'SentryMainRep');
@@ -38,7 +33,7 @@ simulated static final function SentryMainRep FindContentRep( WorldInfo Level )
 function PostBeginPlay()
 {
 	local KFGameInfo K;
-	//Creates/updates config file with default values
+
 	Class'SentryTurret'.Static.UpdateConfig();
 
 	// Replace scriptwarning spewing DialogManager.
@@ -58,81 +53,34 @@ function PostBeginPlay()
 	}
 
 	//BaseRef is defined in default properties as ObjectReferencer'tf2sentry.Arch.TurretObjList'
+	//Currently being depricated
 	ObjRef = BaseRef;
-	if( ObjRef!=None )
-		InitRep();
 }
 
 simulated function ReplicatedEvent( name VarName )
 {
-	if( VarName=='ObjRef' && ObjRef!=None )
-		InitRep();
-}
-
-simulated final function InitRep()
-{
-	if( WorldInfo.NetMode!=NM_DedicatedServer )
-	{
-		TurSkins[0] = MaterialInstanceConstant'tf2sentry.Tex.Sentry1Red';
-		TurSkins[1] = MaterialInstanceConstant'tf2sentry.Tex.Sentry2Red';
-		TurSkins[2] = MaterialInstanceConstant'tf2sentry.Tex.Sentry3Red';
-		//If client copy materials
-		/*
-		TurSkins[0] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[1]));
-		TurSkins[1] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[3]));
-		TurSkins[2] = CloneMIC(MaterialInstanceConstant(ObjRef.ReferencedObjects[12]));
-		*/
-	}
-
-	TurretArch[0] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret1Arch';
-	TurretArch[1] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret2Arch';
-	TurretArch[2] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret3Arch';
-	//Copy archetypes to local variables
-	/*TurretArch[0] = KFCharacterInfo_Monster(ObjRef.ReferencedObjects[0]);
-	TurretArch[1] = KFCharacterInfo_Monster(ObjRef.ReferencedObjects[2]);
-	TurretArch[2] = KFCharacterInfo_Monster(ObjRef.ReferencedObjects[11]);
-	*/
-
-	//If client, update spawned turrets with local assets
-	if( WorldInfo.NetMode==NM_Client )
+	if( VarName=='ObjRef' && ObjRef!=None && WorldInfo.NetMode==NM_Client )
 		UpdateInstances();
 }
+
 simulated final function UpdateInstances()
 {
-	local SentryWeapon W;
 	local SentryTurret T;
 
 	//On client side assign meshes and materials for each spawned turret.
 	//These InitDisplay functions are entirely different, from two different classes
-	foreach DynamicActors(class'SentryWeapon',W)
-		W.InitDisplay(Self);
+	//foreach DynamicActors(class'KFWeap_EngWrench',W)
+		//W.InitDisplay();
 	foreach WorldInfo.AllPawns(class'SentryTurret',T)
 	{
-		T.ContentRef = Self;
-		T.InitDisplay();
+		//T.ContentRef = Self;
+		T.UpdateDisplayMesh();
 	}
-}
-
-simulated static final function MaterialInstanceConstant CloneMIC( MaterialInstanceConstant B )
-{
-	//A reletively expensive network operation to copy materials rather than referencing them locally.
-	local int i;
-	local MaterialInstanceConstant M;
-	
-	M = new (None) class'MaterialInstanceConstant';
-	M.SetParent(B.Parent);
-	
-	for( i=0; i<B.TextureParameterValues.Length; ++i )
-		if( B.TextureParameterValues[i].ParameterValue!=None )
-			M.SetTextureParameterValue(B.TextureParameterValues[i].ParameterName,B.TextureParameterValues[i].ParameterValue);
-	return M;
 }
 
 //TODO Expose net update frequency to config
 defaultproperties
 {
-   BaseRef=ObjectReferencer'tf2sentry.Arch.TurretObjList'
-   NetUpdateFrequency=4.000000
-   //Name="Default__SentryMainRep"
-   //ObjectArchetype=ReplicationInfo'Engine.Default__ReplicationInfo'
+   BaseRef = ObjectReferencer'tf2sentry.Arch.TurretObjList'
+   NetUpdateFrequency = 4.000000
 }
