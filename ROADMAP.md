@@ -2,66 +2,66 @@
 Goals are in order of what should be acomplished. Input is welcome.
 
 
-### Goal 1: Merge the UEx and SDK Decompiles into the main branch
-- ~~Step 1: Perform a differential comparison file by file to find all entries unique to each decompile~~
-- Step 2: Remove unecessary comments and entries from the new source
-  - Status: Ongoing
-- Step 3: Format new source in accordance with coding conventions
-  - Status: Not Started
-- Step 4: Comment source for readability
+### 1: Merge the UEx and SDK Decompiles into the main branch
+- ~~Perform a differential comparison file by file to find all entries unique to each decompile~~
+- ~~Remove unecessary comments and entries from the new source~~
+- ~~Format new source in accordance with coding conventions~~
+- Comment source for readability
   - Status: Ongoing
 
 
-### Goal 2: Move default properties and variables to config file
-- Sentry Missile speed
-- Place turret delay when right clicking
+### 2: Move default properties and variables to config file
+- ~~Sentry Missile speed~~
+- ~~Place turret delay when right clicking~~
+- ~~Disable right click to sell~~
 
 
-### Goal 3: Source turret models and animations / recieve permission to use old ones
-- ~~Step 1: Get original assets used in TF2 Sentry mod~~
-- ~~Step 2A: Get permission from Marco/Slav to work off of them~~
-- Step 2B: Replace assets with newly sourced ones
-- Step 3: Create a TF2 wrench and animations
+### 3: Source turret models and animations / recieve permission to use old ones
+- ~~Get original assets used in TF2 Sentry mod~~
+- ~~Get permission from Marco/Slav to work off of them~~ Note: Recieved Slavs blessing and source materials
+- Replace assets with newly sourced ones
+- Create a TF2 wrench mesh + animations + material
 
 
-### Goal 4: Streamline code
+### 4: Streamline code
 - Implement Skip flags for complex If statements
-- Implement default config creation + value clamping
+- Implement config value clamping
 - Minimise raytracing
+  - ~~Missiles~~
+  - ~~Bullets~~
 
 
-### Goal 5: Fix long-standing bugs
+### 5: Fix long-standing bugs
 - ~~Change purple light on turret to red~~
 - ~~Replace green hammer~~
 - ~~Patch taking over existing turrets beyond max number~~
-- Turret will not scan until it finds its first target; fix this.
 - Stop the Sentry Hammer from showing as EMPTY in inventory
+- Improve pop-in when obstructed by thin walls, etc
 
 
-### Goal 7: Implement new features
+### 7: Implement new features
 - Be able to rotate turret during placement
-- Integrate perks that boost or alter turrets.
+- Integrate perks that boost or alter turrets
 and/or
 - More turret varieties (Perkified versions)
-- Integrate more buyable upgrades.
+- Integrate more buyable upgrades
   - Missile Firerate
   - Range
   - Damage
   - Defence
   - AOE knockback
   - Stun / knockdown
+  - Degrees of rotation / targeting angle
 - ~~Turret Preview hugs ground when placing~~
 - ~~Decrease delay when right clicking~~
-- ~~Faster rockets would be nice.~~
+- ~~Faster rockets~~
 - Implement new default balancing:
   - Lower turret cost
   - Higher ammo cost
   - Higher refund percentage
 - Custom .swf upgrade menu
+~~- Disable explosion GFX when selling turret~~
+- Add custom "selling turret" SFX
+
 
 ### Unsorted
-disable right click to sell
-fix lod to avoid pop-in
-disable emp effect on sell
-"MeleeDuration is zero" KFWeap_EngWrench.BeginMeleeAtack:0544 log spam
-wrong sound cue when turret is hit? cant replicate

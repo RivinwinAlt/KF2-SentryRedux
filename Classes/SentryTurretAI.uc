@@ -5,16 +5,16 @@ var vector LastAliveSpot;
 
 function InitPlayerReplicationInfo()
 {
-	if( PlayerReplicationInfo==None )
-		PlayerReplicationInfo = Spawn(class'KFDummyReplicationInfo', self,, vect(0,0,0),rot(0,0,0));
-	PlayerReplicationInfo.PlayerName = "TF2Sentry";
-	if( WorldInfo.GRI!=None && WorldInfo.GRI.Teams.Length>0 )
+	if(PlayerReplicationInfo == None)
+		PlayerReplicationInfo = Spawn(class'KFDummyReplicationInfo', self, , vect(0, 0, 0), rot(0, 0, 0));
+	PlayerReplicationInfo.PlayerName="TF2Sentry";
+	if(WorldInfo.GRI != None && WorldInfo.GRI.Teams.Length > 0)
 		PlayerReplicationInfo.Team = WorldInfo.GRI.Teams[0];
 }
 
 event Destroyed()
 {
-	if ( PlayerReplicationInfo!=None )
+	if (PlayerReplicationInfo != None)
 		CleanupPRI();
 }
 
@@ -27,27 +27,32 @@ function Restart(bool bVehicleTransition)
 	GoToState('WaitForEnemy');
 }
 
-event SeePlayer( Pawn Seen )
+event SeePlayer(Pawn Seen)
 {
 	SetEnemy(Seen);
 }
-event SeeMonster( Pawn Seen )
+event SeeMonster(Pawn Seen)
 {
 	SetEnemy(Seen);
 }
-event HearNoise( float Loudness, Actor NoiseMaker, optional Name NoiseType )
+
+event HearNoise(float Loudness, Actor NoiseMaker, optional Name NoiseType)
 {
-	if( NoiseMaker!=None && NoiseMaker.Instigator!=None )
+	/*
+	if(NoiseMaker != None && NoiseMaker.Instigator != None)
 		SetEnemy(NoiseMaker.Instigator);
+	*/
 }
+
 function NotifyTakeHit(Controller InstigatedBy, vector HitLocation, int Damage, class<DamageType> damageType, vector Momentum)
 {
-	if( InstigatedBy!=None && InstigatedBy.Pawn!=None )
+	if(InstigatedBy != None && InstigatedBy.Pawn != None)
 		SetEnemy(InstigatedBy.Pawn);
 }
-function bool SetEnemy( Pawn Other )
+
+function bool SetEnemy(Pawn Other)
 {
-	if( TPawn.BuildTimer>WorldInfo.TimeSeconds || Other==None || Other==Enemy || !Other.IsAliveAndWell() || Other.IsSameTeam(Pawn) || !Other.CanAITargetThisPawn(Self) || !CanSeeSpot(Other.Location) )
+	if(TPawn.BuildTimer > WorldInfo.TimeSeconds || Other == None || Other == Enemy || !Other.IsAliveAndWell() || Other.IsSameTeam(Pawn) || !Other.CanAITargetThisPawn(Self) || !CanSeeSpot(Other.Location))
 		return false;
 	
 	Enemy = Other;
@@ -56,51 +61,59 @@ function bool SetEnemy( Pawn Other )
 	return true;
 }
 
-function Rotator GetAdjustedAimFor( Weapon W, vector StartFireLoc )
+function bool TestEnemy(Pawn Other)
 {
-	if( Enemy!=None && CanSeeSpot(Enemy.Location,true) )
-		return rotator(TPawn.GetAimPos(StartFireLoc,Enemy)-StartFireLoc);
-	return Super.GetAdjustedAimFor(W,StartFireLoc);
+	if(TPawn.BuildTimer > WorldInfo.TimeSeconds || Other == None || !Other.IsAliveAndWell() || Other.IsSameTeam(Pawn) || !Other.CanAITargetThisPawn(Self) || !CanSeeSpot(Other.Location))
+		return false;
+	return true;
 }
 
-final function bool CanSeeSpot( vector P, optional bool bSkipTrace )
+
+function Rotator GetAdjustedAimFor(Weapon W, vector StartFireLoc)
 {
-	return VSizeSq(P-Pawn.Location)<Square(Pawn.SightRadius) && (Normal(P-Pawn.Location) Dot vector(Pawn.Rotation))>0.6 && (bSkipTrace || FastTrace(P,TPawn.GetTraceStart()));
+	if(Enemy != None && CanSeeSpot(Enemy.Location, true))
+		return rotator(TPawn.GetAimPos(StartFireLoc, Enemy) - StartFireLoc);
+	return Super.GetAdjustedAimFor(W, StartFireLoc);
+}
+
+final function bool CanSeeSpot(vector P, optional bool bSkipTrace)
+{
+	return VSizeSq(P - Pawn.Location) < Square(Pawn.SightRadius) && (Normal(P - Pawn.Location) Dot vector(Pawn.Rotation)) > 0.6 && (bSkipTrace || FastTrace(P, TPawn.GetTraceStart()));
 }
 
 function EnemyChanged();
 
 final function FindNextEnemy()
 {
-	local KFPawn M,Best;
+	local KFPawn M, Best;
 	local byte i;
-	local float Dist,BestDist;
+	local float Dist, BestDist;
 	
-	foreach WorldInfo.AllPawns(class'KFPawn',M,Pawn.Location,Pawn.SightRadius)
+	foreach WorldInfo.AllPawns(class'KFPawn', M, Pawn.Location, Pawn.SightRadius)
 	{
-		if( Global.SetEnemy(M) )
+		if(TestEnemy(M))
 		{
-			if( M.Controller!=None )
+			if(M.Controller != None)
 				M.Controller.SeePlayer(Pawn);
 
 			// Pick closest enemy.
-			Dist = VSizeSq(M.Location-Pawn.Location)*(0.8+FRand()*0.4);
-			if( Best==None || Dist<BestDist )
+			Dist = VSizeSq(M.Location - Pawn.Location) * (0.8 + FRand() * 0.4);
+			if(Best == None || Dist < BestDist)
 			{
 				Best = M;
 				BestDist = Dist;
 			}
 		}
-		if( ++i>100 )
+		if(++i > 100)
 			break;
 	}
-	if( Best!=None )
-		Enemy = Best;
+	if(Best != None)
+		SetEnemy(Best);
 }
 
 state WaitForEnemy
 {
-	function BeginState( name OldState )
+	function BeginState(name OldState)
 	{
 		Enemy = None;
 		TPawn.SetViewFocus(None);
@@ -110,48 +123,50 @@ state WaitForEnemy
 		GoToState('FightEnemy');
 	}
 Begin:
-	while( true )
+	while(true) // Seems dangerous
 	{
-		Sleep(0.25+FRand()*0.75);
+		Sleep(0.25 + FRand() * 0.75);
 		FindNextEnemy();
 	}
 }
 state FightEnemy
 {
-	function BeginState( name OldState )
+	function BeginState(name OldState)
 	{
 		TPawn.PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_spot_Cue');
-		TPawn.SetTimer(0.18,false,'DelayedStartFire');
+		TPawn.SetTimer(0.18, false, 'DelayedStartFire');
 		TPawn.SetViewFocus(Enemy);
-		SetTimer(0.1,true);
+		SetTimer(0.1, true, 'IsEnemyAliveAndWell');
 	}
-	function EndState( name NewState )
+	function EndState(name NewState)
 	{
-		if( TPawn!=None )
+		if(TPawn != None)
 			TPawn.TurretSetFiring(false);
-		SetTimer(0.f,false);
+		//SetTimer(0.f, false, 'IsEnemyAliveAndWell');
+		ClearTimer('IsEnemyAliveAndWell');
+		IsEnemyAliveAndWell();
 	}
 	function EnemyChanged()
 	{
 		TPawn.SetViewFocus(Enemy);
 	}
-	function bool SetEnemy( Pawn Other )
+	function bool SetEnemy(Pawn Other) // Makes it so the enemy cant be changed if the current one is alive
 	{
-		if( Enemy!=None )
+		if(Enemy != None)
 		{
-			if( Enemy.IsAliveAndWell() )
+			if(Enemy.IsAliveAndWell())
 				return false;
 			Enemy = None;
 		}
 		return Global.SetEnemy(Other);
 	}
-	function Timer()
+	function IsEnemyAliveAndWell()
 	{
-		if( Enemy==None || !Enemy.IsAliveAndWell() || !CanSeeSpot(Enemy.Location) )
+		if(Enemy ==  None || !Enemy.IsAliveAndWell() || !CanSeeSpot(Enemy.Location))
 		{
 			Enemy = None;
 			FindNextEnemy();
-			if( Enemy==None )
+			if(Enemy == None)
 				GoToState('WaitForEnemy');
 		}
 		else LastAliveSpot = Enemy.Location;
@@ -160,6 +175,4 @@ state FightEnemy
 
 defaultproperties
 {
-   //Name="Default__SentryTurretAI"
-   //ObjectArchetype=AIController'Engine.Default__AIController'
 }

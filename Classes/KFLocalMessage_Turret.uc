@@ -18,15 +18,15 @@ static function ClientReceive(
 	local KFPlayerController KFP; // Create a local variable to store a cast version of P into. P is not a pawn
 
 	MessageString = static.GetString(Switch); // Get static string using a switch/case.
-	if ( MessageString != "" )
+	if (MessageString != "")
 	{
 		KFP = KFPlayerController(P);
-		if( KFP!=None && KFP.MyGFxHUD!=None )
+		if(KFP != None && KFP.MyGFxHUD != None)
 			KFP.MyGFxHUD.ShowNonCriticalMessage(MessageString);
 			
 		// How and where does it determine if the message is for the console? Is this necessary? Does it mean the player is using a console(XBox, etc)?
 		if(IsConsoleMessage(Switch) && LocalPlayer(P.Player) != None && LocalPlayer(P.Player).ViewportClient != None)
-			LocalPlayer(P.Player).ViewportClient.ViewportConsole.OutputText( "<Turret>: "$MessageString );
+			LocalPlayer(P.Player).ViewportClient.ViewportConsole.OutputText("<Turret>: "$MessageString);
 	}
 }
 
@@ -37,7 +37,7 @@ static function string GetString(
     optional PlayerReplicationInfo RelatedPRI_1,
     optional PlayerReplicationInfo RelatedPRI_2,
     optional Object OptionalObject
-    )
+   )
 {
 	switch(Sw)
 	{
