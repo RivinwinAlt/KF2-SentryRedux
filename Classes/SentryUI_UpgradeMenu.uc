@@ -27,8 +27,9 @@ final function UpdateText()
 		LocalizedObject.SetString("all", "Levels");
 		LocalizedObject.SetString("weaponSkins", "Upgrades");
 		LocalizedObject.SetString("cosmetics", "Ammunition");
-		LocalizedObject.SetString("craftingMats", ""); //"N/A"
-		LocalizedObject.SetString("items", ""); //"N/A"
+		LocalizedObject.SetString("craftingMats", "");
+		LocalizedObject.SetString("items", "");
+		LocalizedObject.SetString("sfx", "");
 	}
 	OldWorth = Manager.NetOwner.TurretOwner.SentryWorth;
 	LocalizedObject.SetString("filters", "Value: "$OldWorth$Chr(163));
@@ -101,6 +102,11 @@ function Callback_RequestInitialnventory()
 
 function CallBack_ItemDetailsClicked(int ItemDefinition)
 {
+	if(ItemDefinition > 6)
+	{
+		Manager.NetOwner.BuyPowerup(ItemDefinition);
+		return;
+	}
 	EquipButton.SetString("label", "Buy for "$Manager.NetOwner.Upgrades[ItemDefinition].Cost$Chr(163));
 }
 

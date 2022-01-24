@@ -29,19 +29,13 @@ function Restart(bool bVehicleTransition)
 
 event SeePlayer(Pawn Seen)
 {
-	SetEnemy(Seen);
 }
 event SeeMonster(Pawn Seen)
 {
-	SetEnemy(Seen);
 }
 
 event HearNoise(float Loudness, Actor NoiseMaker, optional Name NoiseType)
 {
-	/*
-	if(NoiseMaker != None && NoiseMaker.Instigator != None)
-		SetEnemy(NoiseMaker.Instigator);
-	*/
 }
 
 function NotifyTakeHit(Controller InstigatedBy, vector HitLocation, int Damage, class<DamageType> damageType, vector Momentum)
@@ -57,7 +51,7 @@ function bool SetEnemy(Pawn Other)
 	
 	Enemy = Other;
 	LastAliveSpot = Other.Location;
-	EnemyChanged();
+	TPawn.SetViewFocus(Enemy);
 	return true;
 }
 
@@ -68,20 +62,17 @@ function bool TestEnemy(Pawn Other)
 	return true;
 }
 
-
 function Rotator GetAdjustedAimFor(Weapon W, vector StartFireLoc)
 {
 	if(Enemy != None && CanSeeSpot(Enemy.Location, true))
 		return rotator(TPawn.GetAimPos(StartFireLoc, Enemy) - StartFireLoc);
-	return Super.GetAdjustedAimFor(W, StartFireLoc);
+	return Super.GetAdjustedAimFor(W,StartFireLoc);
 }
 
 final function bool CanSeeSpot(vector P, optional bool bSkipTrace)
 {
-	return VSizeSq(P - Pawn.Location) < Square(Pawn.SightRadius) && (Normal(P - Pawn.Location) Dot vector(Pawn.Rotation)) > 0.6 && (bSkipTrace || FastTrace(P, TPawn.GetTraceStart()));
+	return VSizeSq(P - Pawn.Location) < Square(Pawn.SightRadius) && (Normal(P - Pawn.Location) Dot vector(Pawn.Rotation)) > TPawn.TurnRadius && (bSkipTrace || FastTrace(P, TPawn.GetTraceStart()));
 }
-
-function EnemyChanged();
 
 final function FindNextEnemy()
 {
@@ -108,7 +99,10 @@ final function FindNextEnemy()
 			break;
 	}
 	if(Best != None)
+	{
 		SetEnemy(Best);
+		GoToState('FightEnemy');
+	}
 }
 
 state WaitForEnemy
@@ -116,58 +110,36 @@ state WaitForEnemy
 	function BeginState(name OldState)
 	{
 		Enemy = None;
-		TPawn.SetViewFocus(None);
-	}
-	function EnemyChanged()
-	{
-		GoToState('FightEnemy');
-	}
-Begin:
-	while(true) // Seems dangerous
-	{
-		Sleep(0.25 + FRand() * 0.75);
 		FindNextEnemy();
+		TPawn.SetViewFocus(None);
+		SetTimer(0.75, true, 'FindNextEnemy');
+	}
+
+	function EndState(name NewState)
+	{
+		ClearTimer('FindNextEnemy');
 	}
 }
+
 state FightEnemy
 {
 	function BeginState(name OldState)
 	{
 		TPawn.PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_spot_Cue');
 		TPawn.SetTimer(0.18, false, 'DelayedStartFire');
-		TPawn.SetViewFocus(Enemy);
 		SetTimer(0.1, true, 'IsEnemyAliveAndWell');
 	}
 	function EndState(name NewState)
 	{
 		if(TPawn != None)
 			TPawn.TurretSetFiring(false);
-		//SetTimer(0.f, false, 'IsEnemyAliveAndWell');
 		ClearTimer('IsEnemyAliveAndWell');
-		IsEnemyAliveAndWell();
-	}
-	function EnemyChanged()
-	{
-		TPawn.SetViewFocus(Enemy);
-	}
-	function bool SetEnemy(Pawn Other) // Makes it so the enemy cant be changed if the current one is alive
-	{
-		if(Enemy != None)
-		{
-			if(Enemy.IsAliveAndWell())
-				return false;
-			Enemy = None;
-		}
-		return Global.SetEnemy(Other);
 	}
 	function IsEnemyAliveAndWell()
 	{
 		if(Enemy ==  None || !Enemy.IsAliveAndWell() || !CanSeeSpot(Enemy.Location))
 		{
-			Enemy = None;
-			FindNextEnemy();
-			if(Enemy == None)
-				GoToState('WaitForEnemy');
+			GoToState('WaitForEnemy');
 		}
 		else LastAliveSpot = Enemy.Location;
 	}

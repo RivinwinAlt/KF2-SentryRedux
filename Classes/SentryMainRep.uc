@@ -9,7 +9,7 @@ var ObjectReferencer BaseRef;
 
 var repnotify config byte MaxTurretsPerUser, MapMaxTurrets, HealthRegenRate;
 var repnotify config int PreviewRotationRate, MissileSpeed, HealPerHit, MissileHitDamage, HealthLostNoOwner, RandomDamagePercent;
-var repnotify config float TurretPreviewDelay, StartingAmmoMultiplier, WeaponTextScale, RefundMultiplier, MinPlacementDistance, BaseAccuracyMod, BaseSightRadius, SonicDamageMultiplier;
+var repnotify config float BaseTurnRadius, TurretPreviewDelay, StartingAmmoMultiplier, WeaponTextScale, RefundMultiplier, MinPlacementDistance, BaseAccuracyMod, BaseSightRadius, SonicDamageMultiplier;
 var repnotify config int MaxAmmoCount[2];
 var repnotify config bool bCanDropWeapon, bRandomDamage, bHeavyAttackToSell;
 
@@ -40,6 +40,7 @@ var config int ConfigVersion;
 replication
 {
 	if (true)
+		BaseTurnRadius,
 		PreviewRotationRate,
 		bCanDropWeapon,
 		TurretPreviewDelay,
@@ -126,8 +127,7 @@ simulated final function UpdateInstances()
 		W.InitConfigDependant();
 	foreach WorldInfo.AllPawns(class'SentryTurret', T)
 	{
-		//T.ContentRef = Self;
-		T.UpdateDisplayMesh();
+		T.UpdateConfigValues();
 	}
 }
 
@@ -136,13 +136,13 @@ simulated final function UpdateConfig()
 	//local bool ErrorFound;
 	//ErrorFound = false;
 
-	if(Default.ConfigVersion != 10) // Increment version to reset/update old configs
+	if(Default.ConfigVersion != 2) // Increment version to reset/update old configs
 	{
 		Default.MaxTurretsPerUser = 3;
 		Default.MapMaxTurrets = 12;
 		Default.MinPlacementDistance = 250;
 		Default.HealPerHit = 35;
-		Default.MissileHitDamage = 1500;
+		Default.MissileHitDamage = 1000;
 		Default.HealthRegenRate = 10;
 		Default.LevelCfgs[0].Cost = 2000;
 		Default.LevelCfgs[0].Damage = 10;
@@ -183,7 +183,8 @@ simulated final function UpdateConfig()
 		Default.TurretPreviewDelay = 0.3f;
 		Default.bCanDropWeapon = true;
 		Default.PreviewRotationRate = 10.0f;
-		Default.ConfigVersion = 10;
+		Default.BaseTurnRadius = 0.6f;
+		Default.ConfigVersion = 2;
 		StaticSaveConfig();
 	}
 
