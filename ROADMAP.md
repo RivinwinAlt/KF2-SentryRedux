@@ -29,6 +29,7 @@ Goals are in order of what should be acomplished. Input is welcome.
 - Minimise raytracing
   - ~~Missiles~~
   - ~~Bullets~~
+  - Turret preview
 
 
 ### 5: Fix long-standing bugs
@@ -40,7 +41,7 @@ Goals are in order of what should be acomplished. Input is welcome.
 
 
 ### 7: Implement new features
-- Be able to rotate turret during placement
+- ~~Be able to rotate turret during placement~~
 - Integrate perks that boost or alter turrets
 and/or
 - More turret varieties (Perkified versions)

@@ -105,7 +105,7 @@ function SetOriginalValuesFromPickup(KFWeapon PickedUpWeapon)
 	bGivenAtStart = PickedUpWeapon.bGivenAtStart;
 }
 
-function AttachThirdPersonWeapon(KFPawn P)
+/*function AttachThirdPersonWeapon(KFPawn P)
 {
 	// Create weapon attachment (server only)
 	if (Role == ROLE_Authority)
@@ -115,7 +115,7 @@ function AttachThirdPersonWeapon(KFPawn P)
 		if (WorldInfo.NetMode != NM_DedicatedServer)
 			P.WeaponAttachmentChanged();
 	}
-}
+}*/
 
 function GivenTo(Pawn thisPawn, optional bool bDoNotActivate)
 {
@@ -254,7 +254,7 @@ simulated function UpdatePreview()
 	{
 		TurretPreview.SetTranslation(StartPos);
 	}
-	R.Yaw += Instigator.Controller.Rotation.Pitch * 10;
+	R.Yaw += Instigator.Controller.Rotation.Pitch * ContentRef.PreviewRotationRate;
 	TurretPreview.SetRotation(R);
 }
 
@@ -327,6 +327,29 @@ simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocat
 	}
 }
 
+simulated state MeleeChainAttacking
+{
+	simulated function byte GetWeaponStateId()
+	{
+		return WEP_Melee_F;
+	}
+	simulated function name GetMeleeAnimName(EPawnOctant AtkDir, EMeleeAttackType AtkType)
+	{
+		// Update our animation rate before changing weapon state to stay synced
+		UpdateWeaponAttachmentAnimRate( GetThirdPersonAnimRate() );
+
+		// update state id to match new attack direction
+		KFPawn(Instigator).WeaponStateChanged(GetWeaponStateId());
+
+		// primary / normal strikes and chain attacks
+		if ( AtkType == ATK_Combo )
+		{
+			return MeleeComboChainAnim_F;
+		}
+		return MeleeAttackAnim_F;
+	}
+}
+
 simulated state MeleeHeavyAttacking
 {
 	/** Reset bPulverizerFireReleased */
@@ -393,12 +416,51 @@ simulated state MeleeHeavyAttacking
 			super.NotifyMeleeCollision(HitActor, HitLocation);
 		}
 	}
+
+	simulated function byte GetWeaponStateId()
+	{
+		switch (MeleeAttackHelper.CurrentAttackDir)
+		{
+		case DIR_Forward:
+		case DIR_ForwardLeft:
+		case DIR_ForwardRight:
+		case DIR_Backward:
+		case DIR_BackwardLeft:
+		case DIR_BackwardRight:
+		case DIR_Left:
+		case DIR_Right:			return WEP_MeleeHeavy_F;
+		}
+
+		return WEP_Idle;
+	}
+	simulated function name GetMeleeAnimName(EPawnOctant AtkDir, EMeleeAttackType AtkType)
+	{
+		// heavy damage attacks
+		if ( AtkType == ATK_DrawStrike )
+		{
+			return MeleeDrawStrikeAnim;
+		}
+		return MeleeHeavyAttackAnim_F;
+	}
 }
 
 // Overrides KFWeapon behavior to match Weapon, allows throwing
 simulated function bool CanThrow()
 {
 	return bCanThrow;
+}
+
+// Hardcoding to overhead swing
+simulated function name GetWeaponFireAnim(byte FireModeNum)
+{
+	return ShootAnim_F;
+}
+simulated function Rotator GetPulverizerAim( vector StartFireLoc )
+{
+	local Rotator R;
+	R = GetAdjustedAim(StartFireLoc);
+	R.Pitch -= 2048;
+	return R;
 }
 
 defaultproperties
@@ -457,27 +519,10 @@ defaultproperties
 		HitboxChain.Add((BoneOffset = (Y = +3, Z = 30)))
 		HitboxChain.Add((BoneOffset = (Y = -3, Z = 10)))
 		MeleeImpactCamShakeScale = 0.01f // 0.04f
-		ChainSequence_F = (DIR_ForwardRight, DIR_ForwardLeft, DIR_ForwardRight, DIR_ForwardLeft)
-		ChainSequence_B = (DIR_BackwardRight, DIR_ForwardLeft, DIR_BackwardLeft, DIR_ForwardRight)
-		ChainSequence_L = (DIR_Right, DIR_ForwardLeft, DIR_ForwardRight, DIR_Left, DIR_Right)
-		ChainSequence_R = (DIR_Left, DIR_ForwardRight, DIR_ForwardLeft, DIR_Right, DIR_Left)
-		/*CHAIN SEQUENCES FROM DECOMPILE
-		ChainSequence_F(0) = DIR_ForwardRight
-      ChainSequence_F(1) = DIR_ForwardLeft
-      ChainSequence_F(2) = DIR_ForwardRight
-      ChainSequence_F(3) = DIR_ForwardLeft
-      ChainSequence_F(4) = ()
-      ChainSequence_L(1) = DIR_ForwardLeft
-      ChainSequence_L(2) = ()
-      ChainSequence_L(3) = DIR_Left
-      ChainSequence_L(4) = ()
-      ChainSequence_L(5) = ()
-      ChainSequence_R(1) = DIR_ForwardRight
-      ChainSequence_R(2) = ()
-      ChainSequence_R(3) = DIR_Right
-      ChainSequence_R(4) = ()
-      ChainSequence_R(5) = ()
-		*/
+		ChainSequence_F = (DIR_Forward, DIR_Forward, DIR_Forward, DIR_Forward)
+		ChainSequence_B = (DIR_Forward, DIR_Forward, DIR_Forward, DIR_Forward)
+		ChainSequence_L = (DIR_Forward, DIR_Forward, DIR_Forward, DIR_Forward, DIR_Forward)
+		ChainSequence_R = (DIR_Forward, DIR_Forward, DIR_Forward, DIR_Forward, DIR_Forward)
 	End Object
 
    Components.Add(PrevMesh)
