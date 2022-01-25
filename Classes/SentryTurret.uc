@@ -5,7 +5,7 @@ Class SentryTurret extends KFPawn;
 var transient SentryMainRep ContentRef;
 var transient SentryOverlay LocalOverlay;
 
-var float AccuracyMod;
+var float AccuracyMod, TurnRadius;
 var AnimNodeSlot AnimationNode, UpperAnimNode;
 var SkelControlLookAt YawControl, PitchControl;
 var Controller OwnerController;
@@ -58,15 +58,15 @@ var transient float ScanLocTimer, BuildTimer, NextMissileTimer, NextTakeHitSound
 var repnotify byte CannonFireCounter, AcquiredUpgrades;
 var vector RepHitLocation;
 var repnotify Actor ViewFocusActor;
-var repnotify bool bFiringMode, bIsPendingFireMode;
+var repnotify bool bFiringMode, bIsPendingFireMode, bWasSold;
 var transient bool bIsScanning, bLeftScanned, bRecentlyBuilt, bAlterFired, bAltMissileFired, bHeadHunter, bHasAutoRepair;
-var bool bIsUserCreated, bWasSold;
+var bool bIsUserCreated;
 
 replication
 {
 	// Variables the server should send ALL clients.
 	if(true)
-		ViewFocusActor, bFiringMode, RepHitLocation, PowerLevel, SentryWorth, bRecentlyBuilt, CannonFireCounter, AcquiredUpgrades, AmmoLevel, bIsPendingFireMode;
+		bWasSold, ViewFocusActor, bFiringMode, RepHitLocation, PowerLevel, SentryWorth, bRecentlyBuilt, CannonFireCounter, AcquiredUpgrades, AmmoLevel, bIsPendingFireMode;
 }
 
 simulated function PostBeginPlay()
@@ -132,6 +132,13 @@ simulated function CheckBuilt()
 function UnsetBuilt()
 {
 	bRecentlyBuilt = false;
+}
+
+simulated function UpdateConfigValues()
+{
+	TurnRadius = ContentRef.BaseTurnRadius;
+	UpdateRandomDamage();
+	UpdateDisplayMesh();
 }
 
 simulated function UpdateRandomDamage()
@@ -385,10 +392,15 @@ function TryToSellTurret(Controller User)
 		bWasSold = true;
 		if(User.PlayerReplicationInfo != None)
 			User.PlayerReplicationInfo.Score += (SentryWorth * ContentRef.RefundMultiplier);
-		KilledBy(None);
+		SetTimer(0.15, false, 'KillTurret');
 	}
 	else if(PlayerController(User) != None)
 		PlayerController(User).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 5);
+}
+
+simulated function KillTurret()
+{
+	KilledBy(None);
 }
 
 simulated function SetLevelUp()
@@ -733,22 +745,46 @@ simulated final function vector GetTraceStart()
 	return Location + (PowerLevel == 0 ? vect(0, 0, 38.0f) : vect(0, 0, 77.0f));
 }
 
-final function vector GetAimPos(vector Start, Pawn Other)
-{
-	local KFPawn P;
-
-	if(bHeadHunter)
-	{
-		P = KFPawn(Other);
-		if(P != None)
-			return P.GetAutoLookAtLocation(Start, Self);
-	}
-	return Other.Location + (Other.BaseEyeHeight * vect(0, 0, 0.25f));
-}
-
 final function bool CanSeeSpot(vector P)
 {
-	return (Normal(P - Location) Dot vector(Rotation)) > 0.6f;
+	return (Normal(P - Location) Dot vector(Rotation)) > TurnRadius;
+}
+
+function vector GetAimPos(vector CamLoc, Pawn TPawn)
+{
+	local vector			HitLocation, HitNormal;
+	local Actor				HitActor;
+	local TraceHitInfo		HitInfo;
+	local vector            HeadLocation, TorsoLocation, PelvisLocation;
+
+    // if bHeadhunter upgrade Check to see if we can hit the head
+    if(bHeadHunter)
+    {
+    	HeadLocation = TPawn.Mesh.GetBoneLocation(HeadBoneName);
+    	HitActor = TPawn.Trace(HitLocation, HitNormal, HeadLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
+		if( HitActor == none || HitActor == Self )
+    	{
+			//`log("Autotarget - found head");
+        	return HeadLocation + (vect(0,0,-10.0));
+        }
+    }
+	// Try for the torso
+    TorsoLocation = TPawn.Mesh.GetBoneLocation(TorsoBoneName);
+    HitActor = TPawn.Trace(HitLocation, HitNormal, TorsoLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
+    if( HitActor == none || HitActor == Self)
+    {
+        return TorsoLocation;
+    }
+    // Try for the pelvis
+    PelvisLocation = TPawn.Mesh.GetBoneLocation(PelvisBoneName);
+    HitActor = TPawn.Trace(HitLocation, HitNormal, PelvisLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
+    if( HitActor == none || HitActor == Self)
+    {
+        //`log("Autotarget - found pelvis");
+        return PelvisLocation;
+    }
+    //`log("Autotarget - found noting - returning location");
+    return Location + BaseEyeHeight * vect(0,0,0.5f);
 }
 
 simulated function TraceFire()
@@ -803,7 +839,7 @@ simulated function TraceFire()
 		{
 			RandomizedDam = RandRange(RandDamMin, RandDamMax);
 		} else {
-			RandomizedDam = ContentRef.LevelCfgs[PowerLevel].Damage;
+			RandomizedDam = RandDamMin;
 		}
 
 		if(WorldInfo.NetMode != NM_Client)

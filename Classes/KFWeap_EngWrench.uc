@@ -4,6 +4,7 @@ class KFWeap_EngWrench extends KFWeap_Blunt_Pulverizer;
 
 var transient SentryMainRep ContentRef;
 
+var Texture2D RedTexture;
 var SkeletalMeshComponent TurretPreview;
 var KFCharacterInfo_Monster BaseTurretArch;
 var MaterialInstanceConstant BaseTurSkin;
@@ -36,7 +37,6 @@ simulated final function InitConfigDependant()
 	ModeInfos[2] = Default.ModeInfos[2]$ContentRef.LevelCfgs[0].Cost@Chr(163)$")";
 	ModeInfos[3] = Default.ModeInfos[3]$Int(ContentRef.RefundMultiplier * 100)$Chr(37)$" refund)";
 
-	bCanThrow = ContentRef.bCanDropWeapon;
    bDropOnDeath = ContentRef.bCanDropWeapon;
 }
 
@@ -47,13 +47,14 @@ simulated function DrawInfo(Canvas Canvas, float FontScale)
 
 	FontScale *= ContentRef.WeaponTextScale; // Move this to a global variable thats only calculated once
 	X = Canvas.ClipX * 0.99;
-	Y = Canvas.ClipY * 0.2;
+	Y = Canvas.ClipY * 0.1;
 
 	Canvas.SetDrawColor(255, 255, 64, 255);
 	
+	Canvas.TextSize(ModeInfos[2], XL, YL, FontScale, FontScale); // moved outside loop
 	for(i = 0; i < ModeInfos.Length; ++i)
 	{
-		Canvas.TextSize(ModeInfos[2], XL, YL, FontScale, FontScale); //ModeInfos[2] is currently the longest string
+		//Canvas.TextSize(ModeInfos[2], XL, YL, FontScale, FontScale); //ModeInfos[2] is currently the longest string
 		Canvas.SetPos(X - XL, Y);
 		Canvas.DrawText(ModeInfos[i], , FontScale, FontScale);
 		Y += YL;
@@ -94,15 +95,33 @@ function SetOriginalValuesFromPickup(KFWeapon PickedUpWeapon)
 	KFInventoryManager(InvManager).AddCurrentCarryBlocks(InventorySize);
 	KFPawn(Instigator).NotifyInventoryWeightChanged();
 	
+	UpdateNumTurrets();
+
+	bGivenAtStart = PickedUpWeapon.bGivenAtStart;
+}
+
+function GivenTo(Pawn thisPawn, optional bool bDoNotActivate)
+{
+	local SentryTurret T;
+	ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
+
+	Super(Weapon).GivenTo(thisPawn, bDoNotActivate);
+
+	KFInventoryManager(InvManager).AddCurrentCarryBlocks(InventorySize);
+	KFPawn(Instigator).NotifyInventoryWeightChanged();
+	
+	UpdateNumTurrets();
+}
+
+function UpdateNumTurrets()
+{
 	NumTurrets = 0;
 	foreach WorldInfo.AllPawns(class'SentryTurret', T)
-		if(T.OwnerController == Instigator.Controller && T.IsAliveAndWell())
+		if(T.OwnerController == thisPawn.Controller && T.IsAliveAndWell())
 		{
 			T.ActiveOwnerWeapon = Self;
 			++NumTurrets;
 		}
-
-	bGivenAtStart = PickedUpWeapon.bGivenAtStart;
 }
 
 /*function AttachThirdPersonWeapon(KFPawn P)
@@ -117,29 +136,11 @@ function SetOriginalValuesFromPickup(KFWeapon PickedUpWeapon)
 	}
 }*/
 
-function GivenTo(Pawn thisPawn, optional bool bDoNotActivate)
-{
-	local SentryTurret T;
-	ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
-
-	Super(Weapon).GivenTo(thisPawn, bDoNotActivate);
-
-	KFInventoryManager(InvManager).AddCurrentCarryBlocks(InventorySize);
-	KFPawn(Instigator).NotifyInventoryWeightChanged();
-	
-	NumTurrets = 0;
-	foreach WorldInfo.AllPawns(class'SentryTurret', T)
-		if(T.OwnerController == thisPawn.Controller && T.IsAliveAndWell())
-		{
-			T.ActiveOwnerWeapon = Self;
-			++NumTurrets;
-		}
-}
-
 simulated function CustomFire()
 {
 }
 
+/*
 static simulated event SetTraderWeaponStats(out array<STraderItemWeaponStats> WeaponStats)
 {
 	WeaponStats.Length = 4;
@@ -158,6 +159,7 @@ static simulated event SetTraderWeaponStats(out array<STraderItemWeaponStats> We
 	WeaponStats[3].StatType = TWS_Penetration;
 	WeaponStats[3].StatValue = 25;  //15
 }
+*/
 
 simulated function BeginDeployment();
 
@@ -241,10 +243,10 @@ simulated function UpdatePreview()
 		return;
 	}
 	
-	R.Yaw = Instigator.Rotation.Yaw;
-
 	if(TurretPreview.HiddenGame)
 		TurretPreview.SetHidden(false);
+
+	R.Yaw = Instigator.Rotation.Yaw;
 
 	StartPos = Instigator.Location + vector(R) * 120.f;
 	if(Trace(TracedPos, HN, StartPos - vect(0, 0, 330), StartPos, false) != None)
@@ -258,6 +260,7 @@ simulated function UpdatePreview()
 	TurretPreview.SetRotation(R);
 }
 
+/*
 simulated function ImpactInfo CalcWeaponFire(vector StartTrace, vector EndTrace, optional out array<ImpactInfo> ImpactList, optional vector Extent)
 {
 	local int i;
@@ -278,18 +281,12 @@ simulated function ImpactInfo CalcWeaponFire(vector StartTrace, vector EndTrace,
 			CurrentImpact.StartTrace	= StartTrace;
 			CurrentImpact.HitInfo		= HitInfo;
 
-			// Add this hit to the ImpactList
 			ImpactList[ImpactList.Length] = CurrentImpact;
 
 			if(PassThroughDamage(HitActor))
 				continue;
-
-			// For pawn hits calculate an improved hit zone and direction.  The return, CurrentImpact, is
-			// unaffected which is fine since it's only used for it's HitLocation and not by ProcessInstantHit()
 			TraceImpactHitZones(StartTrace, EndTrace, ImpactList);
 
-			// Iterate though ImpactList, find water, return water Impact as 'realImpact'
-			// This is needed for impact effects on non - blocking water
 			for (i = 0; i < ImpactList.Length; i++)
 			{
 				HitActor = ImpactList[i].HitActor;
@@ -304,10 +301,11 @@ simulated function ImpactInfo CalcWeaponFire(vector StartTrace, vector EndTrace,
 
 	return CurrentImpact;
 }
+*/
 
+//TODO add condition which heals provided HealAmount
 simulated function Repaired(SentryTurret T, optional int HealAmount)
 {
-	//TODO add condition which heals provided amount
 	if(WorldInfo.NetMode != NM_Client)
 	{
 		T.HealDamage(ContentRef.HealPerHit, Instigator.Controller, None);
@@ -352,26 +350,23 @@ simulated state MeleeChainAttacking
 
 simulated state MeleeHeavyAttacking
 {
-	/** Reset bPulverizerFireReleased */
 	simulated event BeginState(Name PreviousStateName)
 	{
-		//Super.BeginState(PreviousStateName); // originally here
 		NotifyBeginState();
+		//bPulverizerFireReleased = false;
 
-		bPulverizerFireReleased = false; // From here
-		SetTimer(ContentRef.TurretPreviewDelay, false, 'BeginDeployment'); // new
+		SetTimer(ContentRef.TurretPreviewDelay, false, 'BeginDeployment');
 	}
+
 	simulated function BeginDeployment()
 	{
 		bPendingDeploy = true;
 		SetTimer(0.01, true, 'UpdatePreview');
-		TurretPreview.SetHidden(true);
 	}
 
-	/** Set bPulverizerFireReleased to ignore NotifyMeleeCollision */
 	simulated function StopFire(byte FireModeNum)
 	{
-		local KFPerk InstigatorPerk; // from KFweapon
+		local KFPerk InstigatorPerk;
 
 		if(bPendingDeploy)
 		{
@@ -398,8 +393,8 @@ simulated state MeleeHeavyAttacking
 		}
 		ClearTimer('BeginDeployment');
 
-		Super.StopFire(FireModeNum);
-		bPulverizerFireReleased = true;
+		Super(KFWeap_MeleeBase).StopFire(FireModeNum);
+		//bPulverizerFireReleased = true;
 	}
 
 	simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocation)
@@ -412,9 +407,9 @@ simulated state MeleeHeavyAttacking
 			}
 			if (!IsTimerActive(nameof(BeginPulverizerFire)))
 				SetTimer(0.001f, false, nameof(BeginPulverizerFire));
-		} else {
+		} //else {
 			super.NotifyMeleeCollision(HitActor, HitLocation);
-		}
+		//}
 	}
 
 	simulated function byte GetWeaponStateId()
@@ -447,7 +442,7 @@ simulated state MeleeHeavyAttacking
 // Overrides KFWeapon behavior to match Weapon, allows throwing
 simulated function bool CanThrow()
 {
-	return bCanThrow;
+	return ContentRef.bCanDropWeapon;
 }
 
 // Hardcoding to overhead swing
@@ -478,6 +473,8 @@ defaultproperties
 
 	BaseTurretArch = KFCharacterInfo_Monster'tf2sentry.Arch.Turret1Arch'
 	BaseTurSkin = MaterialInstanceConstant'tf2sentry.Tex.Sentry1Red'
+
+	RedTexture=Texture2D'EngineResources.Red'
 
    Begin Object Class=SkeletalMeshComponent Name=PrevMesh
       ReplacementPrimitive = None
