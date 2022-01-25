@@ -1,4 +1,3 @@
-
 // Determines how a missile will act once it is spawned by a turret
 // TODO change missile target when original dies?
 
