@@ -14,6 +14,7 @@ Goals are in order of what should be acomplished. Input is welcome.
 - ~~Sentry Missile speed~~
 - ~~Place turret delay when right clicking~~
 - ~~Disable right click to sell~~
+- GFX disabling booleans
 
 
 ### 3: Source turret models and animations / recieve permission to use old ones
@@ -24,7 +25,7 @@ Goals are in order of what should be acomplished. Input is welcome.
 
 
 ### 4: Streamline code
-- Implement Skip flags for complex If statements
+- Implement Skip flags for complex If statements?????
 - Implement config value clamping
 - Minimise raytracing
   - ~~Missiles~~
@@ -66,3 +67,4 @@ and/or
 
 
 ### Unsorted
+upgrade names should be in config next to cost
