@@ -4,7 +4,6 @@ class KFWeap_EngWrench extends KFWeap_Blunt_Pulverizer;
 
 var transient SentryMainRep ContentRef;
 
-var Texture2D RedTexture;
 var SkeletalMeshComponent TurretPreview;
 var KFCharacterInfo_Monster BaseTurretArch;
 var MaterialInstanceConstant BaseTurSkin;
@@ -89,7 +88,6 @@ reliable client function ClientWeaponSet(bool bOptionalSet, optional bool bDoNot
 
 function SetOriginalValuesFromPickup(KFWeapon PickedUpWeapon)
 {
-	local SentryTurret T;
 	ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
 
 	KFInventoryManager(InvManager).AddCurrentCarryBlocks(InventorySize);
@@ -102,7 +100,6 @@ function SetOriginalValuesFromPickup(KFWeapon PickedUpWeapon)
 
 function GivenTo(Pawn thisPawn, optional bool bDoNotActivate)
 {
-	local SentryTurret T;
 	ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
 
 	Super(Weapon).GivenTo(thisPawn, bDoNotActivate);
@@ -115,9 +112,10 @@ function GivenTo(Pawn thisPawn, optional bool bDoNotActivate)
 
 function UpdateNumTurrets()
 {
+	local SentryTurret T;
 	NumTurrets = 0;
 	foreach WorldInfo.AllPawns(class'SentryTurret', T)
-		if(T.OwnerController == thisPawn.Controller && T.IsAliveAndWell())
+		if(T.OwnerController == Instigator.Controller && T.IsAliveAndWell())
 		{
 			T.ActiveOwnerWeapon = Self;
 			++NumTurrets;
@@ -259,49 +257,6 @@ simulated function UpdatePreview()
 	R.Yaw += Instigator.Controller.Rotation.Pitch * ContentRef.PreviewRotationRate;
 	TurretPreview.SetRotation(R);
 }
-
-/*
-simulated function ImpactInfo CalcWeaponFire(vector StartTrace, vector EndTrace, optional out array<ImpactInfo> ImpactList, optional vector Extent)
-{
-	local int i;
-	local vector HitLocation, HitNormal;
-	local Actor HitActor;
-	local TraceHitInfo HitInfo;
-	local ImpactInfo CurrentImpact;
-
-	foreach Instigator.TraceActors(class'Actor', HitActor, HitLocation, HitNormal, EndTrace, StartTrace, Extent, HitInfo)
-	{
-		if(HitActor.bWorldGeometry || Pawn(HitActor) == None || SentryTurret(HitActor) != None || (HitActor != Instigator && !Instigator.IsSameTeam(Pawn(HitActor))))
-		{
-			// Convert Trace Information to ImpactInfo type.
-			CurrentImpact.HitActor		= HitActor;
-			CurrentImpact.HitLocation	= HitLocation;
-			CurrentImpact.HitNormal		= HitNormal;
-			CurrentImpact.RayDir		= Normal(EndTrace - StartTrace);
-			CurrentImpact.StartTrace	= StartTrace;
-			CurrentImpact.HitInfo		= HitInfo;
-
-			ImpactList[ImpactList.Length] = CurrentImpact;
-
-			if(PassThroughDamage(HitActor))
-				continue;
-			TraceImpactHitZones(StartTrace, EndTrace, ImpactList);
-
-			for (i = 0; i < ImpactList.Length; i++)
-			{
-				HitActor = ImpactList[i].HitActor;
-				if (HitActor != None && !HitActor.bBlockActors && HitActor.IsA('KFWaterMeshActor') )
-				{
-					return ImpactList[i];
-				}
-			}
-			break;
-		}
-	}
-
-	return CurrentImpact;
-}
-*/
 
 //TODO add condition which heals provided HealAmount
 simulated function Repaired(SentryTurret T, optional int HealAmount)
@@ -450,6 +405,7 @@ simulated function name GetWeaponFireAnim(byte FireModeNum)
 {
 	return ShootAnim_F;
 }
+
 simulated function Rotator GetPulverizerAim( vector StartFireLoc )
 {
 	local Rotator R;
@@ -473,8 +429,6 @@ defaultproperties
 
 	BaseTurretArch = KFCharacterInfo_Monster'tf2sentry.Arch.Turret1Arch'
 	BaseTurSkin = MaterialInstanceConstant'tf2sentry.Tex.Sentry1Red'
-
-	RedTexture=Texture2D'EngineResources.Red'
 
    Begin Object Class=SkeletalMeshComponent Name=PrevMesh
       ReplacementPrimitive = None
