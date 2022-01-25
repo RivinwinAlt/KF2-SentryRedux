@@ -19,7 +19,8 @@ Workshop listings are currently maintained by Rivinwin, there is an alpha build 
 | Alpha | 2727429858 | Usually broken, used to test minute by minute changes to the code. |
 | Beta | 2724231725 | Usually playable with bugs, used to test for unforseen bugs/multiplayer dependant bugs. |
 | Public Beta | | Will eventually be live with a publicly accessible |
-| Release | | |					
+| Release | | |
+
 N.B. - The package and script names are identical between listings so you must delete the server and/or client download caches when switching between them.
 
 
