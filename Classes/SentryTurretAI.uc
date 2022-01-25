@@ -46,9 +46,10 @@ function NotifyTakeHit(Controller InstigatedBy, vector HitLocation, int Damage, 
 
 function bool SetEnemy(Pawn Other)
 {
-	if(TPawn.BuildTimer > WorldInfo.TimeSeconds || Other == None || Other == Enemy || !Other.IsAliveAndWell() || Other.IsSameTeam(Pawn) || !Other.CanAITargetThisPawn(Self) || !CanSeeSpot(Other.Location))
+	if(TPawn.BuildTimer > WorldInfo.TimeSeconds || Other == TPawn || Other == None || Other == Enemy || !Other.IsAliveAndWell() || Other.IsSameTeam(Pawn) || !Other.CanAITargetThisPawn(Self) || !CanSeeSpot(Other.Location))
 		return false;
 	
+	ClearTimer('FindNextEnemy');
 	Enemy = Other;
 	LastAliveSpot = Other.Location;
 	TPawn.SetViewFocus(Enemy);
@@ -57,7 +58,7 @@ function bool SetEnemy(Pawn Other)
 
 function bool TestEnemy(Pawn Other)
 {
-	if(TPawn.BuildTimer > WorldInfo.TimeSeconds || Other == None || !Other.IsAliveAndWell() || Other.IsSameTeam(Pawn) || !Other.CanAITargetThisPawn(Self) || !CanSeeSpot(Other.Location))
+	if(TPawn.BuildTimer > WorldInfo.TimeSeconds || Other == TPawn || Other == None || !Other.IsAliveAndWell() || Other.IsSameTeam(Pawn) || !Other.CanAITargetThisPawn(Self) || !CanSeeSpot(Other.Location))
 		return false;
 	return true;
 }
@@ -139,9 +140,13 @@ state FightEnemy
 	{
 		if(Enemy ==  None || !Enemy.IsAliveAndWell() || !CanSeeSpot(Enemy.Location))
 		{
+			ClearTimer('IsEnemyAliveAndWell');
 			GoToState('WaitForEnemy');
 		}
-		else LastAliveSpot = Enemy.Location;
+		else
+		{
+			LastAliveSpot = Enemy.Location;
+		}
 	}
 }
 
