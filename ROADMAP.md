@@ -68,3 +68,4 @@ and/or
 
 ### Unsorted
 upgrade names should be in config next to cost
+config turret cost doesnt change first overlay and placement cost

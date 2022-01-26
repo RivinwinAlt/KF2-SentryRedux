@@ -29,8 +29,8 @@ const ETU_AmmoMissilesBig = 10;
 
 struct FTurretLevelCfg
 {
-	var config int Cost, Damage, Health;
-	var config float RoF;
+	var repnotify config int Cost, Damage, Health;
+	var repnotify config float RoF;
 };
 var repnotify config FTurretLevelCfg LevelCfgs[MAX_TURRET_LEVELS];
 
