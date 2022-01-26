@@ -8,11 +8,10 @@ struct FPageInfo
 var KFGUI_SwitchMenuBar PageSwitcher;
 var() array<FPageInfo> Pages;
 
-var KFGUI_Button SkipTraderButton,SpectateButton,SuicideButton,SettingsButton,MapvoteButton,GearButton,KickVotingButton;
+var KFGUI_Button ExitMenuBtn, SellTurretBtn;
 
 var transient KFGUI_Button PrevButton;
 var transient int NumButtons,NumButtonRows;
-var transient bool bInitSpectate,bOldSpectate;
 
 var KFPlayerReplicationInfo KFPRI;
 
@@ -24,17 +23,10 @@ function InitMenu()
     PageSwitcher = KFGUI_SwitchMenuBar(FindComponentID('Pager'));
     Super(KFGUI_Page).InitMenu();
     
-    SettingsButton = AddMenuButton('Settings',"Settings","Enter the game settings");
-    MapvoteButton = AddMenuButton('Mapvote',"Map Voting","Show mapvote menu");
-    SkipTraderButton = AddMenuButton('SkipTrader',"Skip Trader","Vote to skip the trader");
-    //GearButton = AddMenuButton('Gear',"Gear","");
-    SpectateButton = AddMenuButton('Spectate',"","");
-    SuicideButton = AddMenuButton('Suicide', "Suicide", "Causes you to have a sudden heart attack");
-    AddMenuButton('Profile',"Profile","Show your Steam Profile");
-    AddMenuButton('Disconnect',"Disconnect","Disconnect from this server");
-    AddMenuButton('Close',"Close","Close this menu");
+    SellTurretBtn = AddMenuButton('Sell',"Sell Turret","Sell to Recieve Partial Refund");
+    ExitMenuBtn = AddMenuButton('Close',"Close","Close this menu");
     
-    for( i=0; i<Pages.Length; ++i )
+    for( i=0; i < Pages.Length; ++i )
     {
         PageSwitcher.AddPage(Pages[i].PageClass,Pages[i].Caption,Pages[i].Hint,B).InitMenu();
     }
@@ -48,18 +40,10 @@ function Timer()
     if( PRI==None )
         return;
         
-    if( KFPlayerController(GetPlayer()).IsBossCameraMode() )
+    if( KFPlayerController(GetPlayer()).IsBossCameraMode() ) // what is isbosscameramode?
     {
         DoClose();
         return;
-    }
-
-    if( !bInitSpectate || bOldSpectate!=PRI.bOnlySpectator )
-    {
-        bInitSpectate = true;
-        bOldSpectate = PRI.bOnlySpectator;
-        SpectateButton.ButtonText = (bOldSpectate ? "Join" : "Spectate");
-        SpectateButton.ChangeToolTip(bOldSpectate ? "Click to become an active player" : "Click to become a spectator");
     }
 }
 
@@ -69,39 +53,13 @@ function ShowMenu()
     
     Super.ShowMenu();
 
-    PageSwitcher.SelectPage(1);
+    PageSwitcher.SelectPage(0);
     
     PRI = KFPlayerReplicationInfo(GetPlayer().PlayerReplicationInfo);
     if( GetPlayer().WorldInfo.GRI!=None )
         WindowTitle = GetPlayer().WorldInfo.GRI.ServerName;
-        
-    if( GetPlayer().Pawn==None || !GetPlayer().Pawn.IsAliveAndWell() )
-    {
-        SuicideButton.SetDisabled( true );
-        SkipTraderButton.SetDisabled( true );
-        MapvoteButton.SetDisabled( true );
-        SpectateButton.SetDisabled( true );
-        
-        //GearButton.SetDisabled( ClassicPlayerController(GetPlayer()).LobbyMenu != None );
-    }
-    else
-    {
-        SuicideButton.SetDisabled( false );
-        SkipTraderButton.SetDisabled( PRI.bVotedToSkipTraderTime );
-        MapvoteButton.SetDisabled( false );
-        SpectateButton.SetDisabled( false );
-        
-        //GearButton.SetDisabled( true );
-    }
-    
-    //GearButton.SetDisabled( true );
-    SettingsButton.SetDisabled( ClassicPlayerController(GetPlayer()).LobbyMenu != None );
-        
+
     PlayMenuSound(MN_DropdownChange);
-    
-    // Update spectate button info text.
-    Timer();
-    SetTimer(0.5,true);
 }
 
 function ButtonClicked( KFGUI_Button Sender )
@@ -112,53 +70,13 @@ function ButtonClicked( KFGUI_Button Sender )
     
     switch( Sender.ID )
     {
-    case 'Gear':
-    case 'Settings':
-        Owner.OpenMenu(ClassicPlayerController(GetPlayer()).FlashUIClass);
-        KFPlayerController(GetPlayer()).MyGFxManager.OpenMenu(Sender.ID == 'Settings' ? UI_OptionsSelection : UI_Gear);
+    case 'Sell':
         break;
-    case 'Mapvote':
-        OpenUpMapvote();
-        break;
-    case 'SkipTrader':
-        PRI = KFPlayerReplicationInfo(KFPlayerController(GetPlayer()).PlayerReplicationInfo);
-        KFGRI = KFGameReplicationInfo(GetPlayer().WorldInfo.GRI);
-        if (KFGRI != None)
-        {
-            if (KFGRI.bMatchHasBegun)
-            {
-                if (KFGRI.bTraderIsOpen && PRI.bHasSpawnedIn)
-                {
-                    PRI.RequestSkiptTrader(PRI);
-                }
-            }
-        }
-        
-        break;
-    case 'Spectate':
-        ClassicPlayerController(GetPlayer()).ChangeSpectateMode(!bOldSpectate);
-        break;
-    case 'Suicide':
-        GetPlayer().ConsoleCommand("Suicide");
-        break;
-    case 'Profile':
-        OnlineSubsystemSteamworks(class'GameEngine'.static.GetOnlineSubsystem()).ShowProfileUI(0,,KFPRI.UniqueId);
-        break;
-    case 'Disconnect':
-        T = Owner.OpenMenu(class'UI_NotifyDisconnect');
-        UI_NotifyDisconnect(T).MessageTo();
+    case 'Close':
         break;
     }
     
     DoClose();
-}
-
-final function OpenUpMapvote()
-{
-    local xVotingReplication R;
-    
-    foreach GetPlayer().DynamicActors(class'KFClassicMode.xVotingReplication',R)
-        R.ClientOpenMapvote();
 }
 
 final function KFGUI_Button AddMenuButton( name ButtonID, string Text, optional string ToolTipStr )
@@ -198,11 +116,10 @@ defaultproperties
     bAlwaysTop=true
     bOnlyThisFocus=true
     
-    Pages.Add((PageClass=Class'UIP_News',Caption="News",Hint="Server news page"))
-    Pages.Add((PageClass=Class'UIP_PerkSelection',Caption="Perks",Hint="Select your perk"))
-    Pages.Add((PageClass=Class'UIP_Settings',Caption="Settings",Hint="Show additional Classic Mode settings"))
-    Pages.Add((PageClass=Class'UIP_ColorSettings',Caption="Colors",Hint="Settings to adjust the hud colors"))
-    Pages.Add((PageClass=Class'UIP_KickVoteMenu',Caption="Players",Hint="List of players with various options"))
+    
+    Pages.Add((PageClass=Class'UIP_TurretMenu',Caption="Upgrades",Hint="Spend that money"))
+    Pages.Add((PageClass=Class'UIP_Settings',Caption="Settings",Hint="Show mod settings"))
+    Pages.Add((PageClass=Class'UIP_About',Caption="About",Hint="Updates and credits"))
 
     Begin Object Class=KFGUI_SwitchMenuBar Name=MultiPager
         ID="Pager"
