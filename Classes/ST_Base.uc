@@ -1,0 +1,1292 @@
+//Main Turret object class extends pawn, but notably not _Monster or _Human
+Class ST_Base extends KFPawn
+	config(SentryRedux);
+
+struct FTurretLevel
+{
+	var Texture2D Icon;
+	var PlayerReplicationInfo Buyer;
+	var string UIName;
+};
+
+struct FTurretLevelCfg
+{
+	var config int Cost, Damage, Health;
+	var config float RoF;
+};
+
+
+//FRAMEWORK LEVEL VARIABLES - dont alter in extended classes
+const MAX_TURRET_LEVELS = 3;
+const ETU_MAXUPGRADES = 11;
+const ETU_IronSightA = 0;
+const ETU_IronSightB = 1;
+const ETU_EagleEyeA = 2;
+const ETU_EagleEyeB = 3;
+const ETU_Headshots = 4;
+const ETU_HomingMissiles = 5;
+const ETU_AutoRepair = 6;
+const ETU_AmmoSMG = 7;
+const ETU_AmmoSMGBig = 8;
+const ETU_AmmoMissiles = 9;
+const ETU_AmmoMissilesBig = 10;
+
+//var transient SentryMainRep ContentRef;
+var transient SentryOverlay LocalOverlay;
+var transient byte AutoRepairState;  //currently healing
+var transient array<SentryUI_Network> CurrentUsers; //users in the turrets menu
+var transient float ScanLocTimer, BuildTimer, NextMissileTimer, NextTakeHitSound, NextFireSoundTime;
+var transient bool bIsScanning, bLeftScanned, bRecentlyBuilt, bAlterFired, bAltMissileFired, bHeadHunter, bHasAutoRepair;
+
+var repnotify byte PowerLevel;
+var repnotify int SentryWorth;
+var repnotify Actor ViewFocusActor;
+var repnotify bool bFiringMode, bIsPendingFireMode, bWasSold;
+var repnotify byte CannonFireCounter, AcquiredUpgrades;
+
+var config int BuildCost, MissileHitDamage, HealthRegenRate, UpgradeCosts[ETU_MAXUPGRADES], MaxAmmoCount[2], MissileSpeed, HealthLostNoOwner, RandomDamagePercent;
+var config FTurretLevelCfg LevelCfgs[MAX_TURRET_LEVELS];
+var config float BaseTurnRadius, StartingAmmoMultiplier, BaseAccuracyMod, BaseSightRadius, SonicDamageMultiplier;
+var config bool bRandomDamage;
+
+var SkelControlLookAt YawControl, PitchControl;
+var Controller OwnerController;
+var KFWeap_EngWrench ActiveOwnerWeapon;
+var SentryTrigger ActiveTrigger;
+var int RandDamMin, RandDamMax; //min and max damage for damage rolls
+var vector ScanLocation, DesScanLocation;
+var vector RepHitLocation;
+var bool bIsUserCreated;
+
+
+//REIMPLEMENT - dynamic arrays with data parsed from files4
+var FTurretLevel Levels[MAX_TURRET_LEVELS];
+var FTurretLevel Upgrades[ETU_MAXUPGRADES];
+var string UpgradeNames[ETU_MAXUPGRADES];
+var int AmmoLevel[2];
+var KFMuzzleFlash MuzzleFlash[4];
+
+
+//CUSTOMIZABLE LEVEL VARIABLES - feel free to work with in extended classes
+var Array<class<KFDamageType> > DamageTypes;
+var int DamageIndex;
+var float AccuracyMod, TurnRadius;
+var SpotLightComponent TurretSpotLight;
+var PointLightComponent TurretRedLight;
+var MaterialInstanceConstant TurSkins[3];
+var KFCharacterInfo_Monster TurretArch[3];
+var AnimNodeSlot AnimationNode, UpperAnimNode;
+var SoundCue FiringSounds[3];
+
+
+//Initialization and Upkeep
+replication
+{
+	// Variables the server should send ALL clients.
+	if(true)
+		bWasSold, ViewFocusActor, bFiringMode, RepHitLocation, PowerLevel, SentryWorth, bRecentlyBuilt, CannonFireCounter, AcquiredUpgrades, AmmoLevel, bIsPendingFireMode;
+}
+
+simulated event ReplicatedEvent(name VarName)
+{
+	switch(VarName)
+	{
+	case 'ViewFocusActor':
+		SetViewFocus(ViewFocusActor);
+		break;
+	case 'bFiringMode':
+		TurretSetFiring(bFiringMode);
+		break;
+	case 'PowerLevel':
+		SetLevelUp();
+		break;
+	case 'AcquiredUpgrades':
+		SetUpgrades();
+	case 'SentryWorth':
+		ClientStatUpdate(255);
+		break;
+	case 'CannonFireCounter':
+		if(CannonFireCounter != 0)
+			MakeFireMissileFX();
+		break;
+	case 'bIsPendingFireMode':
+		if(bIsPendingFireMode)
+			PlayOutOfAmmo();
+		break;
+	default:
+		Super.ReplicatedEvent(VarName);
+	}
+}
+
+simulated function PostBeginPlay()
+{
+	Super.PostBeginPlay();
+	
+	if(ActiveTrigger == None)
+	{
+		ActiveTrigger = Spawn(class'SentryTrigger');
+		ActiveTrigger.TurretOwner = Self;
+		ActiveTrigger.SetBase(Self);
+	}
+
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		AddHUDOverlay();
+		UpdateDisplayMesh();
+	}
+	if(WorldInfo.NetMode != NM_Client && !bDeleteMe)
+	{
+		AmmoLevel[0] = MaxAmmoCount[0] * StartingAmmoMultiplier;
+		AmmoLevel[1] = MaxAmmoCount[1] * StartingAmmoMultiplier;
+		bRecentlyBuilt = true;
+		SentryWorth = BuildCost;
+		Health = LevelCfgs[0].Health;
+		HealthMax = LevelCfgs[0].Health;
+		if(Controller == None)
+			SpawnDefaultController();
+		UpdateRandomDamage();
+	}
+
+	TurnRadius = BaseTurnRadius;
+	SightRadius = BaseSightRadius;
+	AccuracyMod = BaseAccuracyMod;
+	DamageIndex = 0;
+	
+	UpdateRandomDamage();
+	UpdateDisplayMesh();
+
+	SetTimer(0.001, false, 'CheckBuilt');
+}
+
+simulated function CheckBuilt() //make final
+{
+	ClearTimer('CheckBuilt');
+	ClearTimer('UnsetBuilt');
+
+	if(WorldInfo.NetMode != NM_Client)
+		bRecentlyBuilt = true;
+	if(bRecentlyBuilt)
+	{
+		SetViewFocus(None);
+		if(bFiringMode || bIsPendingFireMode)
+			TurretSetFiring(false, true);
+		if(bIsScanning)
+			EndScanning();
+		if(Controller != None)
+			Controller.GoToState('WaitForEnemy');
+
+		BuildTimer = WorldInfo.TimeSeconds + FClamp(AnimationNode.PlayCustomAnim('Build', 1.f, 0.f, 0.f, false, true), 0.5f, 3.0f);
+		if(WorldInfo.NetMode != NM_DedicatedServer && UpperAnimNode != None)
+		{
+			UpperAnimNode.PlayCustomAnim('Build', 1.f, 0.f, 0.f, false, true);
+		}
+		if(WorldInfo.NetMode != NM_Client)
+			SetTimer(0.5, false, 'UnsetBuilt');
+	}
+}
+
+function UnsetBuilt()
+{
+	bRecentlyBuilt = false;
+}
+
+simulated function UpdateRandomDamage()
+{
+	local int DamRange;
+	if(bRandomDamage)
+	{
+		DamRange = LevelCfgs[PowerLevel].Damage * (RandomDamagePercent / 100);
+	} else {
+		DamRange = 0;
+	}
+	RandDamMin = LevelCfgs[PowerLevel].Damage - DamRange;
+	RandDamMax = LevelCfgs[PowerLevel].Damage + DamRange;
+}
+
+simulated final function UpdateDisplayMesh()
+{
+	RemoveMuzzles();
+
+	AnimationNode = None;
+	UpperAnimNode = None;
+
+	if(WorldInfo.NetMode != NM_DedicatedServer && Mesh.SkeletalMesh != None)
+	{
+		Mesh.DetachComponent(TurretSpotLight);
+		Mesh.DetachComponent(TurretRedLight);
+	}
+
+	Mesh.SetSkeletalMesh(TurretArch[PowerLevel].CharacterMesh);
+	Mesh.AnimSets = TurretArch[PowerLevel].AnimSets;
+	Mesh.SetAnimTreeTemplate(TurretArch[PowerLevel].AnimTreeTemplate);
+	Mesh.SetPhysicsAsset(TurretArch[PowerLevel].PhysAsset);
+
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		Mesh.AttachComponentToSocket(TurretSpotLight, 'SpotLight');
+		Mesh.AttachComponentToSocket(TurretRedLight, 'SpotLight');
+
+		switch(PowerLevel)
+		{
+		case 0:
+			Mesh.SetMaterial(0, TurSkins[0]);
+			break;
+		case 1:
+			Mesh.SetMaterial(0, TurSkins[0]);
+			Mesh.SetMaterial(1, TurSkins[1]);
+			break;
+		case 2:
+			Mesh.SetMaterial(0, TurSkins[2]);
+			Mesh.SetMaterial(1, TurSkins[0]);
+			Mesh.SetMaterial(2, TurSkins[1]);
+			break;
+		}
+	}
+}
+
+simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
+{
+	AnimationNode = AnimNodeSlot(SkelComp.FindAnimNode('AnimBody'));
+	if(PowerLevel == 2)
+		UpperAnimNode = AnimNodeSlot(SkelComp.FindAnimNode('Cannon'));
+	YawControl = SkelControlLookAt(SkelComp.FindSkelControl('YawBone'));
+	PitchControl = SkelControlLookAt(SkelComp.FindSkelControl('PitchBone'));
+
+	Super(Pawn).PostInitAnimTree(SkelComp);
+}
+
+
+
+simulated final function AddHUDOverlay()
+{
+	local PlayerController PC;
+
+	PC = GetALocalPlayerController();
+	if(PC == None)
+		return;
+	LocalOverlay = class'SentryOverlay'.Static.GetOverlay(PC);
+	LocalOverlay.ActiveTurrets.AddItem(Self);
+}
+
+function CheckUserAlive() // Check if owner player disconnects from server.
+{
+	if(OwnerController == None && !FindNewOwner()) // Try to assign a player using the menu as owner
+	{
+		Health -= HealthLostNoOwner;
+		if(Health <= 0)
+			KilledBy(None);
+	}
+}
+
+final function bool FindNewOwner()
+{
+	local SentryUI_Network N;
+	local KFWeap_EngWrench KFW;
+
+	foreach CurrentUsers(N)
+	{
+		if(N.PlayerOwner != None && N.PlayerOwner.Pawn != None && N.PlayerOwner.Pawn.IsAliveAndWell())
+		{
+			KFW = KFWeap_EngWrench(N.PlayerOwner.Pawn.FindInventoryType(class'KFWeap_EngWrench'));
+			if (KFW != None && KFW.NumTurrets < KFW.MaxTurretsPerUser)
+			{
+				SetTurretOwner(N.PlayerOwner);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+function SetTurretOwner(Controller Other, optional KFWeap_EngWrench W)
+{
+	SetTimer(4 + FRand(), true, 'CheckUserAlive');
+	OwnerController = Other;
+	PlayerReplicationInfo = Other.PlayerReplicationInfo;
+	bIsUserCreated = true;
+	
+	// Increment new owner's turret count
+	ActiveOwnerWeapon = W != None ? W : KFWeap_EngWrench(Other.Pawn.FindInventoryType(class'KFWeap_EngWrench'));
+	if(ActiveOwnerWeapon != None)
+		++ActiveOwnerWeapon.NumTurrets;
+}
+
+simulated function string GetInfo() //for overlay
+{
+	local int F;
+
+	F = float(Health) / float(HealthMax) * 100.f;
+	return "Owner: " $ GetOwnerName() $ " (" $ F $ "% HP)";
+}
+
+//will need to step through dynamic array of ammo ammmounts
+simulated function string GetAmmoStatus()
+{
+	local string S;
+	
+	if(PowerLevel == 2) //tier 3 turret
+		S = " - "$AmmoLevel[1]$"/"$MaxAmmoCount[1];
+	return AmmoLevel[0]$"/"$MaxAmmoCount[0]$S;
+}
+
+simulated function string GetOwnerName()
+{
+	return (PlayerReplicationInfo != None ? PlayerReplicationInfo.PlayerName : "None");
+}
+
+simulated function SetViewFocus(Actor Other)
+{
+	ViewFocusActor = Other;
+	if(WorldInfo.NetMode == NM_DedicatedServer)
+		return;
+
+	if(Other == None && !bIsScanning)
+	{
+		YawControl.SetSkelControlStrength(0.0f, 0.15f);
+		if(PitchControl != None)
+		{
+			PitchControl.SetSkelControlStrength(0.0f, 0.15f);
+		}
+	}
+	else
+	{
+		YawControl.SetSkelControlStrength(1.0f, 0.15f);
+		if(PitchControl != None)
+		{
+			PitchControl.SetSkelControlStrength(1.0f, 0.15f);
+		}
+	}
+}
+
+simulated function Tick(float Delta)
+{
+	if(WorldInfo.NetMode != NM_DedicatedServer && Health > 0)
+	{
+		if(ViewFocusActor != None)
+		{
+			YawControl.SetTargetLocation(ViewFocusActor.Location);
+			YawControl.InterpolateTargetLocation(Delta);
+			if(PitchControl != None)
+			{
+				PitchControl.SetTargetLocation(ViewFocusActor.Location);
+				PitchControl.InterpolateTargetLocation(Delta);
+			}
+		}
+		else if(bIsScanning)
+		{
+			if(ScanLocTimer < WorldInfo.TimeSeconds)
+				PickNextScanLocation();
+			SetScanLocation();
+			YawControl.InterpolateTargetLocation(Delta);
+			if(PitchControl != None)
+				PitchControl.InterpolateTargetLocation(Delta);
+		}
+	}
+}
+simulated final function PickNextScanLocation()
+{
+	local vector X, Y, Z;
+	
+	ScanLocation = DesScanLocation;
+	GetAxes(Rotation, X, Y, Z);
+	DesScanLocation = Normal(X + (bLeftScanned ? Y : -Y) * 0.325);
+	bLeftScanned = !bLeftScanned;
+	ScanLocTimer = WorldInfo.TimeSeconds + 1.05f;
+}
+simulated final function SetScanLocation()
+{
+	local float T;
+	local vector V;
+	
+	T = (ScanLocTimer - WorldInfo.TimeSeconds) / 1.05f;
+	V = Location + (ScanLocation * T + DesScanLocation * (1.0f - T)) * 5000.0f;
+	YawControl.SetTargetLocation(V);
+	if(PitchControl != None)
+		PitchControl.SetTargetLocation(V);
+}
+
+function TryToSellTurret(Controller User)
+{
+	if(OwnerController == User)
+	{
+		bWasSold = true;
+		if(User.PlayerReplicationInfo != None)
+			User.PlayerReplicationInfo.Score += (SentryWorth * ActiveOwnerWeapon.RefundMultiplier);
+		KilledBy(None);
+		//SetTimer(0.15, false, 'KillTurret');
+	}
+	else if(PlayerController(User) != None)
+		PlayerController(User).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 5);
+}
+
+simulated function KillTurret()
+{
+	KilledBy(None);
+}
+
+simulated function SetLevelUp()
+{
+	if(WorldInfo.NetMode != NM_Client)
+	{
+		++PowerLevel;
+		bRecentlyBuilt = true;
+		HealthMax = LevelCfgs[PowerLevel].Health;
+		Health = Min(Health, HealthMax);
+		
+		if(bHasAutoRepair && Health < HealthMax && AutoRepairState == 0)
+		{
+			AutoRepairState = 1;
+			SetTimer(30, false, 'AutoRepairTimer');
+		}
+	}
+	else ClientStatUpdate(PowerLevel);
+	
+	UpdateRandomDamage();
+	UpdateDisplayMesh();
+	SetTimer(0.001, false, 'CheckBuilt');
+}
+
+// UPGRADES:
+simulated final function bool HasUpgrade(byte Index)
+{
+	if(Index < MAX_TURRET_LEVELS)
+		return (PowerLevel >= Index);
+	Index -= MAX_TURRET_LEVELS;
+	switch(Index)
+	{
+	case ETU_IronSightA:
+		return (AcquiredUpgrades & 3) != 0;
+	case ETU_IronSightB:
+		return (AcquiredUpgrades & 2) != 0;
+	case ETU_EagleEyeA:
+		return HasUpgradeFlags(ETU_EagleEyeA);
+	case ETU_EagleEyeB:
+		return HasUpgradeFlags(ETU_EagleEyeB);
+	case ETU_Headshots:
+		return HasUpgradeFlags(ETU_Headshots);
+	case ETU_HomingMissiles:
+		return HasUpgradeFlags(ETU_HomingMissiles);
+	case ETU_AutoRepair:
+		return HasUpgradeFlags(ETU_AutoRepair);
+	}
+	return false;
+}
+simulated final function bool CanUpgrade(byte Index)
+{
+	if(Index < MAX_TURRET_LEVELS)
+		return ((PowerLevel + 1) == Index);
+	Index -= MAX_TURRET_LEVELS;
+	switch(Index)
+	{
+	case ETU_IronSightA:
+		return (AcquiredUpgrades & 3) == 0;
+	case ETU_IronSightB:
+		return (AcquiredUpgrades & 3) == 1;
+	case ETU_EagleEyeA:
+		return !HasUpgradeFlags(ETU_EagleEyeA);
+	case ETU_EagleEyeB:
+		return HasUpgradeFlags(ETU_EagleEyeA) && !HasUpgradeFlags(ETU_EagleEyeB);
+	case ETU_Headshots:
+		return !HasUpgradeFlags(ETU_Headshots);
+	case ETU_HomingMissiles:
+		return PowerLevel == 2 && !HasUpgradeFlags(ETU_HomingMissiles);
+	case ETU_AutoRepair:
+		return !HasUpgradeFlags(ETU_AutoRepair);
+	case ETU_AmmoSMG:
+	case ETU_AmmoSMGBig:
+	
+		return AmmoLevel[0] < MaxAmmoCount[0];
+	case ETU_AmmoMissiles:
+	case ETU_AmmoMissilesBig:
+	
+		return PowerLevel == 2 && AmmoLevel[1] < MaxAmmoCount[1];
+	}
+	return false;
+}
+
+final function SetUpgradeFlags(byte Index)
+{
+	AcquiredUpgrades = AcquiredUpgrades | (1 << Index);
+}
+final function ClearUpgradeFlags(byte Index)
+{
+	AcquiredUpgrades = AcquiredUpgrades & ~(1 << Index);
+}
+simulated final function bool HasUpgradeFlags(byte Index)
+{
+	return (AcquiredUpgrades & (1 << Index)) != 0;
+}
+
+// TODO offer "Fill Ammo" button
+final function ApplyUpgrade(byte Index)
+{
+	if(Index >= ETU_AmmoSMG)
+	{
+		switch(Index)
+		{
+		case ETU_AmmoSMG:
+			AmmoLevel[0] = Min(AmmoLevel[0] + 100, MaxAmmoCount[0]);
+			break;
+		case ETU_AmmoSMGBig:
+			AmmoLevel[0] = Min(AmmoLevel[0] + 500, MaxAmmoCount[0]);
+			break;
+		case ETU_AmmoMissiles:
+			AmmoLevel[1] = Min(AmmoLevel[1] + 10, MaxAmmoCount[1]);
+			break;
+		case ETU_AmmoMissilesBig:
+			AmmoLevel[1] = Min(AmmoLevel[1] + 50, MaxAmmoCount[1]);
+			break;
+
+		}
+	}
+	else
+	{
+		if(Index == ETU_IronSightB)
+			ClearUpgradeFlags(ETU_IronSightA);
+		SetUpgradeFlags(Index);
+		SetUpgrades();
+	}
+	NotifyStatUpdate(MAX_TURRET_LEVELS + Index);
+}
+
+simulated final function SetUpgrades()
+{
+	if(HasUpgradeFlags(ETU_IronSightB))
+		AccuracyMod = BaseAccuracyMod / 4.0f;
+	else if(HasUpgradeFlags(ETU_IronSightA))
+		AccuracyMod = BaseAccuracyMod / 2.0f;
+	else AccuracyMod = BaseAccuracyMod;
+	
+	if(WorldInfo.NetMode != NM_Client)
+	{
+		SightRadius = BaseSightRadius;
+		if(HasUpgradeFlags(ETU_EagleEyeB))
+			SightRadius = BaseSightRadius * 1.3f;
+		else if(HasUpgradeFlags(ETU_EagleEyeA))
+			SightRadius = BaseSightRadius * 1.6f;
+		
+		bHeadHunter = HasUpgradeFlags(ETU_Headshots);
+		bHasAutoRepair = HasUpgradeFlags(ETU_AutoRepair);
+		
+		if(bHasAutoRepair && AutoRepairState == 0 && Health < HealthMax)
+		{
+			AutoRepairState = 1;
+			SetTimer(30, false, 'AutoRepairTimer');
+		}
+	}
+}
+
+final function NotifyStatUpdate(byte Index)
+{
+	local SentryUI_Network N;
+
+	foreach CurrentUsers(N)
+		N.StatUpdated(Index);
+}
+
+simulated final function ClientStatUpdate(byte Index)
+{
+	local SentryUI_Network N;
+	
+	foreach CurrentUsers(N)
+		N.ClientStatUpdated(Index);
+}
+
+function DelayedStartFire()
+{
+	TurretSetFiring(true);
+}
+
+simulated function TurretSetFiring(bool bFire, optional bool bInstant)
+{
+	bFiringMode = bFire;
+	
+	if(bFire)
+	{
+		if(WorldInfo.NetMode != NM_Client)
+		{
+			if(NextMissileTimer < WorldInfo.TimeSeconds) // Sometimes delay missile firing (just so all turrets dont fire at same time).
+				NextMissileTimer = WorldInfo.TimeSeconds + FRand() * 2.0f;
+		}
+		FireShot();
+		SetTimer(LevelCfgs[PowerLevel].RoF, true, 'FireShot');
+	}
+	else
+	{
+		bIsPendingFireMode = false;
+		CannonFireCounter = 0;
+		ClearTimer('DelayedStartFire');
+		ClearTimer('FireShot');
+		
+		if(WorldInfo.NetMode != NM_DedicatedServer && !bInstant)
+		{
+			ScanLocation = vector(Rotation);
+			DesScanLocation = ScanLocation;
+			AnimationNode.StopCustomAnim(0.05f);
+			bIsScanning = true;
+			SetViewFocus(ViewFocusActor);
+			SetTimer(0.2f, false, 'ScanSound');
+			SetTimer(6.0f, false, 'EndScanning');
+		}
+	}
+}
+simulated function PlayOutOfAmmo()
+{
+	PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_empty_Cue', true);
+}
+
+simulated function ScanSound()
+{
+	local SoundCue C;
+	if(!bIsScanning || Health <= 0)
+		return;
+	if(PowerLevel == 0)
+		C = SoundCue'tf2sentry.Sounds.sentry_scan_Cue';
+	else if(PowerLevel == 1)
+		C = SoundCue'tf2sentry.Sounds.sentry_scan2_Cue';
+	else C = SoundCue'tf2sentry.Sounds.sentry_scan3_Cue';
+	if(C == None)
+		return;
+
+	PlaySoundBase(C, true);
+	SetTimer(C.GetCueDuration(), false, 'ScanSound');
+}
+simulated function EndScanning()
+{
+	bIsScanning = false;
+	SetViewFocus(ViewFocusActor);
+}
+
+simulated function FireShot()
+{
+	if(WorldInfo.NetMode != NM_Client)
+	{
+		if(PowerLevel == 2 && NextMissileTimer < WorldInfo.TimeSeconds && AmmoLevel[1] > 0)
+			CheckFireMissile();
+		if(AmmoLevel[0] <= 0)
+		{
+			if(!bIsPendingFireMode)
+			{
+				bFiringMode = false;
+				bIsPendingFireMode = true;
+				if(WorldInfo.NetMode != NM_DedicatedServer)
+					PlayOutOfAmmo();
+			}
+			return;
+		}
+		else if(bIsPendingFireMode)
+		{
+			bFiringMode = true;
+			bIsPendingFireMode = false;
+		}
+		--AmmoLevel[0];
+	}
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		AnimationNode.PlayCustomAnim('Fire', 1.0f, 0.0f, 0.0f, false, true);
+		if(NextFireSoundTime < WorldInfo.TimeSeconds)
+		{
+			NextFireSoundTime = WorldInfo.TimeSeconds + 0.15f;
+			PlaySoundBase(FiringSounds[PowerLevel], true);
+		}
+	}
+	TraceFire();
+}
+
+function CheckFireMissile()
+{
+	local Pawn T;
+	local KFPawn P;
+	local int HP;
+	local rotator R;
+	local vector Start;
+	local KFProj_Missile_Sentry Proj;
+	
+	T = Controller.Enemy;
+	if(T == None)
+		return;
+	
+	foreach WorldInfo.AllPawns(class'KFPawn', P, T.Location, 600.0f)
+	{
+		if(P == T || FastTrace(P.Location, T.Location))
+			HP += (200 + P.Health);
+	}
+	
+	if(HP > 800)
+	{
+		NextMissileTimer = WorldInfo.TimeSeconds + 3.8f;
+		if(++CannonFireCounter > 250)
+			CannonFireCounter = 1;
+		if(WorldInfo.NetMode != NM_DedicatedServer)
+			MakeFireMissileFX();
+		
+		// Fire proj itself.
+		Start = Location + vect(0, 0, 122.0f); // ofset to put muissile outside the turrets collision
+		R = Controller.GetAdjustedAimFor(None, Start);
+		Proj = Spawn(class'KFProj_Missile_Sentry', , , Start, R);
+		if(Proj != None)
+		{
+			if(HasUpgradeFlags(ETU_HomingMissiles))
+				Proj.AimTarget = T;
+			Proj.Damage = MissileHitDamage;
+			Proj.ExplosionTemplate.Damage = MissileHitDamage;
+			Proj.Init(vector(R));
+			Proj.InstigatorController = OwnerController != None ? OwnerController : Controller;
+			Proj.Speed = MissileSpeed;
+		}
+		 --AmmoLevel[1];
+	}
+}
+
+simulated function MakeFireMissileFX()
+{
+	local byte i;
+	local name M;
+
+	bAltMissileFired = !bAltMissileFired;
+	i = 2 + byte(bAltMissileFired);
+	M = bAltMissileFired ? 'RoMuz' : 'RoMuz2';
+	UpperAnimNode.PlayCustomAnim('FireRocket', 1.0f, 0.0f, 0.0f, false, true);
+	
+	if (MuzzleFlash[i] == None)
+	{
+		MuzzleFlash[i] = new(self) Class'KFMuzzleFlash'(KFMuzzleFlash'WEP_AA12_ARCH.Wep_AA12Shotgun_MuzzleFlash_3P');
+		MuzzleFlash[i].AttachMuzzleFlash(Mesh, M, M);
+		MuzzleFlash[i].MuzzleFlash.PSC.SetScale(3.5f);
+	}
+	MuzzleFlash[i].CauseMuzzleFlash(0);
+}
+
+simulated final function vector GetTraceStart()
+{
+	return Location + (PowerLevel == 0 ? vect(0, 0, 38.0f) : vect(0, 0, 77.0f));
+}
+
+final function bool CanSeeSpot(vector P)
+{
+	return (Normal(P - Location) Dot vector(Rotation)) > TurnRadius;
+}
+
+function vector GetAimPos(vector CamLoc, Pawn TPawn)
+{
+	local vector			HitLocation, HitNormal;
+	local Actor				HitActor;
+	local TraceHitInfo		HitInfo;
+	local vector                HeadLocation, TorsoLocation, PelvisLocation;
+
+	// if bHeadhunter upgrade Check to see if we can hit the head
+	if(bHeadHunter)
+	{
+		HeadLocation = TPawn.Mesh.GetBoneLocation(HeadBoneName);
+		HitActor = TPawn.Trace(HitLocation, HitNormal, HeadLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
+		if( HitActor == none || HitActor == Self )
+		{
+			//`log("Autotarget - found head");
+			return HeadLocation + (vect(0,0,-10.0));
+		}
+	}
+	// Try for the torso
+	TorsoLocation = TPawn.Mesh.GetBoneLocation(TorsoBoneName);
+	HitActor = TPawn.Trace(HitLocation, HitNormal, TorsoLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
+	if( HitActor == none || HitActor == Self)
+	{
+		return TorsoLocation;
+	}
+	// Try for the pelvis
+	PelvisLocation = TPawn.Mesh.GetBoneLocation(PelvisBoneName);
+	HitActor = TPawn.Trace(HitLocation, HitNormal, PelvisLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
+	if( HitActor == none || HitActor == Self)
+	{
+		//`log("Autotarget - found pelvis");
+		return PelvisLocation;
+	}
+	//`log("Autotarget - found noting - returning location");
+	return Location + BaseEyeHeight * vect(0,0,0.5f);
+}
+
+simulated function TraceFire()
+{
+	local vector Start, End, Dir, HL, HN;
+	local Actor A;
+	local Pawn E;
+	local TraceHitInfo H;
+	local array<ImpactInfo> IL;
+	local int RandomizedDam;
+
+	Start = GetTraceStart();
+	if(WorldInfo.NetMode != NM_Client)
+	{
+		E = Controller != None ? Controller.Enemy : None;
+		if(E != None && CanSeeSpot(E.Location))
+		{
+			if(ViewFocusActor != E)
+				SetViewFocus(E);
+			RepHitLocation = GetAimPos(Start, E);
+		}
+		else RepHitLocation = Location + vector(Rotation) * 2000.0f;
+	}
+	else if(RepHitLocation == vect(0, 0, 0))
+		RepHitLocation = Location + vector(Rotation) * 2000.0f;
+
+	Dir = Normal(RepHitLocation - Start);
+	Dir = VRandCone(Dir, AccuracyMod); // Official way, should be faster. Angle is in radians
+
+	End = Start + Dir * 10000.0f;
+	foreach TraceActors(class'Actor', A, HL, HN, End, Start, , H)
+	{
+		if(A.bBlockActors || A.bProjTarget)
+		{
+			if(Pawn(A) != None)
+			{
+				if(Pawn(A).IsSameTeam(Self))
+					continue;
+				if(KFPawn(A) != None && A.TraceAllPhysicsAssetInteractions(Pawn(A).Mesh, End, Start, IL, , true) && IL.Length > 0) // Try to trace for hitzone info.
+				{
+					H = IL[0].HitInfo;
+				}
+			}
+			break;
+		}
+	}
+
+	// If trace hit an actor on other team
+	if(A != None)
+	{
+		if(bRandomDamage)
+		{
+			RandomizedDam = RandRange(RandDamMin, RandDamMax);
+		} else {
+			RandomizedDam = RandDamMin;
+		}
+
+		if(WorldInfo.NetMode != NM_Client)
+		{
+			Controller.bIsPlayer = false;
+
+			A.TakeDamage(RandomizedDam, (OwnerController != None ? OwnerController : Controller), HL, Dir * 10000.f, DamageTypes[DamageIndex], H, Self);
+			if(Controller != None) // Enemy may have exploded and killed the turret. 
+				Controller.bIsPlayer = true;
+			if(OwnerController != None && Pawn(A) != None && Pawn(A).Controller != None)
+				Pawn(A).Controller.NotifyTakeHit(Controller, HL, 14, DamageTypes[DamageIndex], Dir); // Make enemy AI aggro the turret
+		}
+		else A.TakeDamage(RandomizedDam, Controller, HL, Dir * 10000.f, DamageTypes[DamageIndex], H, Self); // changed from flat 14 damage in client
+	}
+	else HL = End;
+
+	// Local FX
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+		DrawImpact(A, HL, HN);
+}
+
+simulated function DrawImpact(Actor A, vector HitLocation, vector HitNormal)
+{
+	local ParticleSystemComponent E;
+	local vector Start, Dir;
+	local float Dist;
+	local byte i;
+	local name M;
+	
+	bAlterFired = !bAlterFired;
+	if(PowerLevel == 0 || bAlterFired)
+	{
+		M = 'Muz';
+		i = 0;
+	}
+	else
+	{
+		M = 'Muz2';
+		i = 1;
+	}
+
+	if (MuzzleFlash[i] == None)
+	{
+		// This implies the muzzle flash is the same for both indexes. Why use an array?
+		MuzzleFlash[i] = new(self) Class'KFMuzzleFlash'(KFMuzzleFlash'WEP_AA12_ARCH.Wep_AA12Shotgun_MuzzleFlash_3P');
+		MuzzleFlash[i].AttachMuzzleFlash(Mesh, M, M);
+		MuzzleFlash[i].MuzzleFlash.PSC.SetScale(2.5f);
+	}
+	MuzzleFlash[i].CauseMuzzleFlash(0);
+	
+	if(A != None)
+	{
+		KFImpactEffectManager(WorldInfo.MyImpactEffectManager).PlayImpactEffects(HitLocation, self, HitNormal, Class'KFProj_Bullet_LazerCutter'.Default.ImpactEffects);
+	}
+
+	Mesh.GetSocketWorldLocationAndRotation(M, Start);
+	Dir = HitLocation - Start;
+	Dist = VSize(Dir);
+	
+	if(Dist > 300.0f)
+	{
+		Dist = fMin((Dist - 100.0f) / 8000.0f, 1.0f);
+		if(Dist > 0.0f) // Dont think this does anything based on above logic
+		{
+			E = WorldInfo.MyEmitterPool.SpawnEmitter(ParticleSystem'FX_Projectile_EMIT.FX_Common_Tracer_Instant', Start, rotator(Dir));
+			E.SetScale(2);
+			E.SetVectorParameter('Tracer_Velocity', vect(4000, 0, 0));
+			E.SetFloatParameter('Tracer_Lifetime', Dist);
+		}
+	}
+}
+
+simulated function KFSkinTypeEffects GetHitZoneSkinTypeEffects(int HitZoneIdx)
+{
+	return KFSkinTypeEffects'FX_Impacts_ARCH.SkinTypes.Metal';
+}
+
+function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLocation)
+{
+	local int i;
+
+	for(i = (CurrentUsers.Length - 1); i >= 0; --i)
+		CurrentUsers[i].Destroy();
+
+	if(PlayerController(OwnerController) != None)
+		PlayerController(OwnerController).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 4);
+	if(Controller != None)
+		Controller.bIsPlayer = false;
+	if(ActiveOwnerWeapon != None)
+	{
+		 --ActiveOwnerWeapon.NumTurrets;
+		ActiveOwnerWeapon = None;
+	}
+	if(ActiveTrigger != None)
+	{
+		ActiveTrigger.Destroy();
+		ActiveTrigger = None;
+	}
+	return Super.Died(Killer, DamageType, HitLocation);
+}
+
+simulated function Destroyed()
+{
+	if(ActiveOwnerWeapon != None)
+	{
+		 --ActiveOwnerWeapon.NumTurrets;
+		ActiveOwnerWeapon = None;
+	}
+	if(LocalOverlay != None)
+		LocalOverlay.ActiveTurrets.RemoveItem(Self);
+	RemoveMuzzles();
+	if(ActiveTrigger != None)
+	{
+		ActiveTrigger.Destroy();
+		ActiveTrigger = None;
+	}
+	Super.Destroyed();
+}
+
+simulated final function RemoveMuzzles()
+{
+	local byte i;
+	
+	for(i = 0; i < ArrayCount(MuzzleFlash); ++i)
+		if (MuzzleFlash[i] != None)
+		{
+			MuzzleFlash[i].DetachMuzzleFlash(Mesh);
+			MuzzleFlash[i] = None;
+		}
+}
+
+simulated final function SetFloorOrientation(vector LandNormal)
+{
+	local vector X, Y, Z;
+	local rotator R;
+
+	R.Yaw = Rotation.Yaw;
+	if(LandNormal.Z > 0.997f || LandNormal.Z <= 0.2f)
+	{
+		SetRotation(R);
+		return;
+	}
+
+	// Fast dummy method for making it adjust to ground direction.
+	GetAxes(R, X, Y, Z);
+	X = Normal(X - LandNormal * (X Dot LandNormal));
+	Y = Normal(Y - LandNormal * (Y Dot LandNormal));
+	Z = (X Cross Y);
+	SetRotation(OrthoRotation(X, Y, Z));
+}
+
+event Landed(vector HitNormal, Actor FloorActor)
+{
+	SetPhysics(PHYS_None);
+	SetFloorOrientation(HitNormal);
+}
+
+simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
+{	
+	Super.PlayDying(DamageType, HitLoc);
+	
+	if(!bWasSold && WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_explode_Cue', true);
+		WorldInfo.MyEmitterPool.SpawnEmitter(ParticleSystem'WEP_3P_EMP_EMIT.FX_EMP_Grenade_Explosion', Location);
+		WorldInfo.MyEmitterPool.SpawnEmitter(ParticleSystem'WEP_3P_MKII_EMIT.FX_MKII_Grenade_Explosion', Location);
+	}
+	
+	if(ActiveTrigger != None)
+	{
+		ActiveTrigger.Destroy();
+		ActiveTrigger = None;
+	}
+}
+
+function AutoRepairTimer()
+{
+	if(AutoRepairState == 1)
+	{
+		AutoRepairState = 2;
+		SetTimer(1, true, 'AutoRepairTimer');
+	}
+	Health = Min(Health + HealthRegenRate, HealthMax);
+	if(Health >= HealthMax)
+	{
+		AutoRepairState = 0;
+		ClearTimer('AutoRepairTimer');
+	}
+}
+
+function PlayHit(float Damage, Controller InstigatedBy, vector HitLocation, class<DamageType> damageType, vector Momentum, TraceHitInfo HitInfo)
+{
+	if(Damage > 0 && bHasAutoRepair && Health < HealthMax)
+	{
+		AutoRepairState = 1;
+		SetTimer(30, false, 'AutoRepairTimer');
+	}
+	if(Damage > 5 && NextTakeHitSound < WorldInfo.TimeSeconds)
+	{
+		NextTakeHitSound = WorldInfo.TimeSeconds + 0.75; // Up from 0.5
+		PlaySoundBase(SoundCue'tf2sentry.Sounds.sentry_damage1_Cue');
+	}
+}
+
+simulated event bool CanDoSpecialMove(ESpecialMove AMove, optional bool bForceCheck)
+{
+	return false;
+}
+function bool CanBeGrabbed(KFPawn GrabbingPawn, optional bool bIgnoreFalling, optional bool bAllowSameTeamGrab)
+{
+	return false;
+}
+event bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType, optional bool bCanRepairArmor = true, optional bool bMessageHealer = true)
+{
+	if(Amount > 0 && IsAliveAndWell() && Health < HealthMax)
+	{
+		Amount = Min(Amount, HealthMax - Health);
+		Health += Amount;
+		if(KFPlayerController(Healer) != None)
+			KFPlayerController(Healer).AddWeldPoints(Amount << 1);
+		return true;
+	}
+	return false;
+}
+
+event TakeDamage(int Damage, Controller InstigatedBy, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
+{
+	if(InstigatedBy != None && (InstigatedBy == Controller || InstigatedBy.GetTeamNum() == GetTeamNum()))
+		return;
+	Super.TakeDamage(Damage, InstigatedBy, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
+}
+
+function AddVelocity(vector NewVelocity, vector HitLocation, class<DamageType> damageType, optional TraceHitInfo HitInfo);
+
+function AdjustDamage(out int InDamage, out vector Momentum, Controller InstigatedBy, vector HitLocation, class<DamageType> DamageType, TraceHitInfo HitInfo, Actor DamageCauser)
+{
+	if(class<KFDT_Sonic>(DamageType) != None)
+		InDamage *= SonicDamageMultiplier;
+	Super.AdjustDamage(InDamage, Momentum, InstigatedBy, HitLocation, DamageType, HitInfo, DamageCauser);
+}
+
+defaultproperties
+{
+	bWasSold = false
+
+	Mass = 5500.000000
+	BaseEyeHeight = 70.000000
+	EyeHeight = 70.000000
+	Health = 350 // Immediatly overwritten by config, ensures turret isnt spawnerd with 0 health
+	HealthMax = 350 // Immediatly overwritten by config, ensures turret isnt spawnerd with 0 health
+	ControllerClass = Class'STAI_Base'
+
+	DamageTypes(0) = class'KFDT_Ballistic'
+
+	Begin Object Class=SpotLightComponent Name=SpotLight1
+		OuterConeAngle = 35.000000
+		Radius = 2000.000000
+		FalloffExponent = 3.000000
+		Brightness = 1.750000
+		CastShadows = False
+		CastStaticShadows = False
+		CastDynamicShadows = False
+		bCastCompositeShadow = False
+		bCastPerObjectShadows = False
+		LightingChannels = (Outdoor = True)
+		MaxDrawDistance = 3500.000000
+	End Object
+	TurretSpotLight = SpotLight1
+
+	Begin Object Class=PointLightComponent Name=PointLightComponent1
+		Radius = 120.000000
+		Brightness = 4.000000
+		LightColor = (B = 0, G = 0, R = 255, A = 255)
+		CastShadows = False
+		LightingChannels = (Outdoor = True)
+		MaxBrightness = 1.000000
+		AnimationType = 2
+		AnimationFrequency = 1.000000
+	End Object
+	TurretRedLight = PointLightComponent1
+
+
+	Levels(0) = (Icon = Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_01', UIName="Level1")
+	Levels(1) = (Icon = Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_02', UIName="Level2")
+	Levels(2) = (Icon = Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_04', UIName="Level3")
+	
+	Upgrades(0) = (Icon = Texture2D'UI_Award_PersonalMulti.UI_Award_PersonalMulti-Headshots', UIName="IronSight1")
+	Upgrades(1) = (Icon = Texture2D'UI_Award_PersonalSolo.UI_Award_PersonalSolo-Headshots', UIName="IronSight2")
+	Upgrades(2) = (Icon = Texture2D'UI_PerkTalent_TEX.commando.UI_Talents_Commando_Impact', UIName="EagleEye1")
+	Upgrades(3) = (Icon = Texture2D'UI_PerkTalent_TEX.commando.UI_Talents_Commando_AutoFire', UIName="EagleEye2")
+	Upgrades(4) = (Icon = Texture2D'UI_Award_Team.UI_Award_Team-Headshots', UIName="Headshot")
+	Upgrades(5) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_Rocket', UIName="HomingRocket")
+	Upgrades(6) = (Icon = Texture2D'UI_PerkIcons_TEX.UI_PerkIcon_Medic', UIName="AutoRepair")
+	Upgrades(7) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_BulletBurst', UIName="Ammo")
+	Upgrades(8) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_BulletAuto', UIName="AmmoBig")
+	Upgrades(9) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_Nail', UIName="Missile")
+	Upgrades(10) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_NailsBurst', UIName="MissileBig")
+	UpgradeNames(0) = "Iron Sight 1|This upgrade gives this turret level 1 firing precision.\n + 30 % accuracy."
+	UpgradeNames(1) = "Iron Sight 2|This upgrade gives this turret level 2 firing precision.\n + 60 % accuracy."
+	UpgradeNames(2) = "Eagle Eye 1|This upgrade gives this turret level 1 sight distance bonus.\n + 50 % sight distance."
+	UpgradeNames(3) = "Eagle Eye 2|This upgrade gives this turret level 2 sight distance bonus.\n + 100 % sight distance."
+	UpgradeNames(4) = "Head Hunter|This upgrade makes the turret aim at zed heads instead of body."
+	UpgradeNames(5) = "Homing Missiles|This upgrade makes the level 3 turret fire homing missiles instead of regular missiles.\n - Requires level 3 turret to purchase!"
+	UpgradeNames(6) = "Auto Repair|This upgrade makes the turret auto regain health slowly over time when haven't taken damage for 30 seconds."
+	UpgradeNames(7) = "SMG Ammo|Buy 100 SMG ammo.\n(No refund for excessive ammo)"
+	UpgradeNames(8) = "5x SMG Ammo|Buy 500 SMG ammo.\n(No refund for excessive ammo)"
+	UpgradeNames(9) = "Missile Ammo|Buy 10 missiles.\n(No refund for excessive ammo)"
+	UpgradeNames(10) = "5x Missile Ammo|Buy 50 missiles.\n(No refund for excessive ammo)"
+
+	Begin Object Name=ThirdPersonHead0
+		ReplacementPrimitive = None
+		bAcceptsDynamicDecals = True
+	End Object
+	ThirdPersonHeadMeshComponent = ThirdPersonHead0
+
+	Begin Object Class=KFAfflictionManager Name=Afflictions_0 Archetype = KFAfflictionManager'KFGame.Default__KFPawn:Afflictions_0'
+		FireFullyCharredDuration = 2.500000
+		FireCharPercentThreshhold = 0.250000
+	End Object
+	AfflictionHandler = KFAfflictionManager'Default__ST_Base:Afflictions_0'
+
+	Begin Object Name=FirstPersonArms
+		bIgnoreControllersWhenNotRendered = True
+		bOverrideAttachmentOwnerVisibility = True
+		bAllowBooleanPreshadows = False
+		ReplacementPrimitive = None
+		DepthPriorityGroup = SDPG_Foreground
+		bOnlyOwnerSee = True
+		bAllowPerObjectShadows = True
+	End Object
+	ArmsMesh = FirstPersonArms
+
+	Begin Object Class=KFSpecialMoveHandler Name=SpecialMoveHandler_0 Archetype = KFSpecialMoveHandler'KFGame.Default__KFPawn:SpecialMoveHandler_0'
+	End Object
+	SpecialMoveHandler = KFSpecialMoveHandler'Default__ST_Base:SpecialMoveHandler_0'
+
+	Begin Object Name=AmbientAkSoundComponent_1
+		BoneName="Dummy"
+		bStopWhenOwnerDestroyed = True
+	End Object
+	AmbientAkComponent = AmbientAkSoundComponent_1
+
+	Begin Object Name=AmbientAkSoundComponent_0
+		BoneName="Dummy"
+		bStopWhenOwnerDestroyed = True
+		bForceOcclusionUpdateInterval = True
+	End Object
+	WeaponAkComponent = AmbientAkSoundComponent_0
+
+	Begin Object Class=KFWeaponAmbientEchoHandler Name=WeaponAmbientEchoHandler_0 Archetype = KFWeaponAmbientEchoHandler'KFGame.Default__KFPawn:WeaponAmbientEchoHandler_0'
+	End Object
+	WeaponAmbientEchoHandler = KFWeaponAmbientEchoHandler'Default__ST_Base:WeaponAmbientEchoHandler_0'
+
+	Begin Object Name=FootstepAkSoundComponent
+		BoneName="Dummy"
+		bStopWhenOwnerDestroyed = True
+		bForceOcclusionUpdateInterval = True
+	End Object
+	FootstepAkComponent = FootstepAkSoundComponent
+
+	Begin Object Name=DialogAkSoundComponent
+		BoneName="Dummy"
+		bStopWhenOwnerDestroyed = True
+	End Object
+	DialogAkComponent = DialogAkSoundComponent
+
+	Begin Object Class=SkeletalMeshComponent Name=SkelMesh
+		bUpdateSkelWhenNotRendered = False
+		ReplacementPrimitive = None
+		RBChannel = RBCC_GameplayPhysics
+		CollideActors = True
+		BlockZeroExtent = True
+		LightingChannels = (bInitialized = True, Indoor = True, Outdoor = True)
+		RBCollideWithChannels = (Default = True, GameplayPhysics = True, EffectPhysics = True, BlockingVolume = True)
+		Translation = (X = 0.000000, Y = 0.000000, Z = -50.000000)
+		Scale = 2.500000
+	End Object
+	Mesh = SkelMesh
+
+	Begin Object Name=CollisionCylinder
+		CollisionHeight = 50.000000
+		CollisionRadius = 30.000000
+		ReplacementPrimitive = None
+		CollideActors = True
+		BlockActors = True
+		BlockZeroExtent = False
+	End Object
+	CylinderComponent = CollisionCylinder
+	Components.Add(CollisionCylinder)
+
+	Begin Object Name=Arrow
+		ArrowColor = (B = 255, G = 200, R = 150, A = 255)
+		bTreatAsASprite = True
+		SpriteCategoryName="Pawns"
+		ReplacementPrimitive = None
+	End Object
+	Components.Add(Arrow)
+
+	Begin Object Name=KFPawnSkeletalMeshComponent
+		MinDistFactorForKinematicUpdate = 0.200000
+		bSkipAllUpdateWhenPhysicsAsleep = True
+		bIgnoreControllersWhenNotRendered = True
+		bHasPhysicsAssetInstance = True
+		bUpdateKinematicBonesFromAnimation = False
+		bPerBoneMotionBlur = True
+		bOverrideAttachmentOwnerVisibility = True
+		bChartDistanceFactor = True
+		ReplacementPrimitive = None
+		RBChannel = RBCC_Pawn
+		RBDominanceGroup = 20
+		bOwnerNoSee = True
+		bAcceptsDynamicDecals = True
+		bUseOnePassLightingOnTranslucency = True
+		CollideActors = True
+		BlockZeroExtent = True
+		BlockRigidBody = True
+		RBCollideWithChannels = (Default = True, Pawn = True, Vehicle = True, BlockingVolume = True)
+		Translation = (X = 0.000000, Y = 0.000000, Z = -86.000000)
+		ScriptRigidBodyCollisionThreshold = 200.000000
+		PerObjectShadowCullDistance = 2500.000000
+		bAllowPerObjectShadows = True
+		TickGroup = TG_DuringAsyncWork
+	End Object
+	Components.Add(KFPawnSkeletalMeshComponent)
+
+	Components.Add(AmbientAkSoundComponent_0)
+	Components.Add(AmbientAkSoundComponent_1)
+	Components.Add(FootstepAkSoundComponent)
+	Components.Add(DialogAkSoundComponent)
+	Components.Add(SkelMesh)
+	Physics = PHYS_Falling
+	CollisionComponent = CollisionCylinder
+}

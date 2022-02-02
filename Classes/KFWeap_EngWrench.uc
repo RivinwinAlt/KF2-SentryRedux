@@ -1,8 +1,14 @@
 // Defines the behavior of the Sentry Hammer (needs to be redone into Engineers Wrench)
 
-class KFWeap_EngWrench extends KFWeap_Blunt_Pulverizer;
+class KFWeap_EngWrench extends KFWeap_Blunt_Pulverizer
+		config(SentryRedux);
 
-var transient SentryMainRep ContentRef;
+var config byte MaxTurretsPerUser, MapMaxTurrets;
+var config float MinPlacementDistance, RefundMultiplier, WeaponTextScale, TurretPreviewDelay, PreviewRotationRate;
+var config int  HealPerHit;
+var config bool bHeavyAttackToSell, bCanDropWeapon;
+
+//var transient SentryMainRep 
 
 var SkeletalMeshComponent TurretPreview;
 var KFCharacterInfo_Monster BaseTurretArch;
@@ -11,15 +17,15 @@ var array<string> ModeInfos;
 var string AdminInfo;
 var byte NumTurrets;
 var bool bPendingDeploy;
+var class<ST_Base> CurrentTurretType;
 
 simulated function PostBeginPlay()
 {
-	ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
 	Super.PostBeginPlay();
 
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 	{
-		InitConfigDependant();
+		RefreshOverlayValues();
 		InitDisplay();
 	}
 }
@@ -31,12 +37,10 @@ simulated final function InitDisplay()
 	TurretPreview.SetMaterial(0, BaseTurSkin);
 }
 
-simulated final function InitConfigDependant()
+simulated final function RefreshOverlayValues()
 {
-	ModeInfos[2] = Default.ModeInfos[2]$ContentRef.LevelCfgs[0].Cost@Chr(163)$")";
-	ModeInfos[3] = Default.ModeInfos[3]$Int(ContentRef.RefundMultiplier * 100)$Chr(37)$" refund)";
-
-   bDropOnDeath = ContentRef.bCanDropWeapon;
+	ModeInfos[2] = Default.ModeInfos[2]$CurrentTurretType.Default.BuildCost@Chr(163)$")";
+	ModeInfos[3] = Default.ModeInfos[3]$Int(RefundMultiplier * 100)$Chr(37)$" refund)";
 }
 
 simulated function DrawInfo(Canvas Canvas, float FontScale)
@@ -44,7 +48,7 @@ simulated function DrawInfo(Canvas Canvas, float FontScale)
 	local float X, Y, XL, YL;
 	local byte i;
 
-	FontScale *= ContentRef.WeaponTextScale; // Move this to a global variable thats only calculated once
+	FontScale *= WeaponTextScale; // Move this to a global variable thats only calculated once
 	X = Canvas.ClipX * 0.99;
 	Y = Canvas.ClipY * 0.1;
 
@@ -88,8 +92,6 @@ reliable client function ClientWeaponSet(bool bOptionalSet, optional bool bDoNot
 
 function SetOriginalValuesFromPickup(KFWeapon PickedUpWeapon)
 {
-	ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
-
 	KFInventoryManager(InvManager).AddCurrentCarryBlocks(InventorySize);
 	KFPawn(Instigator).NotifyInventoryWeightChanged();
 	
@@ -100,8 +102,6 @@ function SetOriginalValuesFromPickup(KFWeapon PickedUpWeapon)
 
 function GivenTo(Pawn thisPawn, optional bool bDoNotActivate)
 {
-	ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
-
 	Super(Weapon).GivenTo(thisPawn, bDoNotActivate);
 
 	KFInventoryManager(InvManager).AddCurrentCarryBlocks(InventorySize);
@@ -112,9 +112,9 @@ function GivenTo(Pawn thisPawn, optional bool bDoNotActivate)
 
 function UpdateNumTurrets()
 {
-	local SentryTurret T;
+	local ST_TF2 T;
 	NumTurrets = 0;
-	foreach WorldInfo.AllPawns(class'SentryTurret', T)
+	foreach WorldInfo.AllPawns(class'ST_TF2', T)
 		if(T.OwnerController == Instigator.Controller && T.IsAliveAndWell())
 		{
 			T.ActiveOwnerWeapon = Self;
@@ -138,53 +138,32 @@ simulated function CustomFire()
 {
 }
 
-/*
-static simulated event SetTraderWeaponStats(out array<STraderItemWeaponStats> WeaponStats)
-{
-	WeaponStats.Length = 4;
-
-	WeaponStats[0].StatType = TWS_Damage;
-	WeaponStats[0].StatValue = 50;
-
-	// attacks per minutes (design says minute. why minute?)
-	WeaponStats[1].StatType = TWS_RateOfFire;
-	WeaponStats[1].StatValue = 220;  //90
-
-	WeaponStats[2].StatType = TWS_Range;
-	// This is now set in native since EffectiveRange has been moved to KFWeaponDefinition
-	//WeaponStats[2].StatValue = CalculateTraderWeaponStatRange();
-
-	WeaponStats[3].StatType = TWS_Penetration;
-	WeaponStats[3].StatValue = 25;  //15
-}
-*/
-
 simulated function BeginDeployment();
 
 reliable server function ServerDeployTurret()
 {
-	local SentryTurret S;
+	local ST_Base S;
 	local rotator R;
 	local vector Pos, HL, HN;
 	local byte i;
 	
-	if(Instigator.PlayerReplicationInfo == None || Instigator.PlayerReplicationInfo.Score < ContentRef.LevelCfgs[0].Cost)
+	if(Instigator.PlayerReplicationInfo == None || Instigator.PlayerReplicationInfo.Score < CurrentTurretType.Default.BuildCost)
 	{
 		if(PlayerController(Instigator.Controller) != None)
 			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 0);
 		return;
 	}
-	if(NumTurrets >= ContentRef.MaxTurretsPerUser)
+	if(NumTurrets >= MaxTurretsPerUser)
 	{
 		if(PlayerController(Instigator.Controller) != None)
 			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 3);
 		return;
 	}
-	if(ContentRef.MapMaxTurrets > 0)
+	if(MapMaxTurrets > 0)
 	{
 		i = 0;
-		foreach WorldInfo.AllPawns(class'SentryTurret', S)
-			if(S.IsAliveAndWell() && ++i >= ContentRef.MapMaxTurrets)
+		foreach WorldInfo.AllPawns(class'ST_Base', S)
+			if(S.IsAliveAndWell() && ++i >= MapMaxTurrets)
 			{
 				if(PlayerController(Instigator.Controller) != None)
 					PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 6);
@@ -204,7 +183,7 @@ reliable server function ServerDeployTurret()
 	}
 
 	//Check if too near another turret
-	foreach WorldInfo.AllPawns(class'SentryTurret', S, HL, ContentRef.MinPlacementDistance)
+	foreach WorldInfo.AllPawns(class'ST_Base', S, HL, MinPlacementDistance)
 		if(S.IsAliveAndWell())
 		{
 			if(PlayerController(Instigator.Controller) != None)
@@ -213,12 +192,12 @@ reliable server function ServerDeployTurret()
 		}
 
 	//spawn a new turret
-	R.Yaw += Instigator.Controller.Rotation.Pitch * ContentRef.PreviewRotationRate;
-	S = Instigator.Spawn(class'SentryTurret', , , Pos, R);
+	R.Yaw += Instigator.Controller.Rotation.Pitch * PreviewRotationRate;
+	S = Instigator.Spawn(CurrentTurretType, , , Pos, R);
 	if(S != None)
 	{
 		S.SetTurretOwner(Instigator.Controller, Self);
-		Instigator.PlayerReplicationInfo.Score -= ContentRef.LevelCfgs[0].Cost;
+		Instigator.PlayerReplicationInfo.Score -= CurrentTurretType.Default.BuildCost;
 	}
 	else
 	{
@@ -254,26 +233,29 @@ simulated function UpdatePreview()
 	{
 		TurretPreview.SetTranslation(StartPos);
 	}
-	R.Yaw += Instigator.Controller.Rotation.Pitch * ContentRef.PreviewRotationRate;
+	R.Yaw += Instigator.Controller.Rotation.Pitch * PreviewRotationRate;
 	TurretPreview.SetRotation(R);
 }
 
 //TODO add condition which heals provided HealAmount
-simulated function Repaired(SentryTurret T, optional int HealAmount)
+simulated function Repaired(ST_Base T, optional int HealAmount)
 {
 	if(WorldInfo.NetMode != NM_Client)
 	{
-		T.HealDamage(ContentRef.HealPerHit, Instigator.Controller, None);
+		T.HealDamage(HealPerHit, Instigator.Controller, None);
 	}
 }
 
 simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocation)
 {
-	if(SentryTurret(HitActor) != None && SentryTurret(HitActor).Health > 0)
+	local ST_Base T;
+	T = ST_Base(HitActor);
+
+	if(T != None && T.Health > 0)
 	{
 		if(WorldInfo.NetMode != NM_Client)
 		{
-			Repaired(SentryTurret(HitActor));
+			Repaired(T);
 		}
 		if (!IsTimerActive(nameof(BeginPulverizerFire)))
 			SetTimer(0.001f, false, nameof(BeginPulverizerFire));
@@ -310,7 +292,7 @@ simulated state MeleeHeavyAttacking
 		NotifyBeginState();
 		//bPulverizerFireReleased = false;
 
-		SetTimer(ContentRef.TurretPreviewDelay, false, 'BeginDeployment');
+		SetTimer(TurretPreviewDelay, false, 'BeginDeployment');
 	}
 
 	simulated function BeginDeployment()
@@ -354,11 +336,13 @@ simulated state MeleeHeavyAttacking
 
 	simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocation)
 	{
-		if(SentryTurret(HitActor) != None && SentryTurret(HitActor).Health > 0)
+		local ST_Base T;
+		T = ST_Base(HitActor);
+		if(T != None && T.Health > 0)
 		{
 			if(WorldInfo.NetMode != NM_Client)
 			{
-				SentryTurret(HitActor).TryToSellTurret(Instigator.Controller);
+				T.TryToSellTurret(Instigator.Controller);
 			}
 			if (!IsTimerActive(nameof(BeginPulverizerFire)))
 				SetTimer(0.001f, false, nameof(BeginPulverizerFire));
@@ -369,19 +353,11 @@ simulated state MeleeHeavyAttacking
 
 	simulated function byte GetWeaponStateId()
 	{
-		switch (MeleeAttackHelper.CurrentAttackDir)
-		{
-		case DIR_Forward:
-		case DIR_ForwardLeft:
-		case DIR_ForwardRight:
-		case DIR_Backward:
-		case DIR_BackwardLeft:
-		case DIR_BackwardRight:
-		case DIR_Left:
-		case DIR_Right:			return WEP_MeleeHeavy_F;
-		}
-
-		return WEP_Idle;
+		//if (MeleeAttackHelper.CurrentAttackDir != DIR_None)
+		//{
+			return WEP_MeleeHeavy_F;
+		//}
+		//return WEP_Idle;
 	}
 	simulated function name GetMeleeAnimName(EPawnOctant AtkDir, EMeleeAttackType AtkType)
 	{
@@ -397,7 +373,7 @@ simulated state MeleeHeavyAttacking
 // Overrides KFWeapon behavior to match Weapon, allows throwing
 simulated function bool CanThrow()
 {
-	return ContentRef.bCanDropWeapon;
+	return bCanDropWeapon;
 }
 
 // Hardcoding to overhead swing
@@ -416,6 +392,8 @@ simulated function Rotator GetPulverizerAim( vector StartFireLoc )
 
 defaultproperties
 {
+	CurrentTurretType = class'ST_TF2'
+
 	AssociatedPerkClasses(0) = none
 
 	PackageKey = "SentryHammer"
