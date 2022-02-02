@@ -1,11 +1,12 @@
 class SentryUI_Network extends ReplicationInfo;
 
-var repnotify SentryTurret TurretOwner;
+var repnotify ST_Base TurretOwner;
 var repnotify PlayerController PlayerOwner;
-var SentryUI_Menu ActiveMenu;
+//var SentryUI_Menu ActiveMenu;
+//var class<KFGUI_Page> TurretMenuClass;
 var transient byte SendIndex;
 var transient int OldAmmoCount[2];
-var transient SentryMainRep ContentRef;
+//var transient SentryMainRep ContentRef;
 
 struct FUpgradeInfo
 {
@@ -27,7 +28,7 @@ replication
 
 simulated function PostBeginPlay()
 {
-	ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
+	//ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -40,22 +41,25 @@ simulated event ReplicatedEvent(name VarName)
 	}
 }
 
-simulated final function SetTurret(SentryTurret T)
+simulated final function SetTurret(ST_Base T)
 {
 	TurretOwner = T;
 	TurretOwner.CurrentUsers.AddItem(Self);
 	
 	if(PlayerOwner != None && LocalPlayer(PlayerOwner.Player) != None)
 	{
-		ActiveMenu = new(None) class'SentryUI_Menu';
+		//TurretMenuClass = new(None) class'UI_MidGameTurretMenu'
+		
+		/*ActiveMenu = new(None) class'SentryUI_Menu';
 		ActiveMenu.SetTimingMode(TM_Real);
 		ActiveMenu.NetOwner = Self;
 		ActiveMenu.Init(LocalPlayer(PlayerOwner.Player));
+		*/
 	}
 	if(WorldInfo.NetMode != NM_Client)
 	{
 		/*
-		if(TurretOwner.OwnerController == None) // Claim ownership of this turret.
+		if(TurretOwner.OwnerController == None) // Claim ownership of this turret?
 			TurretOwner.SetTurretOwner(PlayerOwner);
 		*/
 		GoToState('ReplicateData');
@@ -63,18 +67,20 @@ simulated final function SetTurret(SentryTurret T)
 }
 simulated function Destroyed()
 {
+	/*
 	if(ActiveMenu != None)
 	{
 		ActiveMenu.CloseMenu(true);
 		ActiveMenu = None;
-	}
+	}*/
 	if(TurretOwner != None)
 		TurretOwner.CurrentUsers.RemoveItem(Self);
 }
 
 simulated final function NotifyMenuClosed()
 {
-	ActiveMenu = None;
+	//ActiveMenu = None;
+	//TurretMenuClass = None;
 	ServerMenuClosed();
 }
 reliable server function ServerMenuClosed()
@@ -121,6 +127,7 @@ simulated reliable client function ClientUpdateInfo(byte Index, PlayerReplicatio
 
 simulated function PendingUpdateDisplay()
 {
+	/*
 	if(ActiveMenu != None)
 	{
 		ActiveMenu.UpdateDisplay();
@@ -129,13 +136,13 @@ simulated function PendingUpdateDisplay()
 			SetTimer(1, true, 'CheckAmmoLevel');
 			bActiveTimer = true;
 		}
-	}
+	}*/
 }
 simulated final function CheckAmmoLevel()
 {
 	local byte i;
 
-	if(TurretOwner == None || ActiveMenu == None || ActiveMenu.UpgradeMenu.CurrentFilterIndex != 2)
+	if(TurretOwner == None /*|| ActiveMenu == None || ActiveMenu.UpgradeMenu.CurrentFilterIndex != 2*/)
 		return;
 
 	if(OldAmmoCount[0] != TurretOwner.AmmoLevel[0] || OldAmmoCount[1] != TurretOwner.AmmoLevel[1])
@@ -159,7 +166,7 @@ simulated final function UpdateDesc(byte Index)
 		if(Index == 0)
 			Upgrades[Index].Desc = "This is initial level of the Sentry Turret.";
 		else Upgrades[Index].Desc = "Upgrades sentry to level "$(Index + 1)$" Sentry Turret.";
-		Upgrades[Index].Desc = Upgrades[Index].Desc$"\nHealth: "$Upgrades[Index].ExtraB$"\nRate of fire: "$ContentRef.LevelCfgs[Index].RoF$"\nBullet damage: "$Upgrades[Index].Extra;
+		Upgrades[Index].Desc = Upgrades[Index].Desc$"\nHealth: "$Upgrades[Index].ExtraB$"\nRate of fire: "$TurretOwner.LevelCfgs[Index].RoF$"\nBullet damage: "$Upgrades[Index].Extra;
 		
 		if(Index == 0)
 			Upgrades[Index].Desc = Upgrades[Index].Desc$"\nSentry bought by: "$TurretOwner.GetOwnerName();
@@ -177,8 +184,8 @@ simulated final function UpdateDesc(byte Index)
 		if(i >= TurretOwner.ETU_AmmoSMG)
 		{
 			if(i<TurretOwner.ETU_AmmoMissiles)
-				Upgrades[Index].Desc = Upgrades[Index].Desc$"\n\nCURRENT AMMO: "$TurretOwner.AmmoLevel[0]$"/"$ContentRef.MaxAmmoCount[0];
-			else Upgrades[Index].Desc = Upgrades[Index].Desc$"\n\nCURRENT AMMO: "$TurretOwner.AmmoLevel[1]$"/"$ContentRef.MaxAmmoCount[1];
+				Upgrades[Index].Desc = Upgrades[Index].Desc$"\n\nCURRENT AMMO: "$TurretOwner.AmmoLevel[0]$"/"$TurretOwner.MaxAmmoCount[0];
+			else Upgrades[Index].Desc = Upgrades[Index].Desc$"\n\nCURRENT AMMO: "$TurretOwner.AmmoLevel[1]$"/"$TurretOwner.MaxAmmoCount[1];
 		}
 		else if(TurretOwner.HasUpgrade(Index))
 			Upgrades[Index].Desc = Upgrades[Index].Desc$"\nUpgrade bought by: "$(Upgrades[Index].Buyer != None ? Upgrades[Index].Buyer.PlayerName : "Someone");
@@ -193,36 +200,36 @@ reliable server function BuyPowerup(byte Index)
 
 	if(Index<TurretOwner.MAX_TURRET_LEVELS)
 	{
-		if(PlayerOwner.PlayerReplicationInfo.Score<ContentRef.LevelCfgs[Index].Cost)
+		if(PlayerOwner.PlayerReplicationInfo.Score<TurretOwner.LevelCfgs[Index].Cost)
 		{
 			PlayerOwner.ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 7);
 			return;
 		}
-		TurretOwner.SentryWorth += ContentRef.LevelCfgs[Index].Cost;
+		TurretOwner.SentryWorth += TurretOwner.LevelCfgs[Index].Cost;
 		TurretOwner.Levels[Index].Buyer = PlayerOwner.PlayerReplicationInfo;
-		PlayerOwner.PlayerReplicationInfo.Score -= ContentRef.LevelCfgs[Index].Cost;
+		PlayerOwner.PlayerReplicationInfo.Score -= TurretOwner.LevelCfgs[Index].Cost;
 		TurretOwner.SetLevelUp();
 		TurretOwner.NotifyStatUpdate(Index);
 		if(PlayerOwner != TurretOwner.OwnerController && KFPlayerController(PlayerOwner) != None)
-			KFPlayerController(PlayerOwner).AddWeldPoints(ContentRef.LevelCfgs[Index].Cost>>1);
+			KFPlayerController(PlayerOwner).AddWeldPoints(TurretOwner.LevelCfgs[Index].Cost>>1);
 		return;
 	}
 	Index -= TurretOwner.MAX_TURRET_LEVELS;
 	if(Index<TurretOwner.ETU_MAXUPGRADES)
 	{
-		if(PlayerOwner.PlayerReplicationInfo.Score < ContentRef.UpgradeCosts[Index])
+		if(PlayerOwner.PlayerReplicationInfo.Score < TurretOwner.UpgradeCosts[Index])
 		{
 			PlayerOwner.ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 7);
 			return;
 		}
 		if(Index<TurretOwner.ETU_AmmoSMG)
 		{
-			TurretOwner.SentryWorth += ContentRef.UpgradeCosts[Index];
+			TurretOwner.SentryWorth += TurretOwner.UpgradeCosts[Index];
 			TurretOwner.Upgrades[Index].Buyer = PlayerOwner.PlayerReplicationInfo;
 		}
-		PlayerOwner.PlayerReplicationInfo.Score -= ContentRef.UpgradeCosts[Index];
+		PlayerOwner.PlayerReplicationInfo.Score -= TurretOwner.UpgradeCosts[Index];
 		if(PlayerOwner != TurretOwner.OwnerController && KFPlayerController(PlayerOwner) != None)
-			KFPlayerController(PlayerOwner).AddWeldPoints(ContentRef.UpgradeCosts[Index]>>1);
+			KFPlayerController(PlayerOwner).AddWeldPoints(TurretOwner.UpgradeCosts[Index]>>1);
 		TurretOwner.ApplyUpgrade(Index);
 		return;
 	}
@@ -262,18 +269,20 @@ Begin:
 	Sleep(0.1);
 	for(SendIndex = 0; SendIndex<TurretOwner.MAX_TURRET_LEVELS; ++SendIndex)
 	{
-		ClientUpgradeInfo(SendIndex, ContentRef.LevelCfgs[SendIndex].Cost, TurretOwner.Levels[SendIndex].Buyer, (ContentRef.LevelCfgs[SendIndex].Damage & 1023) | (ContentRef.LevelCfgs[SendIndex].Health << 10));
+		ClientUpgradeInfo(SendIndex, TurretOwner.LevelCfgs[SendIndex].Cost, TurretOwner.Levels[SendIndex].Buyer, (TurretOwner.LevelCfgs[SendIndex].Damage & 1023) | (TurretOwner.LevelCfgs[SendIndex].Health << 10));
 		Sleep(0.001);
 	}
 	for(SendIndex = 0; SendIndex<TurretOwner.ETU_MAXUPGRADES; ++SendIndex)
 	{
-		ClientUpgradeInfo(TurretOwner.MAX_TURRET_LEVELS + SendIndex, ContentRef.UpgradeCosts[SendIndex], TurretOwner.Upgrades[SendIndex].Buyer);
+		ClientUpgradeInfo(TurretOwner.MAX_TURRET_LEVELS + SendIndex, TurretOwner.UpgradeCosts[SendIndex], TurretOwner.Upgrades[SendIndex].Buyer);
 		Sleep(0.001);
 	}
 }
 
 defaultproperties
 {
+	//TurretMenuClass=class'UI_MidGameTurretMenu'
+
    bOnlyRelevantToOwner = True
    bAlwaysRelevant = False
    //Name="Default__SentryUI_Network"

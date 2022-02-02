@@ -2,7 +2,7 @@
 
 Class SentryOverlay extends Interaction;
 
-var array<SentryTurret> ActiveTurrets;
+var array<ST_Base> ActiveTurrets;
 var PlayerController LocalPC;
 var FontRenderInfo DrawInfo;
 var color OwnerColor, OtherColor;
@@ -37,7 +37,7 @@ event PostRender(Canvas Canvas)
 {
 	local float FontScale, ZDist, Scale;
 	local KFWeap_EngWrench W;
-	local SentryTurret S;
+	local ST_Base S;
 	local vector V;
 	local string Str;
 

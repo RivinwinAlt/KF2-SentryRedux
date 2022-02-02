@@ -4,51 +4,39 @@ Class SentryTrigger extends Actor
 	transient
 	implements(KFInterface_Usable);
 
-var SentryTurret TurretOwner;
+var ST_Base TurretOwner;
+var class<KFGUI_Page> TMenu;
+//var UIP_TurretUpgrades TMenu;
+
+simulated function PostBeginPlay()
+{
+	//TMenu.InitMenu();
+}
 
 simulated event Touch(Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal)
 {
-	//Server - side logic
-	if(WorldInfo.NetMode != NM_Client)
-		class'KFPlayerController'.static.UpdateInteractionMessages(Other);
-}
-simulated event UnTouch(Actor Other)
-{
-	local SentryUI_Network SN;
-
-	//Server - side logic if colliding actor is a Pawn
-	//Changed Pawn() to KFPawn_Human() to avoid unecesary updates
+	//Server - update hud message if colliding actor is a player
 	if(WorldInfo.NetMode != NM_Client && KFPawn_Human(Other) != None)
 	{
 		class'KFPlayerController'.static.UpdateInteractionMessages(Other);
-
-		//Destroy SentryUI_Network objects owned by the turret in question
-		foreach Other.ChildActors(class'SentryUI_Network', SN)
-		{
-			if(SN.TurretOwner == TurretOwner)
-				SN.Destroy();
-			break;
-		}
+	}
+}
+simulated event UnTouch(Actor Other)
+{
+	//Server - update hud message if colliding actor is a player
+	if(WorldInfo.NetMode != NM_Client && KFPawn_Human(Other) != None)
+	{
+		class'KFPlayerController'.static.UpdateInteractionMessages(Other);
 	}
 }
 
 function bool UsedBy(Pawn User)
 {
-	local SentryUI_Network SN;
-
 	// Server - side logic when User is a player/has a player controller 
-	if(WorldInfo.NetMode != NM_Client && PlayerController(User.Controller) != None)
+	if(WorldInfo.NetMode != NM_DedicatedServer && GetIsUsable(User))
 	{
-		// If the user already has a SentryUI_Network object asign it to SN and dont spawn another
-		foreach User.ChildActors(class'SentryUI_Network', SN)
-			break;
-		if(SN == None)
-		{
-			// If no object exists spawn a new one
-			SN = Spawn(class'SentryUI_Network', User);
-			SN.PlayerOwner = PlayerController(User.Controller);
-			SN.SetTurret(TurretOwner);
-		}
+		class'KF2GUIController'.static.GetGUIController(PlayerController(KFPawn_Human(User).Controller)).OpenMenu(TMenu);
+		//TMenu.ShowMenu();
 	}
 
 	// This is basically the only returned value, perhaps undefined under certain conditions?
@@ -70,6 +58,8 @@ simulated function int GetInteractionIndex(Pawn User)
 
 defaultproperties
 {
+	TMenu = class'UI_TurretMenu'
+
    Begin Object Class=CylinderComponent Name=CollisionCylinder
       CollisionHeight = 56.000000
       CollisionRadius = 56.000000
