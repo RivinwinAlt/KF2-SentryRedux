@@ -196,7 +196,7 @@ reliable server function ServerDeployTurret()
 	S = Instigator.Spawn(CurrentTurretType, , , Pos, R);
 	if(S != None)
 	{
-		S.SetTurretOwner(Instigator.Controller, Self);
+		S.SetTurretOwner(PlayerController(Instigator.Controller), Self);
 		Instigator.PlayerReplicationInfo.Score -= CurrentTurretType.Default.BuildCost;
 	}
 	else
@@ -237,15 +237,6 @@ simulated function UpdatePreview()
 	TurretPreview.SetRotation(R);
 }
 
-//TODO add condition which heals provided HealAmount
-simulated function Repaired(ST_Base T, optional int HealAmount)
-{
-	if(WorldInfo.NetMode != NM_Client)
-	{
-		T.HealDamage(HealPerHit, Instigator.Controller, None);
-	}
-}
-
 simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocation)
 {
 	local ST_Base T;
@@ -255,7 +246,7 @@ simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocat
 	{
 		if(WorldInfo.NetMode != NM_Client)
 		{
-			Repaired(T);
+			T.HealDamage(HealPerHit, Instigator.Controller, None);
 		}
 		if (!IsTimerActive(nameof(BeginPulverizerFire)))
 			SetTimer(0.001f, false, nameof(BeginPulverizerFire));

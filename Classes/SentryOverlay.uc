@@ -42,7 +42,7 @@ event PostRender(Canvas Canvas)
 	local string Str;
 
 	// If the overlay isnt owned by a player (they disconnected/spectating) dont draw
-	if(LocalPC == None || LocalPC.Pawn == None)
+	if(LocalPC == None || LocalPC.Pawn == None) //This mnakes the overlay invisible to spectators TODO:change
 		return;
 
 	// Get player perspective to calculate where and how large the text should be

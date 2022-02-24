@@ -2,7 +2,7 @@ Class GUIStyleBase extends Object
     abstract;
 
 var Texture2D ItemTex;
-var array<Texture2D> BorderTextures, ArrowTextures, ButtonTextures, TabTextures, ItemBoxTextures, PerkBox, CheckBoxTextures, ProgressBarTextures, SliderTextures;
+var array<Texture2D> CursorTextures, BorderTextures, ArrowTextures, ButtonTextures, TabTextures, ItemBoxTextures, PerkBox, CheckBoxTextures, ProgressBarTextures, SliderTextures;
 var Texture2D ScrollTexture,FavoriteIcon,BankNoteIcon; 
 
 var SoundCue MenuDown, MenuDrag, MenuEdit, MenuFade, MenuClick, MenuHover, MenuUp;
@@ -11,18 +11,21 @@ var() byte MaxFontScale;
 var float DefaultHeight; // Default font text size.
 var transient Canvas Canvas;
 var transient KF2GUIController Owner;
-//var transient KFHUDInterface HUDOwner;
-var transient KFGFxHudWrapper HUDOwner;
-const HUDBorderSize = 3;
+var transient KFHUDInterface HUDOwner;
 
-var Font MainFont, SalesFont, GeneralFont, NumberFont;
-var Color BlurColor, BlurColor2;
+var Font MainFont, NumberFont, InfiniteFont, NameFont;
+var Color BlurColor, BlurColor2, CursorColor;
+
+var int CurrentCursorIndex, CursorSize;
+var CanvasIcon CursorIcon;
+var bool bCursorInitialized;
 
 enum FFontType
 {
-    FONT_MAIN,
-    FONT_SALES,
-    FONT_GENERAL
+    FONT_NORMAL,
+    FONT_NUMBER,
+    FONT_NAME,
+    FONT_INFINITE
 };
 
 struct FColorInfo
@@ -46,7 +49,7 @@ function InitStyle()
     ItemTex=Texture2D(SafeLoadObject("UI_LevelChevrons_TEX.UI_LevelChevron_Icon_02",class'Texture2D'));
     if( ItemTex==None )
         ItemTex=Texture2D'EngineMaterials.DefaultWhiteGrid';
-        
+    
     NumberFont = Font(SafeLoadObject("UI_Canvas_Fonts.Font_General", class'Font'));
     
     BlurColor = MakeColor(60, 60, 60, 220);
@@ -139,6 +142,7 @@ function InitStyle()
 
 function RenderFramedWindow( KFGUI_FloatingWindow P );
 function RenderWindow( KFGUI_Page P );
+function RenderBuyConfirmation( KFGUI_PurchasePopup P );
 function RenderToolTip( KFGUI_Tooltip TT );
 function RenderButton( KFGUI_Button B );
 function RenderScrollBar( KFGUI_ScrollBarBase S );
@@ -148,17 +152,31 @@ function RenderCheckbox( KFGUI_CheckBox C );
 function RenderComboBox( KFGUI_ComboBox C );
 function RenderComboList( KFGUI_ComboSelector C );
 
+function DrawCursor(int X, int Y)
+{
+    if(!bCursorInitialized)
+    {
+        CursorIcon = Canvas.MakeIcon(CursorTextures[CurrentCursorIndex]);
+        bCursorInitialized = true;
+    }
+    Canvas.SetDrawColorStruct(CursorColor);
+    Canvas.DrawIcon(CursorIcon, X, Y, 0.18f);
+}
+
 function Font PickFont( out float Scaler, optional FFontType FontType )
 {
     Scaler = GetFontScaler();
     
     switch(FontType)
     {
-        case FONT_SALES:
-            return SalesFont;
-        case FONT_GENERAL:
-            return GeneralFont;
-        case FONT_MAIN:
+        case FONT_INFINITE:
+            return InfiniteFont;
+        case FONT_NUMBER:
+            Scaler *= 0.6f;
+            return NumberFont;
+        case FONT_NAME:
+            return NameFont;
+        case FONT_NORMAL:
         default:
             return MainFont;
     }
@@ -174,13 +192,13 @@ function PickDefaultFontSize( float YRes )
     
     DefaultHeight=(float(YL)*YRes)+1;
 }
-final function float ScreenScale( float Size, optional float MaxRes=1920.f )
+final function float ScreenScale( float Size, optional float MaxRes=1080.f )
 {
-    return Size * ( HUDOwner.SizeX / MaxRes );
+    return Size * ( HUDOwner.SizeY / MaxRes );
 }
-final function float GetFontScaler( optional float Scaler=0.375f, optional float Min=0.175f, optional float Max=0.375f )
+final function float GetFontScaler( optional float Scaler=1.0f, optional float Min=0.5f, optional float Max=1.5f )
 {
-    return FClamp((HUDOwner.SizeX / 1920.f) * Scaler, Min, Max);
+    return FClamp((HUDOwner.SizeY / 1080.f) * Scaler, Min, Max);
 }
 final function DrawText( coerce string S )
 {
@@ -287,26 +305,6 @@ final function DrawColoredText( coerce string S, float X, float Y, optional floa
         }
     }
 }
-final function DrawTextBlurry( coerce string S, float X, float Y, optional float Scale=1.f, optional FontRenderInfo FRI )
-{
-    local Color OldDrawColor;
-    
-    OldDrawColor = Canvas.DrawColor;
-    BlurColor.A = OldDrawColor.A * 0.85;
-    BlurColor2.A = OldDrawColor.A * 0.55;
-    
-    Canvas.DrawColor = BlurColor;
-    Canvas.SetPos(X + Owner.FontBlurX, Y + Owner.FontBlurY);
-    Canvas.DrawText(S,,Scale,Scale,FRI);
-    
-    Canvas.DrawColor = BlurColor2;
-    Canvas.SetPos(X + Owner.FontBlurX2, Y + Owner.FontBlurY2);
-    Canvas.DrawText(S,,Scale,Scale,FRI);
-    
-    Canvas.DrawColor = OldDrawColor;
-    Canvas.SetPos(X, Y);
-    Canvas.DrawText(S,,Scale,Scale,FRI);
-}
 final function DrawTextOutline( coerce string S, float X, float Y, int Size, Color OutlineColor, optional float Scale=1.f, optional FontRenderInfo FRI )
 {
     local Color OldDrawColor;
@@ -356,7 +354,6 @@ final function DrawTexturedString( coerce string S, float X, float Y, optional f
     local float XL, YL;
     local int i,j;
     local Color OrgC;
-    local float ScaledBorderSize;
     
     OrgC = Canvas.DrawColor;
     
@@ -381,12 +378,10 @@ final function DrawTexturedString( coerce string S, float X, float Y, optional f
         Canvas.DrawColor = class'HUD'.default.WhiteColor;
         Canvas.DrawColor.A = OrgC.A;
         
-        ScaledBorderSize = FMax(ScreenScale(HUDBorderSize), 1.f);
-
-        Canvas.SetPos(X,Y+(ScaledBorderSize/2));
-        Canvas.DrawRect(YL-ScaledBorderSize,YL-ScaledBorderSize,Mat);
+        Canvas.SetPos(X,Y+(Owner.HUDOwner.ScaledBorderSize/2));
+        Canvas.DrawRect(YL-Owner.HUDOwner.ScaledBorderSize,YL-Owner.HUDOwner.ScaledBorderSize,Mat);
         
-        X += YL - FMax(ScreenScale(HUDBorderSize), 1.f);
+        X += YL-Owner.HUDOwner.ScaledBorderSize;
         
         Canvas.DrawColor = OrgC;
         Mat = FindNextTexture(S);
@@ -430,14 +425,13 @@ final function Texture2D FindNextTexture(out string S)
     
     return Cache.Tex;
 }
-static final function Object SafeLoadObject( string S, Class ObjClass )
+final function Object SafeLoadObject( string S, Class ObjClass )
 {
     local Object O;
     
     O = FindObject(S,ObjClass);
     return O!=None ? O : DynamicLoadObject(S,ObjClass);
 }
-
 final function string StripTextureFromString(string S, optional bool bNoStringAdd)
 {
     local int i, j;
@@ -909,7 +903,15 @@ static final function string FormatInteger( int Val )
 
 defaultproperties
 {
-    MainFont=Font'tf2sentry.Fonts.Font_Main'
-    SalesFont=Font'tf2sentry.Fonts.Font_Sales'
-    GeneralFont=Font'tf2sentry.Fonts.Font_General'
+    bCursorInitialized = false
+
+    CursorSize=24
+    CursorColor=(R=255,G=255,B=255,A=255)
+    CursorTextures[`CURSOR_DEFAULT]=Texture2D'UI_Managers.LoaderManager_SWF_I13'
+    CurrentCursorIndex=`CURSOR_DEFAULT
+
+    NumberFont=Font'tf2sentry.Fonts.TF2_Font_Content'
+    MainFont=Font'tf2sentry.Fonts.TF2_Font_Header'
+    InfiniteFont=Font'tf2sentry.Fonts.KFInfiniteFont'
+    NameFont=Font'tf2sentry.Fonts.TF2_Font_Title'
 }

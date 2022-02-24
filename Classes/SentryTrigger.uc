@@ -1,73 +1,69 @@
-// Colidable actor spawned around turrets to enable using the turret's menu
-
 Class SentryTrigger extends Actor
 	transient
 	implements(KFInterface_Usable);
 
 var ST_Base TurretOwner;
-var class<KFGUI_Page> TMenu;
-//var UIP_TurretUpgrades TMenu;
-
-simulated function PostBeginPlay()
-{
-	//TMenu.InitMenu();
-}
+var class<KFGUI_Page> ActiveMenu;
 
 simulated event Touch(Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal)
 {
-	//Server - update hud message if colliding actor is a player
-	if(WorldInfo.NetMode != NM_Client && KFPawn_Human(Other) != None)
-	{
-		class'KFPlayerController'.static.UpdateInteractionMessages(Other);
-	}
+	if( WorldInfo.NetMode!=NM_Client )
+		class'KFPlayerController'.static.UpdateInteractionMessages( Other );
 }
 simulated event UnTouch(Actor Other)
 {
-	//Server - update hud message if colliding actor is a player
-	if(WorldInfo.NetMode != NM_Client && KFPawn_Human(Other) != None)
+	local SentryUI_Network SN;
+	
+	if( WorldInfo.NetMode!=NM_Client && Pawn(Other)!=None )
 	{
 		class'KFPlayerController'.static.UpdateInteractionMessages(Other);
+		foreach Other.ChildActors(class'SentryUI_Network',SN)
+		{
+			if( SN.TurretOwner==TurretOwner )
+				SN.CloseMenuForClient(PlayerController(Pawn(Other).Controller), none, true);
+			break;
+		}
 	}
 }
 
-function bool UsedBy(Pawn User)
+simulated function bool UsedBy(Pawn User)
 {
-	// Server - side logic when User is a player/has a player controller 
-	if(WorldInfo.NetMode != NM_DedicatedServer && GetIsUsable(User))
-	{
-		class'KF2GUIController'.static.GetGUIController(PlayerController(KFPawn_Human(User).Controller)).OpenMenu(TMenu);
-		//TMenu.ShowMenu();
-	}
+	local SentryUI_Network SN;
 
-	// This is basically the only returned value, perhaps undefined under certain conditions?
+	SN = class'SentryUI_Network'.static.GetNetwork(PlayerController(User.Controller));
+	SN.PlayerOwner = PlayerController(User.Controller);
+	SN.SetTurret(TurretOwner);
+	SN.ClientOpenMenu(ActiveMenu);
+	
 	return true;
 }
 
-// Limits a turret to be accessed by human players
-simulated function bool GetIsUsable(Pawn User)
+/** Checks if this actor is presently usable */
+simulated function bool GetIsUsable( Pawn User )
 {
-	// If user is a KFPawn_Human return true
-	return KFPawn_Human(User) != None;
+	return KFPawn_Human(User)!=None;
 }
 
-// This returns a KF2 standard 'Press E to Use Objective' hud message
-simulated function int GetInteractionIndex(Pawn User)
+/** Return the index for our interaction message. */
+simulated function int GetInteractionIndex( Pawn User )
 {
 	return IMT_AcceptObjective;
 }
 
 defaultproperties
 {
-	TMenu = class'UI_TurretMenu'
-
+	ActiveMenu=class'UI_SentryMenu'
+	
    Begin Object Class=CylinderComponent Name=CollisionCylinder
-      CollisionHeight = 56.000000
-      CollisionRadius = 56.000000
-      ReplacementPrimitive = None
-      CollideActors = True
+      CollisionHeight=56.000000
+      CollisionRadius=56.000000
+      ReplacementPrimitive=None
+      CollideActors=True
+      Name="CollisionCylinder"
+      ObjectArchetype=CylinderComponent'Engine.Default__CylinderComponent'
    End Object
-   Components(0) = CollisionCylinder
-   bHidden = True
-   bCollideActors = True
-   CollisionComponent = CollisionCylinder
+   Components(0)=CollisionCylinder
+   bHidden=True
+   bCollideActors=True
+   CollisionComponent=CollisionCylinder
 }

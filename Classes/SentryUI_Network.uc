@@ -1,290 +1,127 @@
-class SentryUI_Network extends ReplicationInfo;
+class SentryUI_Network extends ReplicationInfo
+	dependson(ST_Upgrades_Base); // Gives access to upgrade enums;
 
 var repnotify ST_Base TurretOwner;
 var repnotify PlayerController PlayerOwner;
-//var SentryUI_Menu ActiveMenu;
-//var class<KFGUI_Page> TurretMenuClass;
-var transient byte SendIndex;
-var transient int OldAmmoCount[2];
-//var transient SentryMainRep ContentRef;
 
-struct FUpgradeInfo
-{
-	var string Text, Desc;
-	var int Cost, Extra, ExtraB;
-	var Texture2D Icon;
-	var byte Filter;
-	var PlayerReplicationInfo Buyer;
-};
-var transient array<FUpgradeInfo> Upgrades;
+var transient byte SendIndex;
+var transient KF2GUIController GUIController;
 var transient bool bWasInitAlready, bActiveTimer;
 
 replication
 {
 	// Variables the server should send ALL clients.
-	if(true)
-		TurretOwner, PlayerOwner;
+	if( true )
+		TurretOwner,PlayerOwner;
 }
 
 simulated function PostBeginPlay()
 {
-	//ContentRef = class'SentryMainRep'.Static.FindContentRep(WorldInfo);
+	PlayerOwner = PlayerController(Owner);
 }
 
-simulated event ReplicatedEvent(name VarName)
+simulated event ReplicatedEvent( name VarName )
 {
-	if(TurretOwner != None && PlayerOwner != None && !bWasInitAlready)
+	if( TurretOwner!=None && PlayerOwner!=None && !bWasInitAlready)
 	{
 		bWasInitAlready = true;
 		SetOwner(PlayerOwner);
 		SetTurret(TurretOwner);
 	}
+	else if(TurretOwner==None && PlayerOwner==None)
+	{
+		bWasInitAlready = false;
+	}
 }
 
-simulated final function SetTurret(ST_Base T)
+static final function SentryUI_Network GetNetwork( PlayerController PC)
+{
+	local SentryUI_Network G;
+    
+    foreach PC.ChildActors(class'SentryUI_Network',G)
+        break;
+    if( G==None )
+        G = PC.Spawn(class'SentryUI_Network',PC);
+
+    return G;
+}
+
+static function OpenMenuForClient( PlayerController PC, class<KFGUI_Page> Page )
+{
+    local SentryUI_Network G;
+    
+    G = GetNetwork(PC);
+    G.ClientOpenMenu(Page);
+}
+static function CloseMenuForClient( PlayerController PC, class<KFGUI_Page> Page, optional bool bCloseAll )
+{
+    local SentryUI_Network G;
+    
+    G = GetNetwork(PC);
+    G.ClientCloseMenu(Page,bCloseAll);
+}
+
+simulated reliable client function ClientOpenMenu( class<KFGUI_Page> Page )
+{
+    if( WorldInfo.NetMode!=NM_Client )
+        return;
+    if( GUIController==None )
+        GUIController = Class'KF2GUIController'.Static.GetGUIController(PlayerOwner);
+    GUIController.OpenMenu(Page);
+}
+simulated reliable client function ClientCloseMenu( class<KFGUI_Page> Page, bool bCloseAll )
+{
+    if( WorldInfo.NetMode!=NM_Client )
+        return;
+    if( GUIController==None )
+        GUIController = Class'KF2GUIController'.Static.GetGUIController(PlayerOwner);
+    GUIController.CloseMenu(Page,bCloseAll);
+}
+
+reliable server function SetTurret( ST_Base T)
 {
 	TurretOwner = T;
 	TurretOwner.CurrentUsers.AddItem(Self);
-	
-	if(PlayerOwner != None && LocalPlayer(PlayerOwner.Player) != None)
-	{
-		//TurretMenuClass = new(None) class'UI_MidGameTurretMenu'
-		
-		/*ActiveMenu = new(None) class'SentryUI_Menu';
-		ActiveMenu.SetTimingMode(TM_Real);
-		ActiveMenu.NetOwner = Self;
-		ActiveMenu.Init(LocalPlayer(PlayerOwner.Player));
-		*/
-	}
-	if(WorldInfo.NetMode != NM_Client)
-	{
-		/*
-		if(TurretOwner.OwnerController == None) // Claim ownership of this turret?
-			TurretOwner.SetTurretOwner(PlayerOwner);
-		*/
-		GoToState('ReplicateData');
-	}
+	//if(PlayerOwner==None)
+	//	PlayerOwner = GetALocalPlayerController();
 }
+
+simulated function ExitedMenu()
+{
+	TurretOwner.CurrentUsers.RemoveItem(Self);
+}
+
 simulated function Destroyed()
 {
-	/*
-	if(ActiveMenu != None)
-	{
-		ActiveMenu.CloseMenu(true);
-		ActiveMenu = None;
-	}*/
-	if(TurretOwner != None)
+	ClientCloseMenu( None, true );
+
+	if( TurretOwner!=None )
 		TurretOwner.CurrentUsers.RemoveItem(Self);
+		super.Destroyed();
 }
 
-simulated final function NotifyMenuClosed()
+function bool CanAffordUpgrade(int Index)
 {
-	//ActiveMenu = None;
-	//TurretMenuClass = None;
-	ServerMenuClosed();
-}
-reliable server function ServerMenuClosed()
-{
-	Destroy();
+	return PlayerOwner.PlayerReplicationInfo.Score >= TurretOwner.UpgradesObj.UpgradeInfos[Index].Cost;
 }
 
-simulated reliable client function ClientUpgradeInfo(byte Index, int Cost, PlayerReplicationInfo Buyer, optional int Extra)
+reliable server function BuyUpgrade( int Index )
 {
-	local byte i;
-
-	if(Upgrades.Length <= Index)
-		Upgrades.Length = (Index + 1);
-	Upgrades[Index].Cost = Cost;
-	Upgrades[Index].Buyer = Buyer;
-
-	if(Index<TurretOwner.MAX_TURRET_LEVELS)
+	if(PlayerOwner.PlayerReplicationInfo.Score >= TurretOwner.UpgradesObj.UpgradeInfos[Index].Cost)
 	{
-		Upgrades[Index].Icon = TurretOwner.Levels[Index].Icon;
-		Upgrades[Index].Filter = 0;
-		Upgrades[Index].Extra = Extra & 1023;
-		Upgrades[Index].ExtraB = Extra >> 10;
-	}
-	else
-	{
-		i = Index - TurretOwner.MAX_TURRET_LEVELS;
-		if(i<TurretOwner.ETU_MAXUPGRADES)
-		{
-			Upgrades[Index].Icon = TurretOwner.Upgrades[i].Icon;
-			Upgrades[Index].Filter = i >= TurretOwner.ETU_AmmoSMG ? 2 : 1;
-		}
-	}
-	UpdateDesc(Index);
-	SetTimer(0.15, false, 'PendingUpdateDisplay');
-}
-simulated reliable client function ClientUpdateInfo(byte Index, PlayerReplicationInfo Buyer)
-{
-	if(Upgrades.Length <= Index)
-		Upgrades.Length = (Index + 1);
-	Upgrades[Index].Buyer = Buyer;
-	UpdateDesc(Index);
-	SetTimer(0.15, false, 'PendingUpdateDisplay');
-}
-
-simulated function PendingUpdateDisplay()
-{
-	/*
-	if(ActiveMenu != None)
-	{
-		ActiveMenu.UpdateDisplay();
-		if(!bActiveTimer)
-		{
-			SetTimer(1, true, 'CheckAmmoLevel');
-			bActiveTimer = true;
-		}
-	}*/
-}
-simulated final function CheckAmmoLevel()
-{
-	local byte i;
-
-	if(TurretOwner == None /*|| ActiveMenu == None || ActiveMenu.UpgradeMenu.CurrentFilterIndex != 2*/)
-		return;
-
-	if(OldAmmoCount[0] != TurretOwner.AmmoLevel[0] || OldAmmoCount[1] != TurretOwner.AmmoLevel[1])
-	{
-		OldAmmoCount[0] = TurretOwner.AmmoLevel[0];
-		OldAmmoCount[1] = TurretOwner.AmmoLevel[1];
-		
-		for(i = TurretOwner.MAX_TURRET_LEVELS + TurretOwner.ETU_AmmoSMG; i<Upgrades.Length; ++i) // Make sure these menus stay in sync.
-			UpdateDesc(i);
-		SetTimer(0.1, false, 'PendingUpdateDisplay');
+		TurretOwner.SentryWorth += TurretOwner.UpgradesObj.UpgradeInfos[Index].Cost;
+		PlayerOwner.PlayerReplicationInfo.Score -= TurretOwner.UpgradesObj.UpgradeInfos[Index].Cost;
+		TurretOwner.UpgradesObj.BoughtUpgrade(Index);
 	}
 }
 
-simulated final function UpdateDesc(byte Index)
+reliable server function bool SellTurret()
 {
-	local byte i, j;
-
-	if(Index<TurretOwner.MAX_TURRET_LEVELS)
-	{
-		Upgrades[Index].Text = "Level "$(Index + 1)$" Sentry";
-		if(Index == 0)
-			Upgrades[Index].Desc = "This is initial level of the Sentry Turret.";
-		else Upgrades[Index].Desc = "Upgrades sentry to level "$(Index + 1)$" Sentry Turret.";
-		Upgrades[Index].Desc = Upgrades[Index].Desc$"\nHealth: "$Upgrades[Index].ExtraB$"\nRate of fire: "$TurretOwner.LevelCfgs[Index].RoF$"\nBullet damage: "$Upgrades[Index].Extra;
-		
-		if(Index == 0)
-			Upgrades[Index].Desc = Upgrades[Index].Desc$"\nSentry bought by: "$TurretOwner.GetOwnerName();
-		else if(TurretOwner.HasUpgrade(Index))
-			Upgrades[Index].Desc = Upgrades[Index].Desc$"\nUpgrade bought by: "$(Upgrades[Index].Buyer != None ? Upgrades[Index].Buyer.PlayerName : "Someone");
-		return;
-	}
-	i = Index - TurretOwner.MAX_TURRET_LEVELS;
-	if(i<TurretOwner.ETU_MAXUPGRADES)
-	{
-		j = InStr(TurretOwner.UpgradeNames[i], "|");
-		Upgrades[Index].Text = Left(TurretOwner.UpgradeNames[i], j);
-		Upgrades[Index].Desc = Mid(TurretOwner.UpgradeNames[i], j + 1);
-		
-		if(i >= TurretOwner.ETU_AmmoSMG)
-		{
-			if(i<TurretOwner.ETU_AmmoMissiles)
-				Upgrades[Index].Desc = Upgrades[Index].Desc$"\n\nCURRENT AMMO: "$TurretOwner.AmmoLevel[0]$"/"$TurretOwner.MaxAmmoCount[0];
-			else Upgrades[Index].Desc = Upgrades[Index].Desc$"\n\nCURRENT AMMO: "$TurretOwner.AmmoLevel[1]$"/"$TurretOwner.MaxAmmoCount[1];
-		}
-		else if(TurretOwner.HasUpgrade(Index))
-			Upgrades[Index].Desc = Upgrades[Index].Desc$"\nUpgrade bought by: "$(Upgrades[Index].Buyer != None ? Upgrades[Index].Buyer.PlayerName : "Someone");
-	}
-}
-
-
-reliable server function BuyPowerup(byte Index)
-{
-	if(!TurretOwner.CanUpgrade(Index))
-		return;
-
-	if(Index<TurretOwner.MAX_TURRET_LEVELS)
-	{
-		if(PlayerOwner.PlayerReplicationInfo.Score<TurretOwner.LevelCfgs[Index].Cost)
-		{
-			PlayerOwner.ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 7);
-			return;
-		}
-		TurretOwner.SentryWorth += TurretOwner.LevelCfgs[Index].Cost;
-		TurretOwner.Levels[Index].Buyer = PlayerOwner.PlayerReplicationInfo;
-		PlayerOwner.PlayerReplicationInfo.Score -= TurretOwner.LevelCfgs[Index].Cost;
-		TurretOwner.SetLevelUp();
-		TurretOwner.NotifyStatUpdate(Index);
-		if(PlayerOwner != TurretOwner.OwnerController && KFPlayerController(PlayerOwner) != None)
-			KFPlayerController(PlayerOwner).AddWeldPoints(TurretOwner.LevelCfgs[Index].Cost>>1);
-		return;
-	}
-	Index -= TurretOwner.MAX_TURRET_LEVELS;
-	if(Index<TurretOwner.ETU_MAXUPGRADES)
-	{
-		if(PlayerOwner.PlayerReplicationInfo.Score < TurretOwner.UpgradeCosts[Index])
-		{
-			PlayerOwner.ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 7);
-			return;
-		}
-		if(Index<TurretOwner.ETU_AmmoSMG)
-		{
-			TurretOwner.SentryWorth += TurretOwner.UpgradeCosts[Index];
-			TurretOwner.Upgrades[Index].Buyer = PlayerOwner.PlayerReplicationInfo;
-		}
-		PlayerOwner.PlayerReplicationInfo.Score -= TurretOwner.UpgradeCosts[Index];
-		if(PlayerOwner != TurretOwner.OwnerController && KFPlayerController(PlayerOwner) != None)
-			KFPlayerController(PlayerOwner).AddWeldPoints(TurretOwner.UpgradeCosts[Index]>>1);
-		TurretOwner.ApplyUpgrade(Index);
-		return;
-	}
-}
-reliable server function SellTurret()
-{
-	TurretOwner.TryToSellTurret(PlayerOwner);
-}
-
-function StatUpdated(byte Index)
-{
-	local byte i;
-
-	if(Index<TurretOwner.MAX_TURRET_LEVELS)
-		ClientUpdateInfo(Index, TurretOwner.Levels[Index].Buyer);
-	else
-	{
-		i = Index - TurretOwner.MAX_TURRET_LEVELS;
-		if(i<TurretOwner.ETU_MAXUPGRADES)
-			ClientUpdateInfo(Index, TurretOwner.Upgrades[i].Buyer);
-	}
-}
-simulated final function ClientStatUpdated(byte Index)
-{
-	SetTimer(0.15, false, 'PendingUpdateDisplay');
-}
-
-state ReplicateData
-{
-	function Tick(float Delta)
-	{
-		if(TurretOwner == None || TurretOwner.Health <= 0 || PlayerOwner == None || PlayerOwner.Pawn == None)
-			Destroy();
-	}
-
-Begin:
-	Sleep(0.1);
-	for(SendIndex = 0; SendIndex<TurretOwner.MAX_TURRET_LEVELS; ++SendIndex)
-	{
-		ClientUpgradeInfo(SendIndex, TurretOwner.LevelCfgs[SendIndex].Cost, TurretOwner.Levels[SendIndex].Buyer, (TurretOwner.LevelCfgs[SendIndex].Damage & 1023) | (TurretOwner.LevelCfgs[SendIndex].Health << 10));
-		Sleep(0.001);
-	}
-	for(SendIndex = 0; SendIndex<TurretOwner.ETU_MAXUPGRADES; ++SendIndex)
-	{
-		ClientUpgradeInfo(TurretOwner.MAX_TURRET_LEVELS + SendIndex, TurretOwner.UpgradeCosts[SendIndex], TurretOwner.Upgrades[SendIndex].Buyer);
-		Sleep(0.001);
-	}
+	return TurretOwner.TryToSellTurret(PlayerOwner);
 }
 
 defaultproperties
 {
-	//TurretMenuClass=class'UI_MidGameTurretMenu'
-
-   bOnlyRelevantToOwner = True
-   bAlwaysRelevant = False
-   //Name="Default__SentryUI_Network"
-   //ObjectArchetype = ReplicationInfo'Engine.Default__ReplicationInfo'
+   bOnlyRelevantToOwner=True
+   bAlwaysRelevant=False
 }

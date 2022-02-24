@@ -1,4 +1,5 @@
-Class STAI_Base extends AIController;
+Class ST_AI_Base extends AIController
+	dependson(ST_Upgrades_Base);
 
 var ST_Base TPawn;
 var vector LastAliveSpot;

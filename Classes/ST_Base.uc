@@ -1,69 +1,35 @@
 //Main Turret object class extends pawn, but notably not _Monster or _Human
 Class ST_Base extends KFPawn
-	config(SentryRedux);
+	config(SentryRedux)
+	dependson(ST_Upgrades_Base);
 
-struct FTurretLevel
-{
-	var Texture2D Icon;
-	var PlayerReplicationInfo Buyer;
-	var string UIName;
-};
+var ST_Upgrades_Base UpgradesObj;
+var class<ST_Upgrades_Base> UpgradesClass;
 
-struct FTurretLevelCfg
-{
-	var config int Cost, Damage, Health;
-	var config float RoF;
-};
-
-
-//FRAMEWORK LEVEL VARIABLES - dont alter in extended classes
-const MAX_TURRET_LEVELS = 3;
-const ETU_MAXUPGRADES = 11;
-const ETU_IronSightA = 0;
-const ETU_IronSightB = 1;
-const ETU_EagleEyeA = 2;
-const ETU_EagleEyeB = 3;
-const ETU_Headshots = 4;
-const ETU_HomingMissiles = 5;
-const ETU_AutoRepair = 6;
-const ETU_AmmoSMG = 7;
-const ETU_AmmoSMGBig = 8;
-const ETU_AmmoMissiles = 9;
-const ETU_AmmoMissilesBig = 10;
-
-//var transient SentryMainRep ContentRef;
 var transient SentryOverlay LocalOverlay;
-var transient byte AutoRepairState;  //currently healing
 var transient array<SentryUI_Network> CurrentUsers; //users in the turrets menu
 var transient float ScanLocTimer, BuildTimer, NextMissileTimer, NextTakeHitSound, NextFireSoundTime;
-var transient bool bIsScanning, bLeftScanned, bRecentlyBuilt, bAlterFired, bAltMissileFired, bHeadHunter, bHasAutoRepair;
+var transient bool bIsScanning, bLeftScanned, bRecentlyBuilt, bAlterFired, bAltMissileFired;
 
-var repnotify byte PowerLevel;
-var repnotify int SentryWorth;
+var int SentryWorth;
+var int PowerLevel;
 var repnotify Actor ViewFocusActor;
 var repnotify bool bFiringMode, bIsPendingFireMode, bWasSold;
-var repnotify byte CannonFireCounter, AcquiredUpgrades;
+var repnotify byte FireCounter[3];
 
-var config int BuildCost, MissileHitDamage, HealthRegenRate, UpgradeCosts[ETU_MAXUPGRADES], MaxAmmoCount[2], MissileSpeed, HealthLostNoOwner, RandomDamagePercent;
-var config FTurretLevelCfg LevelCfgs[MAX_TURRET_LEVELS];
-var config float BaseTurnRadius, StartingAmmoMultiplier, BaseAccuracyMod, BaseSightRadius, SonicDamageMultiplier;
-var config bool bRandomDamage;
+var config int BuildCost, MissileHitDamage, MaxAmmoCount[3], MissileSpeed, HealthLostNoOwner;
+var config float BaseTurnRadius, StartingAmmoModifier, BaseAccuracyMod, BaseSightRadius, SonicDamageMultiplier;
 
 var SkelControlLookAt YawControl, PitchControl;
-var Controller OwnerController;
+var PlayerController OwnerController;
 var KFWeap_EngWrench ActiveOwnerWeapon;
 var SentryTrigger ActiveTrigger;
-var int RandDamMin, RandDamMax; //min and max damage for damage rolls
 var vector ScanLocation, DesScanLocation;
 var vector RepHitLocation;
 var bool bIsUserCreated;
 
-
 //REIMPLEMENT - dynamic arrays with data parsed from files4
-var FTurretLevel Levels[MAX_TURRET_LEVELS];
-var FTurretLevel Upgrades[ETU_MAXUPGRADES];
-var string UpgradeNames[ETU_MAXUPGRADES];
-var int AmmoLevel[2];
+var int AmmoLevel[3];
 var KFMuzzleFlash MuzzleFlash[4];
 
 
@@ -73,18 +39,17 @@ var int DamageIndex;
 var float AccuracyMod, TurnRadius;
 var SpotLightComponent TurretSpotLight;
 var PointLightComponent TurretRedLight;
-var MaterialInstanceConstant TurSkins[3];
-var KFCharacterInfo_Monster TurretArch[3];
+//var MaterialInstanceConstant TurSkins[3];
+//var KFCharacterInfo_Monster TurretArch[3];
 var AnimNodeSlot AnimationNode, UpperAnimNode;
 var SoundCue FiringSounds[3];
-
 
 //Initialization and Upkeep
 replication
 {
 	// Variables the server should send ALL clients.
 	if(true)
-		bWasSold, ViewFocusActor, bFiringMode, RepHitLocation, PowerLevel, SentryWorth, bRecentlyBuilt, CannonFireCounter, AcquiredUpgrades, AmmoLevel, bIsPendingFireMode;
+		bWasSold, ViewFocusActor, bFiringMode, RepHitLocation, SentryWorth, bRecentlyBuilt, FireCounter, AmmoLevel, bIsPendingFireMode, OwnerController;
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -97,18 +62,6 @@ simulated event ReplicatedEvent(name VarName)
 	case 'bFiringMode':
 		TurretSetFiring(bFiringMode);
 		break;
-	case 'PowerLevel':
-		SetLevelUp();
-		break;
-	case 'AcquiredUpgrades':
-		SetUpgrades();
-	case 'SentryWorth':
-		ClientStatUpdate(255);
-		break;
-	case 'CannonFireCounter':
-		if(CannonFireCounter != 0)
-			MakeFireMissileFX();
-		break;
 	case 'bIsPendingFireMode':
 		if(bIsPendingFireMode)
 			PlayOutOfAmmo();
@@ -120,6 +73,8 @@ simulated event ReplicatedEvent(name VarName)
 
 simulated function PostBeginPlay()
 {
+	UpgradesObj = spawn(UpgradesClass, Self);
+
 	Super.PostBeginPlay();
 	
 	if(ActiveTrigger == None)
@@ -136,15 +91,15 @@ simulated function PostBeginPlay()
 	}
 	if(WorldInfo.NetMode != NM_Client && !bDeleteMe)
 	{
-		AmmoLevel[0] = MaxAmmoCount[0] * StartingAmmoMultiplier;
-		AmmoLevel[1] = MaxAmmoCount[1] * StartingAmmoMultiplier;
+		AmmoLevel[0] = UpgradesObj.LevelInfos[PowerLevel].BaseMaxAmmoCount[0] * 0.2f; //TODO: implement multiplier in config
+		AmmoLevel[1] = UpgradesObj.LevelInfos[PowerLevel].BaseMaxAmmoCount[1] * 0.2f;
+		AmmoLevel[2] = UpgradesObj.LevelInfos[PowerLevel].BaseMaxAmmoCount[2] * 0.2f;
 		bRecentlyBuilt = true;
 		SentryWorth = BuildCost;
-		Health = LevelCfgs[0].Health;
-		HealthMax = LevelCfgs[0].Health;
+		Health = UpgradesObj.LevelInfos[PowerLevel].BaseMaxHealth;
+		HealthMax = UpgradesObj.LevelInfos[PowerLevel].BaseMaxHealth;
 		if(Controller == None)
 			SpawnDefaultController();
-		UpdateRandomDamage();
 	}
 
 	TurnRadius = BaseTurnRadius;
@@ -152,7 +107,6 @@ simulated function PostBeginPlay()
 	AccuracyMod = BaseAccuracyMod;
 	DamageIndex = 0;
 	
-	UpdateRandomDamage();
 	UpdateDisplayMesh();
 
 	SetTimer(0.001, false, 'CheckBuilt');
@@ -190,56 +144,26 @@ function UnsetBuilt()
 	bRecentlyBuilt = false;
 }
 
-simulated function UpdateRandomDamage()
+simulated function UpdateDisplayMesh()
 {
-	local int DamRange;
-	if(bRandomDamage)
-	{
-		DamRange = LevelCfgs[PowerLevel].Damage * (RandomDamagePercent / 100);
-	} else {
-		DamRange = 0;
-	}
-	RandDamMin = LevelCfgs[PowerLevel].Damage - DamRange;
-	RandDamMax = LevelCfgs[PowerLevel].Damage + DamRange;
-}
+	local MaterialInterface TempMat;
+	local int i;
 
-simulated final function UpdateDisplayMesh()
-{
 	RemoveMuzzles();
 
 	AnimationNode = None;
 	UpperAnimNode = None;
 
-	if(WorldInfo.NetMode != NM_DedicatedServer && Mesh.SkeletalMesh != None)
-	{
-		Mesh.DetachComponent(TurretSpotLight);
-		Mesh.DetachComponent(TurretRedLight);
-	}
-
-	Mesh.SetSkeletalMesh(TurretArch[PowerLevel].CharacterMesh);
-	Mesh.AnimSets = TurretArch[PowerLevel].AnimSets;
-	Mesh.SetAnimTreeTemplate(TurretArch[PowerLevel].AnimTreeTemplate);
-	Mesh.SetPhysicsAsset(TurretArch[PowerLevel].PhysAsset);
+	Mesh.SetSkeletalMesh(UpgradesObj.LevelInfos[PowerLevel].TurretArch.CharacterMesh);
+	Mesh.AnimSets = UpgradesObj.LevelInfos[PowerLevel].TurretArch.AnimSets;
+	Mesh.SetAnimTreeTemplate(UpgradesObj.LevelInfos[PowerLevel].TurretArch.AnimTreeTemplate);
+	Mesh.SetPhysicsAsset(UpgradesObj.LevelInfos[PowerLevel].TurretArch.PhysAsset);
 
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 	{
-		Mesh.AttachComponentToSocket(TurretSpotLight, 'SpotLight');
-		Mesh.AttachComponentToSocket(TurretRedLight, 'SpotLight');
-
-		switch(PowerLevel)
+		foreach UpgradesObj.LevelInfos[PowerLevel].TurretArch.Skins(TempMat, i)
 		{
-		case 0:
-			Mesh.SetMaterial(0, TurSkins[0]);
-			break;
-		case 1:
-			Mesh.SetMaterial(0, TurSkins[0]);
-			Mesh.SetMaterial(1, TurSkins[1]);
-			break;
-		case 2:
-			Mesh.SetMaterial(0, TurSkins[2]);
-			Mesh.SetMaterial(1, TurSkins[0]);
-			Mesh.SetMaterial(2, TurSkins[1]);
-			break;
+			Mesh.SetMaterial(i, TempMat);
 		}
 	}
 }
@@ -270,7 +194,7 @@ simulated final function AddHUDOverlay()
 
 function CheckUserAlive() // Check if owner player disconnects from server.
 {
-	if(OwnerController == None && !FindNewOwner()) // Try to assign a player using the menu as owner
+	if(OwnerController == None) // Try to assign a player using the menu as owner
 	{
 		Health -= HealthLostNoOwner;
 		if(Health <= 0)
@@ -278,29 +202,9 @@ function CheckUserAlive() // Check if owner player disconnects from server.
 	}
 }
 
-final function bool FindNewOwner()
+function SetTurretOwner(PlayerController Other, optional KFWeap_EngWrench W)
 {
-	local SentryUI_Network N;
-	local KFWeap_EngWrench KFW;
-
-	foreach CurrentUsers(N)
-	{
-		if(N.PlayerOwner != None && N.PlayerOwner.Pawn != None && N.PlayerOwner.Pawn.IsAliveAndWell())
-		{
-			KFW = KFWeap_EngWrench(N.PlayerOwner.Pawn.FindInventoryType(class'KFWeap_EngWrench'));
-			if (KFW != None && KFW.NumTurrets < KFW.MaxTurretsPerUser)
-			{
-				SetTurretOwner(N.PlayerOwner);
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-function SetTurretOwner(Controller Other, optional KFWeap_EngWrench W)
-{
-	SetTimer(4 + FRand(), true, 'CheckUserAlive');
+	SetTimer(4, true, 'CheckUserAlive');
 	OwnerController = Other;
 	PlayerReplicationInfo = Other.PlayerReplicationInfo;
 	bIsUserCreated = true;
@@ -311,22 +215,48 @@ function SetTurretOwner(Controller Other, optional KFWeap_EngWrench W)
 		++ActiveOwnerWeapon.NumTurrets;
 }
 
-simulated function string GetInfo() //for overlay
+simulated function string GetInfo()
 {
-	local int F;
+	local float F;
 
 	F = float(Health) / float(HealthMax) * 100.f;
-	return "Owner: " $ GetOwnerName() $ " (" $ F $ "% HP)";
+	return "Owner: "$(PlayerReplicationInfo!=None ? PlayerReplicationInfo.PlayerName : "None")$" ("$(Health<HealthMax ? Clamp(F,1,99) : 100)$"% HP)";
 }
 
-//will need to step through dynamic array of ammo ammmounts
-simulated function string GetAmmoStatus()
+simulated function string GetName()
+{
+	return "Owner: "$(PlayerReplicationInfo!=None ? PlayerReplicationInfo.PlayerName : "None");
+}
+
+simulated function string GetHealth() //for overlay
+{
+	return "Health: " $ class'STHelper'.static.FormatPercent(Health, HealthMax);
+}
+
+//will need to step through array of ammo amounts
+simulated function string GetAmmoStatus(optional int Index = 3)
 {
 	local string S;
+	local int i;
+	//If Index is out of array bounds gather all ammo stats
+	if(Index >= 3)
+	{
+		S = GetAmmoStatus(0); //Recursively get ammocount for index 0
+		for(i = 1; i < 3; i++)
+		{
+			if(MaxAmmoCount[i] != 0)
+			{
+				S $= " - ";
+				S $= GetAmmoStatus(i); //Recursively get ammocounts if MaxAmmoCount != 0
+			}
+		}
+	}
+	else //If Index is within array bounds return ammo count for that index
+	{
+		return AmmoLevel[Index]$"/"$MaxAmmoCount[Index];
+	}
 	
-	if(PowerLevel == 2) //tier 3 turret
-		S = " - "$AmmoLevel[1]$"/"$MaxAmmoCount[1];
-	return AmmoLevel[0]$"/"$MaxAmmoCount[0]$S;
+	return S;
 }
 
 simulated function string GetOwnerName()
@@ -405,7 +335,7 @@ simulated final function SetScanLocation()
 		PitchControl.SetTargetLocation(V);
 }
 
-function TryToSellTurret(Controller User)
+function bool TryToSellTurret(Controller User)
 {
 	if(OwnerController == User)
 	{
@@ -413,10 +343,12 @@ function TryToSellTurret(Controller User)
 		if(User.PlayerReplicationInfo != None)
 			User.PlayerReplicationInfo.Score += (SentryWorth * ActiveOwnerWeapon.RefundMultiplier);
 		KilledBy(None);
+		return true;
 		//SetTimer(0.15, false, 'KillTurret');
 	}
 	else if(PlayerController(User) != None)
 		PlayerController(User).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 5);
+	return false;
 }
 
 simulated function KillTurret()
@@ -424,172 +356,16 @@ simulated function KillTurret()
 	KilledBy(None);
 }
 
-simulated function SetLevelUp()
+simulated function SetLevelUp(int NewLevel)
 {
 	if(WorldInfo.NetMode != NM_Client)
 	{
-		++PowerLevel;
+		PowerLevel = NewLevel;
 		bRecentlyBuilt = true;
-		HealthMax = LevelCfgs[PowerLevel].Health;
-		Health = Min(Health, HealthMax);
-		
-		if(bHasAutoRepair && Health < HealthMax && AutoRepairState == 0)
-		{
-			AutoRepairState = 1;
-			SetTimer(30, false, 'AutoRepairTimer');
-		}
 	}
-	else ClientStatUpdate(PowerLevel);
 	
-	UpdateRandomDamage();
 	UpdateDisplayMesh();
 	SetTimer(0.001, false, 'CheckBuilt');
-}
-
-// UPGRADES:
-simulated final function bool HasUpgrade(byte Index)
-{
-	if(Index < MAX_TURRET_LEVELS)
-		return (PowerLevel >= Index);
-	Index -= MAX_TURRET_LEVELS;
-	switch(Index)
-	{
-	case ETU_IronSightA:
-		return (AcquiredUpgrades & 3) != 0;
-	case ETU_IronSightB:
-		return (AcquiredUpgrades & 2) != 0;
-	case ETU_EagleEyeA:
-		return HasUpgradeFlags(ETU_EagleEyeA);
-	case ETU_EagleEyeB:
-		return HasUpgradeFlags(ETU_EagleEyeB);
-	case ETU_Headshots:
-		return HasUpgradeFlags(ETU_Headshots);
-	case ETU_HomingMissiles:
-		return HasUpgradeFlags(ETU_HomingMissiles);
-	case ETU_AutoRepair:
-		return HasUpgradeFlags(ETU_AutoRepair);
-	}
-	return false;
-}
-simulated final function bool CanUpgrade(byte Index)
-{
-	if(Index < MAX_TURRET_LEVELS)
-		return ((PowerLevel + 1) == Index);
-	Index -= MAX_TURRET_LEVELS;
-	switch(Index)
-	{
-	case ETU_IronSightA:
-		return (AcquiredUpgrades & 3) == 0;
-	case ETU_IronSightB:
-		return (AcquiredUpgrades & 3) == 1;
-	case ETU_EagleEyeA:
-		return !HasUpgradeFlags(ETU_EagleEyeA);
-	case ETU_EagleEyeB:
-		return HasUpgradeFlags(ETU_EagleEyeA) && !HasUpgradeFlags(ETU_EagleEyeB);
-	case ETU_Headshots:
-		return !HasUpgradeFlags(ETU_Headshots);
-	case ETU_HomingMissiles:
-		return PowerLevel == 2 && !HasUpgradeFlags(ETU_HomingMissiles);
-	case ETU_AutoRepair:
-		return !HasUpgradeFlags(ETU_AutoRepair);
-	case ETU_AmmoSMG:
-	case ETU_AmmoSMGBig:
-	
-		return AmmoLevel[0] < MaxAmmoCount[0];
-	case ETU_AmmoMissiles:
-	case ETU_AmmoMissilesBig:
-	
-		return PowerLevel == 2 && AmmoLevel[1] < MaxAmmoCount[1];
-	}
-	return false;
-}
-
-final function SetUpgradeFlags(byte Index)
-{
-	AcquiredUpgrades = AcquiredUpgrades | (1 << Index);
-}
-final function ClearUpgradeFlags(byte Index)
-{
-	AcquiredUpgrades = AcquiredUpgrades & ~(1 << Index);
-}
-simulated final function bool HasUpgradeFlags(byte Index)
-{
-	return (AcquiredUpgrades & (1 << Index)) != 0;
-}
-
-// TODO offer "Fill Ammo" button
-final function ApplyUpgrade(byte Index)
-{
-	if(Index >= ETU_AmmoSMG)
-	{
-		switch(Index)
-		{
-		case ETU_AmmoSMG:
-			AmmoLevel[0] = Min(AmmoLevel[0] + 100, MaxAmmoCount[0]);
-			break;
-		case ETU_AmmoSMGBig:
-			AmmoLevel[0] = Min(AmmoLevel[0] + 500, MaxAmmoCount[0]);
-			break;
-		case ETU_AmmoMissiles:
-			AmmoLevel[1] = Min(AmmoLevel[1] + 10, MaxAmmoCount[1]);
-			break;
-		case ETU_AmmoMissilesBig:
-			AmmoLevel[1] = Min(AmmoLevel[1] + 50, MaxAmmoCount[1]);
-			break;
-
-		}
-	}
-	else
-	{
-		if(Index == ETU_IronSightB)
-			ClearUpgradeFlags(ETU_IronSightA);
-		SetUpgradeFlags(Index);
-		SetUpgrades();
-	}
-	NotifyStatUpdate(MAX_TURRET_LEVELS + Index);
-}
-
-simulated final function SetUpgrades()
-{
-	if(HasUpgradeFlags(ETU_IronSightB))
-		AccuracyMod = BaseAccuracyMod / 4.0f;
-	else if(HasUpgradeFlags(ETU_IronSightA))
-		AccuracyMod = BaseAccuracyMod / 2.0f;
-	else AccuracyMod = BaseAccuracyMod;
-	
-	if(WorldInfo.NetMode != NM_Client)
-	{
-		SightRadius = BaseSightRadius;
-		if(HasUpgradeFlags(ETU_EagleEyeB))
-			SightRadius = BaseSightRadius * 1.3f;
-		else if(HasUpgradeFlags(ETU_EagleEyeA))
-			SightRadius = BaseSightRadius * 1.6f;
-		
-		bHeadHunter = HasUpgradeFlags(ETU_Headshots);
-		bHasAutoRepair = HasUpgradeFlags(ETU_AutoRepair);
-		
-		if(bHasAutoRepair && AutoRepairState == 0 && Health < HealthMax)
-		{
-			AutoRepairState = 1;
-			SetTimer(30, false, 'AutoRepairTimer');
-		}
-	}
-}
-
-final function NotifyStatUpdate(byte Index)
-{
-	local SentryUI_Network N;
-
-	foreach CurrentUsers(N)
-		N.StatUpdated(Index);
-}
-
-simulated final function ClientStatUpdate(byte Index)
-{
-	local SentryUI_Network N;
-	
-	foreach CurrentUsers(N)
-		N.ClientStatUpdated(Index);
 }
 
 function DelayedStartFire()
@@ -609,12 +385,12 @@ simulated function TurretSetFiring(bool bFire, optional bool bInstant)
 				NextMissileTimer = WorldInfo.TimeSeconds + FRand() * 2.0f;
 		}
 		FireShot();
-		SetTimer(LevelCfgs[PowerLevel].RoF, true, 'FireShot');
+		SetTimer(UpgradesObj.LevelInfos[PowerLevel].BaseRoF, true, 'FireShot');
 	}
 	else
 	{
 		bIsPendingFireMode = false;
-		CannonFireCounter = 0;
+		FireCounter[0] = 0;
 		ClearTimer('DelayedStartFire');
 		ClearTimer('FireShot');
 		
@@ -687,7 +463,7 @@ simulated function FireShot()
 		if(NextFireSoundTime < WorldInfo.TimeSeconds)
 		{
 			NextFireSoundTime = WorldInfo.TimeSeconds + 0.15f;
-			PlaySoundBase(FiringSounds[PowerLevel], true);
+			PlaySoundBase(FiringSounds[0], true);
 		}
 	}
 	TraceFire();
@@ -715,8 +491,8 @@ function CheckFireMissile()
 	if(HP > 800)
 	{
 		NextMissileTimer = WorldInfo.TimeSeconds + 3.8f;
-		if(++CannonFireCounter > 250)
-			CannonFireCounter = 1;
+		if(++FireCounter[0] > 250)
+			FireCounter[0] = 1;
 		if(WorldInfo.NetMode != NM_DedicatedServer)
 			MakeFireMissileFX();
 		
@@ -726,7 +502,7 @@ function CheckFireMissile()
 		Proj = Spawn(class'KFProj_Missile_Sentry', , , Start, R);
 		if(Proj != None)
 		{
-			if(HasUpgradeFlags(ETU_HomingMissiles))
+			if(UpgradesObj.HasUpgrade(EUpHomingMissiles))
 				Proj.AimTarget = T;
 			Proj.Damage = MissileHitDamage;
 			Proj.ExplosionTemplate.Damage = MissileHitDamage;
@@ -775,7 +551,7 @@ function vector GetAimPos(vector CamLoc, Pawn TPawn)
 	local vector                HeadLocation, TorsoLocation, PelvisLocation;
 
 	// if bHeadhunter upgrade Check to see if we can hit the head
-	if(bHeadHunter)
+	if(UpgradesObj.HasUpgrade(EUpHeadshots))
 	{
 		HeadLocation = TPawn.Mesh.GetBoneLocation(HeadBoneName);
 		HitActor = TPawn.Trace(HitLocation, HitNormal, HeadLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
@@ -804,14 +580,13 @@ function vector GetAimPos(vector CamLoc, Pawn TPawn)
 	return Location + BaseEyeHeight * vect(0,0,0.5f);
 }
 
-simulated function TraceFire()
+simulated function TraceFire() // Pass in int weaponindex and use for asset indexes
 {
 	local vector Start, End, Dir, HL, HN;
 	local Actor A;
 	local Pawn E;
 	local TraceHitInfo H;
 	local array<ImpactInfo> IL;
-	local int RandomizedDam;
 
 	Start = GetTraceStart();
 	if(WorldInfo.NetMode != NM_Client)
@@ -852,24 +627,17 @@ simulated function TraceFire()
 	// If trace hit an actor on other team
 	if(A != None)
 	{
-		if(bRandomDamage)
-		{
-			RandomizedDam = RandRange(RandDamMin, RandDamMax);
-		} else {
-			RandomizedDam = RandDamMin;
-		}
-
 		if(WorldInfo.NetMode != NM_Client)
 		{
 			Controller.bIsPlayer = false;
 
-			A.TakeDamage(RandomizedDam, (OwnerController != None ? OwnerController : Controller), HL, Dir * 10000.f, DamageTypes[DamageIndex], H, Self);
+			A.TakeDamage(UpgradesObj.LevelInfos[PowerLevel].BaseDamage, (OwnerController != None ? OwnerController : Controller), HL, Dir * 10000.f, DamageTypes[0], H, Self);
 			if(Controller != None) // Enemy may have exploded and killed the turret. 
 				Controller.bIsPlayer = true;
 			if(OwnerController != None && Pawn(A) != None && Pawn(A).Controller != None)
-				Pawn(A).Controller.NotifyTakeHit(Controller, HL, 14, DamageTypes[DamageIndex], Dir); // Make enemy AI aggro the turret
+				Pawn(A).Controller.NotifyTakeHit(Controller, HL, 14, DamageTypes[0], Dir); // Make enemy AI aggro the turret
 		}
-		else A.TakeDamage(RandomizedDam, Controller, HL, Dir * 10000.f, DamageTypes[DamageIndex], H, Self); // changed from flat 14 damage in client
+		else A.TakeDamage(UpgradesObj.LevelInfos[PowerLevel].BaseDamage, Controller, HL, Dir * 10000.f, DamageTypes[0], H, Self); // changed from flat 14 damage in client
 	}
 	else HL = End;
 
@@ -936,30 +704,19 @@ simulated function KFSkinTypeEffects GetHitZoneSkinTypeEffects(int HitZoneIdx)
 
 function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLocation)
 {
-	local int i;
-
-	for(i = (CurrentUsers.Length - 1); i >= 0; --i)
-		CurrentUsers[i].Destroy();
-
-	if(PlayerController(OwnerController) != None)
-		PlayerController(OwnerController).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 4);
-	if(Controller != None)
-		Controller.bIsPlayer = false;
-	if(ActiveOwnerWeapon != None)
-	{
-		 --ActiveOwnerWeapon.NumTurrets;
-		ActiveOwnerWeapon = None;
-	}
-	if(ActiveTrigger != None)
-	{
-		ActiveTrigger.Destroy();
-		ActiveTrigger = None;
-	}
+	DeleteObjects();
 	return Super.Died(Killer, DamageType, HitLocation);
 }
 
 simulated function Destroyed()
 {
+	DeleteObjects();
+	Super.Destroyed();
+}
+
+simulated function DeleteObjects()
+{
+	CurrentUsers.Length = 0;
 	if(ActiveOwnerWeapon != None)
 	{
 		 --ActiveOwnerWeapon.NumTurrets;
@@ -973,7 +730,6 @@ simulated function Destroyed()
 		ActiveTrigger.Destroy();
 		ActiveTrigger = None;
 	}
-	Super.Destroyed();
 }
 
 simulated final function RemoveMuzzles()
@@ -1032,28 +788,8 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 	}
 }
 
-function AutoRepairTimer()
-{
-	if(AutoRepairState == 1)
-	{
-		AutoRepairState = 2;
-		SetTimer(1, true, 'AutoRepairTimer');
-	}
-	Health = Min(Health + HealthRegenRate, HealthMax);
-	if(Health >= HealthMax)
-	{
-		AutoRepairState = 0;
-		ClearTimer('AutoRepairTimer');
-	}
-}
-
 function PlayHit(float Damage, Controller InstigatedBy, vector HitLocation, class<DamageType> damageType, vector Momentum, TraceHitInfo HitInfo)
 {
-	if(Damage > 0 && bHasAutoRepair && Health < HealthMax)
-	{
-		AutoRepairState = 1;
-		SetTimer(30, false, 'AutoRepairTimer');
-	}
 	if(Damage > 5 && NextTakeHitSound < WorldInfo.TimeSeconds)
 	{
 		NextTakeHitSound = WorldInfo.TimeSeconds + 0.75; // Up from 0.5
@@ -1102,12 +838,14 @@ defaultproperties
 {
 	bWasSold = false
 
+	UpgradesClass = class'ST_Upgrades_Base'
+
 	Mass = 5500.000000
 	BaseEyeHeight = 70.000000
 	EyeHeight = 70.000000
 	Health = 350 // Immediatly overwritten by config, ensures turret isnt spawnerd with 0 health
 	HealthMax = 350 // Immediatly overwritten by config, ensures turret isnt spawnerd with 0 health
-	ControllerClass = Class'STAI_Base'
+	ControllerClass = Class'ST_AI_Base'
 
 	DamageTypes(0) = class'KFDT_Ballistic'
 
@@ -1137,34 +875,6 @@ defaultproperties
 		AnimationFrequency = 1.000000
 	End Object
 	TurretRedLight = PointLightComponent1
-
-
-	Levels(0) = (Icon = Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_01', UIName="Level1")
-	Levels(1) = (Icon = Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_02', UIName="Level2")
-	Levels(2) = (Icon = Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_04', UIName="Level3")
-	
-	Upgrades(0) = (Icon = Texture2D'UI_Award_PersonalMulti.UI_Award_PersonalMulti-Headshots', UIName="IronSight1")
-	Upgrades(1) = (Icon = Texture2D'UI_Award_PersonalSolo.UI_Award_PersonalSolo-Headshots', UIName="IronSight2")
-	Upgrades(2) = (Icon = Texture2D'UI_PerkTalent_TEX.commando.UI_Talents_Commando_Impact', UIName="EagleEye1")
-	Upgrades(3) = (Icon = Texture2D'UI_PerkTalent_TEX.commando.UI_Talents_Commando_AutoFire', UIName="EagleEye2")
-	Upgrades(4) = (Icon = Texture2D'UI_Award_Team.UI_Award_Team-Headshots', UIName="Headshot")
-	Upgrades(5) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_Rocket', UIName="HomingRocket")
-	Upgrades(6) = (Icon = Texture2D'UI_PerkIcons_TEX.UI_PerkIcon_Medic', UIName="AutoRepair")
-	Upgrades(7) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_BulletBurst', UIName="Ammo")
-	Upgrades(8) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_BulletAuto', UIName="AmmoBig")
-	Upgrades(9) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_Nail', UIName="Missile")
-	Upgrades(10) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_NailsBurst', UIName="MissileBig")
-	UpgradeNames(0) = "Iron Sight 1|This upgrade gives this turret level 1 firing precision.\n + 30 % accuracy."
-	UpgradeNames(1) = "Iron Sight 2|This upgrade gives this turret level 2 firing precision.\n + 60 % accuracy."
-	UpgradeNames(2) = "Eagle Eye 1|This upgrade gives this turret level 1 sight distance bonus.\n + 50 % sight distance."
-	UpgradeNames(3) = "Eagle Eye 2|This upgrade gives this turret level 2 sight distance bonus.\n + 100 % sight distance."
-	UpgradeNames(4) = "Head Hunter|This upgrade makes the turret aim at zed heads instead of body."
-	UpgradeNames(5) = "Homing Missiles|This upgrade makes the level 3 turret fire homing missiles instead of regular missiles.\n - Requires level 3 turret to purchase!"
-	UpgradeNames(6) = "Auto Repair|This upgrade makes the turret auto regain health slowly over time when haven't taken damage for 30 seconds."
-	UpgradeNames(7) = "SMG Ammo|Buy 100 SMG ammo.\n(No refund for excessive ammo)"
-	UpgradeNames(8) = "5x SMG Ammo|Buy 500 SMG ammo.\n(No refund for excessive ammo)"
-	UpgradeNames(9) = "Missile Ammo|Buy 10 missiles.\n(No refund for excessive ammo)"
-	UpgradeNames(10) = "5x Missile Ammo|Buy 50 missiles.\n(No refund for excessive ammo)"
 
 	Begin Object Name=ThirdPersonHead0
 		ReplacementPrimitive = None
