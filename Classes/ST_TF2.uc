@@ -2,58 +2,36 @@
 Class ST_TF2 extends ST_Base
 	config(SentryRedux);
 
-simulated function FireShot()
+simulated function UpdateDisplayMesh()
 {
-	++DamageIndex;
-	if(DamageIndex >= DamageTypes.length)
-		DamageIndex = 0;
-	super.FireShot();
+	super.UpdateDisplayMesh();
+
+	if(WorldInfo.NetMode != NM_DedicatedServer && Mesh.SkeletalMesh != None)
+	{
+		Mesh.DetachComponent(TurretSpotLight);
+		Mesh.DetachComponent(TurretRedLight);
+	}
+
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		Mesh.AttachComponentToSocket(TurretSpotLight, 'SpotLight');
+		Mesh.AttachComponentToSocket(TurretRedLight, 'SpotLight');
+	}
 }
 
 defaultproperties
 {
-	DamageTypes = (class'KFDT_EMP', class'KFDT_Fire_HRGScorcherDoT', class'KFDT_Freeze_HRGWinterbiteImpact')
-
 	BaseEyeHeight = 70.000000
 	EyeHeight = 70.000000
-	Health = 350 // Immediatly overwritten by config, ensures turret isnt spawnerd with 0 health
-	HealthMax = 350 // Immediatly overwritten by config, ensures turret isnt spawnerd with 0 health
-	ControllerClass = Class'STAI_Base'
 
-	FiringSounds[0] = SoundCue'tf2sentry.Sounds.sentry_shoot_Cue'
-	FiringSounds[1] = SoundCue'tf2sentry.Sounds.sentry_shoot2_Cue'
-	FiringSounds[2] = SoundCue'tf2sentry.Sounds.sentry_shoot3_Cue'
+	Health = 350 // Immediately overwritten by config, ensures turret is spawned with > 0 health
+	HealthMax = 350 // Immediately overwritten by upgrades object, ensures turret is spawned with > 0 health
 
-	TurretArch[0] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret1Arch'
-	TurretArch[1] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret2Arch'
-	TurretArch[2] = KFCharacterInfo_Monster'tf2sentry.Arch.Turret3Arch'
-	
-	Levels(0) = (Icon = Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_01', UIName="Level1")
-	Levels(1) = (Icon = Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_02', UIName="Level2")
-	Levels(2) = (Icon = Texture2D'UI_LevelChevrons_TEX.UI_LevelChevron_Icon_04', UIName="Level3")
-	
-	Upgrades(0) = (Icon = Texture2D'UI_Award_PersonalMulti.UI_Award_PersonalMulti-Headshots', UIName="IronSight1")
-	Upgrades(1) = (Icon = Texture2D'UI_Award_PersonalSolo.UI_Award_PersonalSolo-Headshots', UIName="IronSight2")
-	Upgrades(2) = (Icon = Texture2D'UI_PerkTalent_TEX.commando.UI_Talents_Commando_Impact', UIName="EagleEye1")
-	Upgrades(3) = (Icon = Texture2D'UI_PerkTalent_TEX.commando.UI_Talents_Commando_AutoFire', UIName="EagleEye2")
-	Upgrades(4) = (Icon = Texture2D'UI_Award_Team.UI_Award_Team-Headshots', UIName="Headshot")
-	Upgrades(5) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_Rocket', UIName="HomingRocket")
-	Upgrades(6) = (Icon = Texture2D'UI_PerkIcons_TEX.UI_PerkIcon_Medic', UIName="AutoRepair")
-	Upgrades(7) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_BulletBurst', UIName="Ammo")
-	Upgrades(8) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_BulletAuto', UIName="AmmoBig")
-	Upgrades(9) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_Nail', UIName="Missile")
-	Upgrades(10) = (Icon = Texture2D'ui_firemodes_tex.UI_FireModeSelect_NailsBurst', UIName="MissileBig")
-	UpgradeNames(0) = "Iron Sight 1|This upgrade gives this turret level 1 firing precision.\n + 30 % accuracy."
-	UpgradeNames(1) = "Iron Sight 2|This upgrade gives this turret level 2 firing precision.\n + 60 % accuracy."
-	UpgradeNames(2) = "Eagle Eye 1|This upgrade gives this turret level 1 sight distance bonus.\n + 50 % sight distance."
-	UpgradeNames(3) = "Eagle Eye 2|This upgrade gives this turret level 2 sight distance bonus.\n + 100 % sight distance."
-	UpgradeNames(4) = "Head Hunter|This upgrade makes the turret aim at zed heads instead of body."
-	UpgradeNames(5) = "Homing Missiles|This upgrade makes the level 3 turret fire homing missiles instead of regular missiles.\n - Requires level 3 turret to purchase!"
-	UpgradeNames(6) = "Auto Repair|This upgrade makes the turret auto regain health slowly over time when haven't taken damage for 30 seconds."
-	UpgradeNames(7) = "SMG Ammo|Buy 100 SMG ammo.\n(No refund for excessive ammo)"
-	UpgradeNames(8) = "5x SMG Ammo|Buy 500 SMG ammo.\n(No refund for excessive ammo)"
-	UpgradeNames(9) = "Missile Ammo|Buy 10 missiles.\n(No refund for excessive ammo)"
-	UpgradeNames(10) = "5x Missile Ammo|Buy 50 missiles.\n(No refund for excessive ammo)"
+	DamageTypes(0) = class'KFDT_Ballistic' // Used for bullet damage
+	DamageTypes(1) = class'KFDT_Explosive' // Used for missile damage
+
+	ControllerClass = Class'ST_AI_Base'
+	UpgradesClass = Class'ST_Upgrades_TF2'
 
 	Begin Object Name=SpotLight1
 		OuterConeAngle = 35.000000

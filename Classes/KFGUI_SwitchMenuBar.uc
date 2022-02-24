@@ -9,6 +9,8 @@ var() float PagePadding; // Padding for pages
 var int NumButtons,CurrentPageNum,PageComponentIndex;
 var array<KFGUI_Button> PageButtons;
 
+var Color ButtonTextColor;
+
 function ShowMenu()
 {
     GrabKeyFocus();
@@ -36,6 +38,7 @@ final function KFGUI_Base AddPage( class<KFGUI_Base> PageClass, string Caption, 
     // Add page switch button.
     B = new (Self) class'KFGUI_Button';
     B.ButtonText = Caption;
+    B.TextColor = ButtonTextColor;
     B.ToolTip = Hint;
     B.OnClickLeft = PageSwitched;
     B.OnClickRight = PageSwitched;
@@ -157,6 +160,8 @@ function bool ReceievedControllerInput(int ControllerId, name Key, EInputEvent E
 
 defaultproperties
 {
+    ButtonTextColor=(R=240, G=240, B=240, A=255)
+
     PagePadding=1.0
     BorderWidth=0.05
     ButtonAxisSize=0.08

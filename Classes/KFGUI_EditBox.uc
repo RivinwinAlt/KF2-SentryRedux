@@ -318,6 +318,7 @@ function DrawMenu()
     }
     
     BorderSize = Owner.CurrentStyle.ScreenScale(4.f);
+    ScaledBorderSize = FMax(3 * ( HUDOwner.SizeX / 1920.f ), 1.f);
     
     FRI.bClipText = true;
     FRI.bEnableShadow = true;
@@ -380,21 +381,19 @@ function DrawMenu()
             Canvas.TextSize(TmpString, XL, YL, FontScale, FontScale);
         }
 
-        ScaledBorderSize = FMax(3 * ( HUDOwner.SizeX / 1920.f ), 1.f);
-
         CursorY = (CompPos[3]/2) - ((YL-ScaledBorderSize)/2);
 
         if(bAllSelected)
         {
             Canvas.SetDrawColor(255,255,255,195);
             Canvas.SetPos(BorderSize, CursorY);
-            Canvas.DrawTile( Owner.DefaultPens[`PEN_WHITE], XL, YL - ScaledBorderSize, 0, 0, Owner.DefaultPens[`PEN_WHITE].GetSurfaceWidth(), Owner.DefaultPens[`PEN_WHITE].GetSurfaceHeight() );
+            Canvas.DrawTile( Owner.DefaultPens[`PEN_WHITE], XL, YL-ScaledBorderSize, 0, 0, Owner.DefaultPens[`PEN_WHITE].GetSurfaceWidth(), Owner.DefaultPens[`PEN_WHITE].GetSurfaceHeight() );
         }
         else
         {
             Canvas.SetDrawColor(255,255,255,Owner.CursorFlash);
             Canvas.SetPos(XL + (Len(FinalDraw) == 0 ? 0 : 3), CursorY);
-            Canvas.DrawTile( Owner.DefaultPens[`PEN_WHITE], 3, YL - ScaledBorderSize, 0, 0, Owner.DefaultPens[`PEN_WHITE].GetSurfaceWidth(), Owner.DefaultPens[`PEN_WHITE].GetSurfaceHeight() );
+            Canvas.DrawTile( Owner.DefaultPens[`PEN_WHITE], 3, YL-ScaledBorderSize, 0, 0, Owner.DefaultPens[`PEN_WHITE].GetSurfaceWidth(), Owner.DefaultPens[`PEN_WHITE].GetSurfaceHeight() );
         }
     }
     

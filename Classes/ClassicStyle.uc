@@ -13,21 +13,17 @@ function RenderFramedWindow( KFGUI_FloatingWindow P )
         Canvas.SetDrawColor(105,105,105,255);
     else Canvas.SetDrawColor(85,85,85,P.FrameOpacity);
     
-    // Frame Header
-    Canvas.SetPos(0, 0);
-    Canvas.DrawTileStretched(TabTextures[`TAB_TOP],XS,TitleHeight,0,0,128,16);
-    
     // Frame itself.
-    Canvas.SetPos(0, TitleHeight);
-    Canvas.DrawTileStretched(BorderTextures[`BOX_SMALL_SLIGHTTRANSPARENT],XS,YS-TitleHeight,0,0,128,128);
+    Canvas.SetPos(0, 0);
+    Canvas.DrawTileStretched(BorderTextures[`BOX_SMALL_SLIGHTTRANSPARENT],XS,YS,0,0,128,128);
     
     // Title.
     if( P.WindowTitle!="" )
     {
-        Canvas.Font = PickFont(FontScale);
+        Canvas.Font = PickFont(FontScale, FONT_NAME);
         Canvas.TextSize(P.WindowTitle,XL,YL,FontScale,FontScale);
-        Canvas.SetDrawColor(250,250,250,255);
-        Canvas.SetPos((XS*0.5)-(XL*0.5),0);
+        Canvas.SetDrawColor(240,240,240,255);
+        Canvas.SetPos((XS*0.5)-(XL*0.5),YL * 0.25f);
         Canvas.DrawText(P.WindowTitle,,FontScale,FontScale);
     }
 }
@@ -46,6 +42,43 @@ function RenderWindow( KFGUI_Page P )
     
     Canvas.SetPos(0, 0);
     Canvas.DrawTileStretched(BorderTextures[`BOX_SMALL_SLIGHTTRANSPARENT],XS,YS,0,0,128,128);
+}
+
+function RenderBuyConfirmation( KFGUI_PurchasePopup P )
+{
+    local int XS,YS,TitleHeight;
+    local float XL, YL, FontScale;
+    
+    XS = Canvas.ClipX-Canvas.OrgX;
+    YS = Canvas.ClipY-Canvas.OrgY;
+    TitleHeight = DefaultHeight;
+
+    if( P.bWindowFocused )
+        Canvas.SetDrawColor(105,105,105,255);
+    else Canvas.SetDrawColor(85,85,85,P.FrameOpacity);
+    
+    // Frame itself.
+    Canvas.SetPos(0, 0);
+    Canvas.DrawTileStretched(BorderTextures[`BOX_SMALL],XS,YS,0,0,128,128);
+    
+    // Title.
+    if( P.WindowTitle!="" )
+    {
+        Canvas.Font = PickFont(FontScale, FONT_NAME);
+        Canvas.TextSize(P.WindowTitle,XL,YL,FontScale,FontScale);
+        Canvas.SetDrawColor(240,240,240,255);
+        Canvas.SetPos((XS*0.5)-(XL*0.5),YL * 0.25f);
+        Canvas.DrawText(P.WindowTitle,,FontScale,FontScale);
+    }
+
+    if( P.UpgradeDescription != "" )
+    {
+        Canvas.Font = PickFont(FontScale);
+        Canvas.TextSize(P.UpgradeDescription,XL,YL,FontScale,FontScale);
+        Canvas.SetDrawColor(240,240,240,255);
+        Canvas.SetPos(YL * 0.75f,YL * 1.75f);
+        Canvas.DrawText(P.UpgradeDescription,,FontScale,FontScale);
+    }
 }
 
 function RenderToolTip( KFGUI_Tooltip TT )
@@ -119,7 +152,7 @@ function RenderScrollBar( KFGUI_ScrollBarBase S )
     else Canvas.SetDrawColor(15, 15, 15, 160);
 
     Canvas.SetPos(0.f, 0.f);
-    Canvas.DrawTileStretched(BorderTextures[`BOX_INNERBORDER],S.CompPos[2],S.CompPos[3],0,0,128,128);
+    Canvas.DrawTileStretched(BorderTextures[`BUTTON_NORMAL],S.CompPos[2],S.CompPos[3],0,0,32,32);
     
     if( S.bDisabled )
         return;
@@ -152,12 +185,14 @@ function RenderScrollBar( KFGUI_ScrollBarBase S )
 
     if( S.bVertical )
     {
-        Canvas.SetPos(0.f, S.ButtonOffset);
+        //Canvas.SetPos(0.f, S.ButtonOffset);
+        Canvas.SetPos(0.f, 0.f);
         Canvas.DrawTileStretched(ScrollTexture,S.CompPos[2],S.SliderScale,0,0,32,32);
     }
     else 
     {
-        Canvas.SetPos(S.ButtonOffset, 0.f);
+        //Canvas.SetPos(S.ButtonOffset, 0.f);
+        Canvas.SetPos(0.f, 0.f);
         Canvas.DrawTileStretched(ScrollTexture,S.SliderScale,S.CompPos[3],0,0,32,32);
     }
 }
@@ -323,8 +358,8 @@ function RenderRightClickMenu( KFGUI_RightClickMenu C )
 
 function RenderButton( KFGUI_Button B )
 {
-    local float XL,YL,TS;
-    local Texture2D Mat;
+    local float XL,YL,TS,AX,AY,GamepadTexSize;
+    local Texture2D Mat, ButtonTex;
     local bool bDrawOverride;
 
     bDrawOverride = B.DrawOverride(Canvas, B);
@@ -350,7 +385,9 @@ function RenderButton( KFGUI_Button B )
     
     if( B.ButtonText!="" )
     {
-        Canvas.Font = GeneralFont; //changed from namefont
+        Canvas.Font = NameFont;
+        
+        GamepadTexSize = B.CompPos[3] / 1.25;
         
         TS = GetFontScaler();
         TS *= B.FontScale;

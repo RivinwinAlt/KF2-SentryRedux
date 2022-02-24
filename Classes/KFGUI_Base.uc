@@ -3,7 +3,7 @@ Class KFGUI_Base extends Object
     abstract;
 
 var KF2GUIController Owner;
-var KFGFxHudWrapper HUDOwner;
+var KFHUDInterface HUDOwner;
 var KFGUI_Base ParentComponent; // Parent component if any.
 var transient Canvas Canvas;
 
@@ -150,7 +150,7 @@ function DoClose()
     
     if( ParentComponent!=None )
         ParentComponent.DoClose();
-    //else Owner.PopCloseMenu(Self);
+    else Owner.PopCloseMenu(Self);
 }
 
 function byte GetCursorStyle()

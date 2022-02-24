@@ -35,8 +35,6 @@ function PostBeginPlay()
 {
 	local KFGameInfo K;
 
-	UpdateConfig();
-
 	// Replace scriptwarning spewing DialogManager.
 	K = KFGameInfo(WorldInfo.Game);
 	if(K != None)
@@ -56,31 +54,6 @@ function PostBeginPlay()
 	//BaseRef is defined in default properties as ObjectReferencer'tf2sentry.Arch.TurretObjList'
 	//Currently being depricated
 	ObjRef = BaseRef;
-}
-
-simulated event ReplicatedEvent(name VarName)
-{
-	if(VarName == 'ObjRef' && ObjRef != None && WorldInfo.NetMode == NM_Client)
-		UpdateInstances();
-}
-
-simulated final function UpdateInstances()
-{
-	/*
-	local ST_Base T;
-	local KFWeap_EngWrench W;
-
-	foreach DynamicActors(class'KFWeap_EngWrench', W)
-		W.InitConfigDependant();
-	foreach WorldInfo.AllPawns(class'ST_Base', T)
-	{
-		T.UpdateConfigValues();
-	}
-	*/
-}
-
-simulated final function UpdateConfig()
-{
 }
 
 //TODO Expose net update frequency to config

@@ -1,4 +1,4 @@
-Class UI_TurretMenu extends KFGUI_FloatingWindow;
+Class UI_SentryMenu extends KFGUI_FloatingWindow;
 
 struct FPageInfo
 {
@@ -8,30 +8,37 @@ struct FPageInfo
 var KFGUI_SwitchMenuBar PageSwitcher;
 var() array<FPageInfo> Pages;
 
-var KFGUI_Button SettingsButton,UpgradesButton;
+//var KFGUI_Button ;
 
 var transient KFGUI_Button PrevButton;
 var transient int NumButtons,NumButtonRows;
-//var transient bool bInitSpectate,bOldSpectate;
 
-var KFPlayerReplicationInfo KFPRI;
+var Color ButtonTextColor;
+var SentryUI_Network SN;
 
 function InitMenu()
 {
     local int i;
     local KFGUI_Button B;
 
+    SN = class'SentryUI_Network'.Static.GetNetwork(GetPlayer());
     PageSwitcher = KFGUI_SwitchMenuBar(FindComponentID('Pager'));
     Super(KFGUI_Page).InitMenu();
     
-    UpgradesButton = AddMenuButton('Upgrades',"Turret Upgrades","Show upgrades menu");
-    SettingsButton = AddMenuButton('Settings',"Settings","Enter turret overlay settings");
+    AddMenuButton('Sell',"Sell","Sell this turret");
     AddMenuButton('Close',"Close","Close this menu");
     
     for( i=0; i<Pages.Length; ++i )
     {
         PageSwitcher.AddPage(Pages[i].PageClass,Pages[i].Caption,Pages[i].Hint,B).InitMenu();
     }
+}
+
+function DoClose()
+{
+    if(SN != None)
+        SN.ExitedMenu();
+    super.DoClose();
 }
 
 function Timer()
@@ -41,47 +48,38 @@ function Timer()
     PRI = GetPlayer().PlayerReplicationInfo;
     if( PRI==None )
         return;
-    
+        
+    if( KFPlayerController(GetPlayer()).IsBossCameraMode() )
+    {
+        DoClose();
+        return;
+    }
 }
 
 function ShowMenu()
 {
-    local KFPlayerReplicationInfo PRI;
-    
     Super.ShowMenu();
 
-    PageSwitcher.SelectPage(0);
-    
-    PRI = KFPlayerReplicationInfo(GetPlayer().PlayerReplicationInfo);
-    if( GetPlayer().WorldInfo.GRI!=None )
-        WindowTitle = GetPlayer().WorldInfo.GRI.ServerName;
-        
-    UpgradesButton.SetDisabled( false );
-    SettingsButton.SetDisabled( false );
-        
+    PageSwitcher.SelectPage(1);
     PlayMenuSound(MN_DropdownChange);
     
-    // Update turret info.
+    // Update button text(depricated) Check for boss camera
     Timer();
     SetTimer(0.5,true);
 }
 
 function ButtonClicked( KFGUI_Button Sender )
 {
-    //local KFGUI_Page T;
-    //local KFGameReplicationInfo KFGRI;
-    //local KFPlayerReplicationInfo PRI;
-    
     switch( Sender.ID )
     {
-    case 'Settings':
-        //Owner.OpenMenu(ClassicPlayerController(GetPlayer()).FlashUIClass);
-        //KFPlayerController(GetPlayer()).MyGFxManager.OpenMenu(Sender.ID == 'Settings' ? UI_OptionsSelection : UI_Gear);
+    case 'Sell':
+        if(SN.SellTurret())
+            DoClose();
         break;
-    
+    case 'Close':
+        DoClose();
+        break;
     }
-    
-    DoClose();
 }
 
 final function KFGUI_Button AddMenuButton( name ButtonID, string Text, optional string ToolTipStr )
@@ -90,6 +88,7 @@ final function KFGUI_Button AddMenuButton( name ButtonID, string Text, optional 
     
     B = new (Self) class'KFGUI_Button';
     B.ButtonText = Text;
+    B.TextColor = ButtonTextColor;
     B.ToolTip = ToolTipStr;
     B.OnClickLeft = ButtonClicked;
     B.OnClickRight = ButtonClicked;
@@ -112,17 +111,21 @@ final function KFGUI_Button AddMenuButton( name ButtonID, string Text, optional 
 
 defaultproperties
 {
-    WindowTitle="Killing Floor 2 - Sentry Turret Mod"
+    WindowTitle="Sentry Redux Mod"
     XPosition=0.2
     YPosition=0.1
     XSize=0.6
     YSize=0.8
+
+    ButtonTextColor=(R=240, G=240, B=240, A=255)
     
     bAlwaysTop=true
-    bOnlyThisFocus=true
+    bOnlyThisFocus=false
     
-    Pages.Add((PageClass=Class'UIP_TurretUpgrades',Caption="Upgrades",Hint="Upgrade this turret"))
-    Pages.Add((PageClass=Class'UIP_Settings',Caption="Settings",Hint="Show turret overlay settings"))
+    Pages.Add((PageClass=Class'UIP_About',Caption="About",Hint="Mod info and credits"))
+    Pages.Add((PageClass=Class'UIP_Upgrades',Caption="Upgrades",Hint="Purchase upgrades"))
+    Pages.Add((PageClass=Class'UIP_Settings',Caption="Settings",Hint="Client mod settings"))
+    Pages.Add((PageClass=Class'UIP_Debug',Caption="Debug",Hint="Developer debug info"))
 
     Begin Object Class=KFGUI_SwitchMenuBar Name=MultiPager
         ID="Pager"

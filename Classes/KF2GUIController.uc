@@ -4,8 +4,7 @@ Class KF2GUIController extends Info
 var() class<GUIStyleBase> DefaultStyle;
 
 var PlayerController PlayerOwner;
-//var KFHUDInterface HUDOwner;
-var transient KFGFxHudWrapper HUDOwner;
+var KFHUDInterface HUDOwner;
 var transient KF2GUIInput CustomInput;
 var transient PlayerInput BackupInput;
 var transient GameViewportClient ClientViewport;
@@ -23,7 +22,7 @@ var transient float MousePauseTime,MenuTime,LastClickTimes[2];
 var transient GUIStyleBase CurrentStyle;
 
 var transient Console OrgConsole;
-//var transient KFGUIConsoleHack HackConsole;
+var transient KFGUIConsoleHack HackConsole;
 //var transient ClientPerkRepLink ClientRep;
 
 var array<Texture2D> CursorTextures;
@@ -31,11 +30,11 @@ var Color CursorColor;
 var int CurrentCursorIndex, CursorSize;
 
 var Texture DefaultPens[3];
-var byte CursorFade, FastCursorFade, CursorFlash;
-var int CursorStep, FastCursorStep;
-var int FontBlurX,FontBlurX2,FontBlurY,FontBlurY2,FastFontBlurX,FastFontBlurX2,FastFontBlurY,FastFontBlurY2;
+var byte CursorFlash;
 
-var bool bMouseWasIdle,bIsInMenuState,bAbsorbInput,bIsInvalid,bFinishedReplication,bHideCursor,bUsingGamepad,bForceEngineCursor,bNoInputReset;
+var bool bMouseWasIdle,bIsInMenuState,bAbsorbInput,bIsInvalid,bFinishedReplication,bUsingGamepad,bForceEngineCursor,bNoInputReset;
+
+var ObjectReferencer RepObject; //hacked in objectreferencer for direct referencing
 
 static function KF2GUIController GetGUIController( PlayerController PC )
 {
@@ -66,49 +65,24 @@ simulated function PostBeginPlay()
 {
     PlayerOwner = PlayerController(Owner);
     ClientViewport = LocalPlayer(PlayerOwner.Player).ViewportClient;
-    HUDOwner = KFGFxHudWrapper(PlayerOwner.myHUD);
+    HUDOwner = KFHUDInterface(PlayerOwner.myHUD);
     
     CurrentStyle = new (None) DefaultStyle;
     CurrentStyle.InitStyle();
     CurrentStyle.Owner = self;
     CurrentStyle.HUDOwner = HUDOwner;
     
-    SetTimer(0.1, true, 'SetupFontBlur');
-    SetTimer(0.05, true, 'SetupFastFontBlur');
-    
     SetTimer(0.25, true, 'SetupStyleTextures');
     SetupStyleTextures();
-    
-    SetTimer(0.75, true, 'SetupCursorFlash');
-}
-
-simulated function SetupCursorFlash()
-{
-    if( CursorFlash == 255 )
-        CursorFlash = 0;
-    else CursorFlash = 255;
 }
 
 simulated function SetupStyleTextures()
 {
-    local ObjectReferencer RepObject;
-    /*
-    if( ClientRep == None )
-    {
-        ClientRep = class'ClientPerkRepLink'.static.FindContentRep( WorldInfo );
-        if( ClientRep == None )
-        {
-            return;
-        }
-    }
-    */
-    //RepObject = ClientRep.ObjRef;
-    RepObject = ObjectReferencer'tf2sentry.ObjectRef.MainObj_List';
     if( RepObject != None )
     {
         CurrentStyle.MainFont = Font(RepObject.ReferencedObjects[168]);
-        CurrentStyle.SalesFont = Font(RepObject.ReferencedObjects[155]);
-        CurrentStyle.GeneralFont = Font(RepObject.ReferencedObjects[104]);
+        CurrentStyle.InfiniteFont = Font(RepObject.ReferencedObjects[155]);
+        CurrentStyle.NameFont = Font(RepObject.ReferencedObjects[104]);
         
         CurrentStyle.BorderTextures[`BOX_INNERBORDER] = Texture2D(RepObject.ReferencedObjects[35]);
         CurrentStyle.BorderTextures[`BOX_INNERBORDER_TRANSPARENT] = Texture2D(RepObject.ReferencedObjects[36]);
@@ -156,8 +130,8 @@ simulated function SetupStyleTextures()
         CurrentStyle.PerkBox[`PERK_BOX_UNSELECTED] = Texture2D(RepObject.ReferencedObjects[61]);
         
         CurrentStyle.ScrollTexture = Texture2D(RepObject.ReferencedObjects[71]);
-        //CurrentStyle.FavoriteIcon = Texture2D(RepObject.ReferencedObjects[105]);
-        //CurrentStyle.BankNoteIcon = Texture2D(RepObject.ReferencedObjects[106]);
+        CurrentStyle.FavoriteIcon = Texture2D(RepObject.ReferencedObjects[105]);
+        CurrentStyle.BankNoteIcon = Texture2D(RepObject.ReferencedObjects[106]);
         
         CurrentStyle.ProgressBarTextures[`PROGRESS_BAR_NORMAL] = Texture2D(RepObject.ReferencedObjects[103]);
         CurrentStyle.ProgressBarTextures[`PROGRESS_BAR_SELECTED] = Texture2D(RepObject.ReferencedObjects[68]);
@@ -178,8 +152,8 @@ simulated function SetupStyleTextures()
         DefaultPens[`PEN_BLACK] = Texture2D(RepObject.ReferencedObjects[107]);
         DefaultPens[`PEN_GRAY] = Texture2D(RepObject.ReferencedObjects[109]);
         
+        //CurrentStyle.CursorTextures[`CURSOR_DEFAULT] = Texture2D(RepObject.ReferencedObjects[119]);
         /*
-        CursorTextures[`CURSOR_DEFAULT] = Texture2D(RepObject.ReferencedObjects[119]);
         CursorTextures[`CURSOR_RESIZEVERT] = Texture2D(RepObject.ReferencedObjects[120]);
         CursorTextures[`CURSOR_RESIZEHORZ] = Texture2D(RepObject.ReferencedObjects[121]);
         */
@@ -189,64 +163,17 @@ simulated function SetupStyleTextures()
     }
 }
 
-simulated function SetupFastFontBlur()
-{
-    FastFontBlurX = RandRange(-8, 8);
-    FastFontBlurX2 = RandRange(-8, 8);
-    FastFontBlurY = RandRange(-8, 8);
-    FastFontBlurY2 = RandRange(-8, 8);
-}
-
-simulated function SetupFontBlur()
-{
-    FontBlurX = RandRange(-8, 8);
-    FontBlurX2 = RandRange(-8, 8);
-    FontBlurY = RandRange(-8, 8);
-    FontBlurY2 = RandRange(-8, 8);
-}
-
-simulated function Tick(float DT)
-{
-    Super.Tick(DT);
-    
-    DT /= WorldInfo.TimeDilation;
-    
-    CursorFade += 255 * DT * CursorStep;
-    if( CursorFade<=0 )
-    {
-        CursorFade = 0;
-        CursorStep = 1;
-    }
-    else if( CursorFade>=255 )
-    {
-        CursorFade = 255;
-        CursorStep = -1;
-    }
-
-    FastCursorFade += 8192 * DT * FastCursorStep;
-    if( FastCursorFade<=0 )
-    {
-        FastCursorFade = 0;
-        FastCursorStep = 1;
-    }
-    else if( FastCursorFade>=255 )
-    {
-        FastCursorFade = 255;
-        FastCursorStep = -1;
-    }
-}
-
 simulated function Destroyed()
 {
     if( PlayerOwner!=None )
         SetMenuState(false);
 }
-/*
+
 simulated function HandleDrawMenu()
 {
     if( HackConsole==None )
     {
-        HackConsole = new(ClientViewport)class'KFClassicMode.KFGUIConsoleHack';
+        HackConsole = new(ClientViewport)class'KFGUIConsoleHack';
         HackConsole.OutputObject = Self;
     }
     if( HackConsole!=ClientViewport.ViewportConsole )
@@ -257,7 +184,7 @@ simulated function HandleDrawMenu()
         // Make sure nothing overrides these settings while menu is being open.
         PlayerOwner.PlayerInput = CustomInput;
     }
-}*/
+}
 simulated function RenderMenu( Canvas C )
 {
     local int i;
@@ -266,7 +193,7 @@ simulated function RenderMenu( Canvas C )
     if( !bFinishedReplication )
         return;
 
-    ClientViewport.ViewportConsole = OrgConsole;
+    //ClientViewport.ViewportConsole = OrgConsole;
 
     ScreenSize.X = C.SizeX;
     ScreenSize.Y = C.SizeY;
@@ -298,33 +225,15 @@ simulated function RenderMenu( Canvas C )
         InputFocus.PreDraw();
     }
     C.SetOrigin(OrgX,OrgY);
+    //C.SetOrigin(0,0);
     C.SetClip(ClipX,ClipY);
+    //C.SetClip(C.SizeX,C.SizeY);
 
-    if (!bHideCursor)
-    {
-        DrawCursor(C, MousePosition.X, MousePosition.Y);
-    }
-    
-    if( OrgConsole!=None )
+    CurrentStyle.DrawCursor(MousePosition.X, MousePosition.Y);
+
+    /*if( OrgConsole!=None )
         OrgConsole.PostRender_Console(C);
-    OrgConsole = None;
-}
-
-simulated function DrawCursor(Canvas C, float PosX, float PosY)
-{
-    C.SetPos(PosX, PosY);
-    C.DrawColor = CursorColor;
-    C.DrawTile(CursorTextures[CurrentCursorIndex], CurrentStyle.ScreenScale(CursorSize), CurrentStyle.ScreenScale(CursorSize), 0.f, 0.f, CursorTextures[CurrentCursorIndex].SizeX, CursorTextures[CurrentCursorIndex].SizeY,, true);
-}
-
-simulated final function InventoryChanged(optional KFWeapon Wep, optional bool bRemove)
-{
-    local int i;
-    
-    for( i=(ActiveMenus.Length-1); i>=0; --i )
-    {
-        ActiveMenus[i].InventoryChanged(Wep,bRemove);
-    }
+    OrgConsole = None;*/
 }
 
 simulated final function SetMenuState( bool bActive )
@@ -375,10 +284,10 @@ simulated final function SetMenuState( bool bActive )
         
         if( BackupInput!=None )
         {
-            PlayerOwner.PlayerInput = BackupInput;
             BackupInput.OnReceivedNativeInputKey = OldOnReceivedNativeInputKey;
             BackupInput.OnReceivedNativeInputAxis = OldOnReceivedNativeInputAxis;
             BackupInput.OnReceivedNativeInputChar = OldOnReceivedNativeInputChar;
+            PlayerOwner.PlayerInput = BackupInput;
             
             ClientViewport.HandleInputAxis = OldHandleInputAxis;
         }
@@ -453,8 +362,8 @@ simulated function MenuInput(float DeltaTime)
         
     V = ClientViewport.GetMousePosition();
     
-    MousePosition.X = Clamp(V.X, 0, ScreenSize.X); 
-    MousePosition.Y = Clamp(V.Y, 0, ScreenSize.Y); 
+    MousePosition.X = Clamp(V.X, 0, ScreenSize.X);
+    MousePosition.Y = Clamp(V.Y, 0, ScreenSize.Y);
     
     MouseMove();
 }
@@ -528,29 +437,7 @@ simulated final function int GetFreeIndex( bool bNewAlwaysTop ) // Find first al
     ActiveMenus.Length = i+1;
     return i;
 }
-/*
-simulated function KFGUI_Base InitializeHUDWidget( class<KFGUI_Base> GUIClass )
-{
-    local KFGUI_Base Widget;
-    
-    if( GUIClass==None )
-        return None;
-        
-    Widget = New(None) GUIClass;
 
-    if( Widget==None )
-        return None;
-        
-    HUDOwner.HUDWidgets.AddItem(Widget);
-        
-    Widget.Owner = Self;
-    Widget.HUDOwner = HUDOwner;
-    Widget.InitMenu();
-    Widget.ShowMenu();
-    Widget.bIsHUDWidget = true;
-    
-    return Widget;
-}*/
 simulated function KFGUI_Page OpenMenu( class<KFGUI_Page> MenuClass )
 {
     local int i;
@@ -570,7 +457,7 @@ simulated function KFGUI_Page OpenMenu( class<KFGUI_Page> MenuClass )
     // Enable mouse on UI if disabled.
     SetMenuState(true);
     
-    // Check if should use pre-excisting menu.
+    // Check if should use pre-existing menu.
     if( MenuClass.Default.bUnique )
     {
         for( i=0; i<ActiveMenus.Length; ++i )
@@ -650,7 +537,6 @@ simulated function CloseMenu( class<KFGUI_Page> MenuClass, optional bool bCloseA
         SetMenuState(false);
     }
 }
-/*
 simulated function PopCloseMenu( KFGUI_Base Item )
 {
     local int i;
@@ -658,13 +544,14 @@ simulated function PopCloseMenu( KFGUI_Base Item )
 
     if( Item==None )
         return;
-        
+    /* 
     if( Item.bIsHUDWidget )
     {
         HUDOwner.HUDWidgets.RemoveItem(Item);
         Item.CloseMenu();
         return;
     }
+    */
     
     if( KeyboardFocus!=None )
         GrabInputFocus(None);
@@ -687,7 +574,7 @@ simulated function PopCloseMenu( KFGUI_Base Item )
         }
     if( ActiveMenus.Length==0 )
         SetMenuState(false);
-}*/
+}
 simulated function BringMenuToFront( KFGUI_Page Page )
 {
     local int i;
@@ -860,39 +747,6 @@ simulated function bool ReceivedInputKey( int ControllerId, name Key, EInputEven
                 
                 return true;
             }
-            /*
-            if( HUDOwner.bVoteActive )
-            {
-                KFInput.GetKeyBindFromCommand(BoundKey, "GBA_VoteYes", false);
-                if( string(Key) ~= KFInput.GetBindDisplayName(BoundKey) )
-                {
-                    if( Event == IE_Pressed )
-                    {
-                        KFInput.OnVoteYesPressed();
-                    }
-                    else if( Event == IE_Released )
-                    {
-                        KFInput.OnVoteYesRelease();
-                    }
-
-                    return true;
-                }
-                
-                KFInput.GetKeyBindFromCommand(BoundKey, "GBA_VoteNo", false);
-                if( string(Key) ~= KFInput.GetBindDisplayName(BoundKey) )
-                {
-                    if( Event == IE_Pressed )
-                    {
-                        KFInput.OnVoteNoPressed();
-                    }
-                    else if( Event == IE_Released )
-                    {
-                        KFInput.OnVoteNoRelease();
-                    }
-
-                    return true;
-                }
-            }*/
         }
     }
 
@@ -935,7 +789,7 @@ simulated function bool ReceivedInputAxis( int ControllerId, name Key, float Del
     
     if( !bIsInMenuState )
         return false;
-        
+    
     if( bGamepad  )
     {
         if( Abs(Delta) > 0.2f )
@@ -1007,9 +861,10 @@ simulated Delegate bool InternalReceivedInputChar( int ControllerId, string Unic
 
 defaultproperties
 {
-    CursorSize=24
+    RepObject=ObjectReferencer'tf2sentry.ObjectRef.MainObj_List'
+
+    CursorSize=32
     CursorColor=(R=255,G=255,B=255,A=255)
-    CursorTextures[`CURSOR_DEFAULT]=Texture2D'UI_Managers.LoaderManager_SWF_I13'
     CurrentCursorIndex=`CURSOR_DEFAULT
     
     DefaultStyle=class'ClassicStyle'
