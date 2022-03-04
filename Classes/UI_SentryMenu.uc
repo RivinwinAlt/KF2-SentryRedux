@@ -14,14 +14,12 @@ var transient KFGUI_Button PrevButton;
 var transient int NumButtons,NumButtonRows;
 
 var Color ButtonTextColor;
-var SentryUI_Network SN;
 
 function InitMenu()
 {
     local int i;
     local KFGUI_Button B;
 
-    SN = class'SentryUI_Network'.Static.GetNetwork(GetPlayer());
     PageSwitcher = KFGUI_SwitchMenuBar(FindComponentID('Pager'));
     Super(KFGUI_Page).InitMenu();
     
@@ -32,13 +30,6 @@ function InitMenu()
     {
         PageSwitcher.AddPage(Pages[i].PageClass,Pages[i].Caption,Pages[i].Hint,B).InitMenu();
     }
-}
-
-function DoClose()
-{
-    if(SN != None)
-        SN.ExitedMenu();
-    super.DoClose();
 }
 
 function Timer()
@@ -73,14 +64,24 @@ function ButtonClicked( KFGUI_Button Sender )
     switch( Sender.ID )
     {
     case 'Sell':
-        if(SN.SellTurret())
+        if(Owner.PlayerOwner == Owner.TurretOwner.OwnerController)
+        {
+            Owner.NetworkObj.SellTurret();
             DoClose();
+        }
         break;
     case 'Close':
         DoClose();
         break;
     }
 }
+
+function DoClose()
+{
+    Owner.NetworkObj.ClosedMenu();
+    super.DoClose();
+}
+
 
 final function KFGUI_Button AddMenuButton( name ButtonID, string Text, optional string ToolTipStr )
 {
@@ -112,7 +113,7 @@ final function KFGUI_Button AddMenuButton( name ButtonID, string Text, optional 
 defaultproperties
 {
     WindowTitle="Sentry Redux Mod"
-    XPosition=0.2
+    XPosition=0.1
     YPosition=0.1
     XSize=0.6
     YSize=0.8
@@ -125,8 +126,7 @@ defaultproperties
     Pages.Add((PageClass=Class'UIP_About',Caption="About",Hint="Mod info and credits"))
     Pages.Add((PageClass=Class'UIP_Upgrades',Caption="Upgrades",Hint="Purchase upgrades"))
     Pages.Add((PageClass=Class'UIP_Settings',Caption="Settings",Hint="Client mod settings"))
-    Pages.Add((PageClass=Class'UIP_Debug',Caption="Debug",Hint="Developer debug info"))
-
+    
     Begin Object Class=KFGUI_SwitchMenuBar Name=MultiPager
         ID="Pager"
         XPosition=0.015

@@ -6,6 +6,7 @@ Goals are in order of what should be acomplished. Input is welcome.
 - ~~Perform a differential comparison file by file to find all entries unique to each decompile~~
 - ~~Remove unecessary comments and entries from the new source~~
 - ~~Format new source in accordance with coding conventions~~
+- ~~Merge menu classes from ClassicMode into the codebase~~
 - Comment source for readability
   - Status: Ongoing
 
@@ -14,37 +15,37 @@ Goals are in order of what should be acomplished. Input is welcome.
 - ~~Sentry Missile speed~~
 - ~~Place turret delay when right clicking~~
 - ~~Disable right click to sell~~
+- ~~Customizable refund modifier~~
 - GFX disabling booleans
+- Client side settings menu
+- Admin locked server side settings menu
 
 
-### 3: Source turret models and animations / recieve permission to use old ones
+### 3: Source turret models and animations
 - ~~Get original assets used in TF2 Sentry mod~~
-- ~~Get permission from Marco/Slav to work off of them~~ Note: Recieved Slavs blessing and source materials
-- Replace assets with newly sourced ones
-- Create a TF2 wrench mesh + animations + material
+- ~~Get permission from Marco/Slav to use them~~
+- ~~Extract the TF2 wrench mesh + animations + material~~
+- Obtain new turret models + animations + materials to craft new turrets
 
 
 ### 4: Streamline code
-- Implement Skip flags for complex If statements?????
+- ~~Combine simple functions and remove null calls~~
+- ~~Move TF2 Turret dependant variables to a new extended class~~
+- ~~Rework the base turret class to be more flexible~~
 - Implement config value clamping
-- Minimise raytracing
-  - ~~Missiles~~
-  - ~~Bullets~~
-  - Turret preview
+
 
 
 ### 5: Fix long-standing bugs
 - ~~Change purple light on turret to red~~
-- ~~Replace green hammer~~
+- ~~Replace green hammer material~~
 - ~~Patch taking over existing turrets beyond max number~~
 - Stop the Sentry Hammer from showing as EMPTY in inventory
 - Improve pop-in when obstructed by thin walls, etc
 
 
-### 7: Implement new features
+### 6: Implement new features
 - ~~Be able to rotate turret during placement~~
-- Integrate perks that boost or alter turrets
-and/or
 - More turret varieties (Perkified versions)
 - Integrate more buyable upgrades
   - Missile Firerate
@@ -61,11 +62,20 @@ and/or
   - Lower turret cost
   - Higher ammo cost
   - Higher refund percentage
-- Custom .swf upgrade menu
-~~- Disable explosion GFX when selling turret~~
+- ~~Custom canvas based menu~~
+- ~~Disable explosion GFX when selling turret~~
 - Add custom "selling turret" SFX
+- Add idle wrench animation from TF2
+
+
+### 6: Optimization
+- Run clocked test to compare old random bullet trajectory to new method
+- Only load one copy of each texture used in mod
+- Implement Skip flags for complex If statements (use booleans and timers to reduce branching frequency)
+- Minimise raytracing
+  - ~~Missiles~~
+  - Turret preview
 
 
 ### Unsorted
-upgrade names should be in config next to cost
-config turret cost doesnt change first overlay and placement cost
+Config turret cost doesnt change first overlay and placement cost

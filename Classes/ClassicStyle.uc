@@ -13,17 +13,17 @@ function RenderFramedWindow( KFGUI_FloatingWindow P )
         Canvas.SetDrawColor(105,105,105,255);
     else Canvas.SetDrawColor(85,85,85,P.FrameOpacity);
     
-    // Frame itself.
+    // Frame itself
     Canvas.SetPos(0, 0);
     Canvas.DrawTileStretched(BorderTextures[`BOX_SMALL_SLIGHTTRANSPARENT],XS,YS,0,0,128,128);
     
-    // Title.
+    // Title
     if( P.WindowTitle!="" )
     {
         Canvas.Font = PickFont(FontScale, FONT_NAME);
         Canvas.TextSize(P.WindowTitle,XL,YL,FontScale,FontScale);
         Canvas.SetDrawColor(240,240,240,255);
-        Canvas.SetPos((XS*0.5)-(XL*0.5),YL * 0.25f);
+        Canvas.SetPos((XS - XL) / 2.0f, (TitleHeight - YL) / 2.0f);
         Canvas.DrawText(P.WindowTitle,,FontScale,FontScale);
     }
 }
@@ -35,7 +35,7 @@ function RenderWindow( KFGUI_Page P )
     XS = Canvas.ClipX-Canvas.OrgX;
     YS = Canvas.ClipY-Canvas.OrgY;
 
-    // Frame itself.
+    // Frame itself
     if( P.bWindowFocused )
         Canvas.SetDrawColor(105,105,105,255);
     else Canvas.SetDrawColor(85,85,85,P.FrameOpacity);
@@ -44,7 +44,18 @@ function RenderWindow( KFGUI_Page P )
     Canvas.DrawTileStretched(BorderTextures[`BOX_SMALL_SLIGHTTRANSPARENT],XS,YS,0,0,128,128);
 }
 
-function RenderBuyConfirmation( KFGUI_PurchasePopup P )
+function RenderTextField( KFGUI_TextField T )
+{
+    local int XS,YS;
+
+    XS = Canvas.ClipX-Canvas.OrgX;
+    YS = Canvas.ClipY-Canvas.OrgY;
+
+    Canvas.SetPos(0, 0);
+    Canvas.DrawTileStretched(BorderTextures[`BOX_SMALL],XS,YS,0,0,128,128);
+}
+
+function RenderBuyConfirmation( UI_PurchasePopup P )
 {
     local int XS,YS,TitleHeight;
     local float XL, YL, FontScale;

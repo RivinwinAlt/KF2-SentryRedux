@@ -72,7 +72,7 @@ simulated function UpdateUpgrades()
 }
 
 //Handles periodic upgrade effects
-simulated function Timer()
+simulated function UpgradesTimer()
 {
 	//Checks for the AutoRepair Upgrade
 	if(HasUpgrade(EUpAutoRepair) && St_Base(Owner).Health < St_Base(Owner).HealthMax)
@@ -113,48 +113,62 @@ defaultproperties
 	LevelInfos(0)={(
 		Icon=Texture2D'Turret_TF2.HUD.Level1',		//TODO: Change to reference by path to decrease memory used by LevelInfos
 		TurretArch=KFCharacterInfo_Monster'tf2sentry.Arch.Turret1Arch',
-		FiringSounds[0]=SoundCue'tf2sentry.Sounds.sentry_shoot_Cue',
+		FiringSounds[EPrimaryFire]=SoundCue'tf2sentry.Sounds.sentry_shoot_Cue',
 
 		Title="Level 1",
 		Description="Low level TF2 sentry turret",
 
 		Cost=1000,
-		BaseDamage=10,
+		BaseDamage[0]=10,
 		BaseMaxHealth=350,
 		BaseRoF=0.3f,
-		BaseMaxAmmoCount[0]=1000
+		BaseMaxAmmoCount[0]=1000,
+		BaseTurnRadius=0.6f,
+		BaseSightRadius=2200.0f,
+		BaseAccuracyMod=0.05f
 	)}
 
 	LevelInfos(1)={(
 		Icon=Texture2D'Turret_TF2.HUD.Level2',		//TODO: Change to reference by path to decrease memory used by LevelInfos
 		TurretArch=KFCharacterInfo_Monster'tf2sentry.Arch.Turret2Arch',
-		FiringSounds[0]=SoundCue'tf2sentry.Sounds.sentry_shoot2_Cue',
+		FiringSounds[EPrimaryFire]=SoundCue'tf2sentry.Sounds.sentry_shoot2_Cue',
 
 		Title="Level 2",
 		Description="Mid level TF2 sentry turret",
 
 		Cost=1500,
-		BaseDamage=11,
+		BaseDamage[0]=11,
 		BaseMaxHealth=400,
 		BaseRoF=0.125f,
-		BaseMaxAmmoCount[0]=1500
+		BaseMaxAmmoCount[0]=1500,
+		BaseTurnRadius=0.6f,
+		BaseSightRadius=2200.0f,
+		BaseAccuracyMod=0.05f
 	)}
 
 	LevelInfos(2)={(
 		Icon=Texture2D'Turret_TF2.HUD.Level3',		//TODO: Change to reference by path to decrease memory used by LevelInfos
 		TurretArch=KFCharacterInfo_Monster'tf2sentry.Arch.Turret3Arch',
-		FiringSounds[0]=SoundCue'tf2sentry.Sounds.sentry_shoot3_Cue',
+		FiringSounds[EPrimaryFire]=SoundCue'tf2sentry.Sounds.sentry_shoot3_Cue',
 
 		Title="Level 3",
 		Description="High level TF2 sentry turret",
 
 		Cost=2500,
-		BaseDamage=13,
+		BaseDamage[0]=13,
+		BaseDamage[1]=1000,
 		BaseMaxHealth=600,
 		BaseRoF=0.1f,
 		BaseMaxAmmoCount[0]=2000,
-		BaseMaxAmmoCount[1]=50
+		BaseMaxAmmoCount[1]=50,
+		BaseTurnRadius=0.6f,
+		BaseSightRadius=2200.0f,
+		BaseAccuracyMod=0.05f
 	)}
+
+	AmmoInfos(EPrimaryFire)=(CostPerRound=2, BuyAmount = 250)
+
+	AmmoInfos(ESecondaryFire)=(CostPerRound=20, BuyAmount = 20)
 
 	UpgradeInfos(EUpRangeA)=(bIsEnabled=True)
 
@@ -169,10 +183,4 @@ defaultproperties
 	UpgradeInfos(EUpHomingMissiles)=(bIsEnabled=True)
 	
 	UpgradeInfos(EUpAutoRepair)=(bIsEnabled=True)
-	
-	UpgradeInfos(EUpFireDamage)=(bIsEnabled=False)
-
-	UpgradeInfos(EUpDamageReduceA)=(bIsEnabled=False)
-
-	UpgradeInfos(EUpDamageReduceB)=(bIsEnabled=False)
 }

@@ -3,7 +3,6 @@ Class KFGUI_Base extends Object
     abstract;
 
 var KF2GUIController Owner;
-var KFHUDInterface HUDOwner;
 var KFGUI_Base ParentComponent; // Parent component if any.
 var transient Canvas Canvas;
 
@@ -122,7 +121,7 @@ final function ComputeCoords()
 
 function bool CaptureMouse()
 {
-    return bVisible && ( Owner.MousePosition.X>=CompPos[0] && Owner.MousePosition.Y>=CompPos[1] && Owner.MousePosition.X<=(CompPos[0]+CompPos[2]) && Owner.MousePosition.Y<=(CompPos[1]+CompPos[3]) );
+    return bVisible && bCanFocus && ( Owner.MousePosition.X>=CompPos[0] && Owner.MousePosition.Y>=CompPos[1] && Owner.MousePosition.X<=(CompPos[0]+CompPos[2]) && Owner.MousePosition.Y<=(CompPos[1]+CompPos[3]) );
 }
 
 final function KFGUI_Base GetMouseFocus()
