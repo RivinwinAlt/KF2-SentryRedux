@@ -5,11 +5,12 @@ var() string ButtonText,GamepadButtonName;
 var() color TextColor;
 var() Canvas.FontRenderInfo TextFontInfo;
 var() byte FontScale,ExtravDir;
-var bool bIsHighlighted;
+var bool bIsHighlighted, bEnabled;
 
 function DrawMenu()
 {
-    Owner.CurrentStyle.RenderButton(Self);
+    if(bEnabled)
+        Owner.CurrentStyle.RenderButton(Self);
 }
 
 function bool GetUsingGamepad()
@@ -19,6 +20,8 @@ function bool GetUsingGamepad()
 
 function HandleMouseClick( bool bRight )
 {
+    if(!bEnabled)
+        return;
     if( bRight )
         OnClickRight(Self);
     else OnClickLeft(Self);
@@ -34,6 +37,7 @@ Delegate bool DrawOverride(Canvas C, KFGUI_Button B)
 
 defaultproperties
 {
+    bEnabled=true
     ButtonText="Button!"
     TextColor=(R=0,G=0,B=0,A=255)
     TextFontInfo=(bClipText=true,bEnableShadow=true)

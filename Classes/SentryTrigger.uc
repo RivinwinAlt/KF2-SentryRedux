@@ -3,45 +3,59 @@ Class SentryTrigger extends Actor
 	implements(KFInterface_Usable);
 
 var ST_Base TurretOwner;
-var class<KFGUI_Page> ActiveMenu;
+
+replication
+{
+	// Variables the server should send ALL clients.
+	if(bNetDirty)
+		TurretOwner;
+}
+
+simulated event ReplicatedEvent(name VarName)
+{
+	switch(VarName)
+	{
+	case 'TurretOwner':
+		if(TurretOwner != none)
+		{
+			TurretOwner.ActiveTrigger = Self;
+			SetBase(TurretOwner);
+		}
+		break;
+	default:
+		Super.ReplicatedEvent(VarName);
+	}
+}
 
 simulated event Touch(Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal)
 {
-	if( WorldInfo.NetMode!=NM_Client )
+	if( WorldInfo.NetMode!=NM_Client && KFPawn_Human(Other)!=None )
 		class'KFPlayerController'.static.UpdateInteractionMessages( Other );
 }
 simulated event UnTouch(Actor Other)
 {
-	local SentryUI_Network SN;
-	
-	if( WorldInfo.NetMode!=NM_Client && Pawn(Other)!=None )
-	{
-		class'KFPlayerController'.static.UpdateInteractionMessages(Other);
-		foreach Other.ChildActors(class'SentryUI_Network',SN)
-		{
-			if( SN.TurretOwner==TurretOwner )
-				SN.CloseMenuForClient(PlayerController(Pawn(Other).Controller), none, true);
-			break;
-		}
-	}
+	if( WorldInfo.NetMode!=NM_Client && KFPawn_Human(Other)!=None )
+		class'KFPlayerController'.static.UpdateInteractionMessages( Other );
 }
 
-simulated function bool UsedBy(Pawn User)
+function bool UsedBy(Pawn User)
 {
-	local SentryUI_Network SN;
+	local ST_SentryNetwork SN;
 
-	SN = class'SentryUI_Network'.static.GetNetwork(PlayerController(User.Controller));
-	SN.PlayerOwner = PlayerController(User.Controller);
-	SN.SetTurret(TurretOwner);
-	SN.ClientOpenMenu(ActiveMenu);
 	
+	if( WorldInfo.NetMode!=NM_Client && PlayerController(User.Controller)!=None )
+	{
+		SN = class'ST_SentryNetwork'.static.GetNetwork(PlayerController(User.Controller));
+		SN.SetInfo(TurretOwner, PlayerController(User.Controller));
+	}
+
 	return true;
 }
 
 /** Checks if this actor is presently usable */
 simulated function bool GetIsUsable( Pawn User )
 {
-	return KFPawn_Human(User)!=None;
+	return KFPawn_Human(User) != None;
 }
 
 /** Return the index for our interaction message. */
@@ -51,19 +65,17 @@ simulated function int GetInteractionIndex( Pawn User )
 }
 
 defaultproperties
-{
-	ActiveMenu=class'UI_SentryMenu'
-	
-   Begin Object Class=CylinderComponent Name=CollisionCylinder
-      CollisionHeight=56.000000
-      CollisionRadius=56.000000
-      ReplacementPrimitive=None
-      CollideActors=True
-      Name="CollisionCylinder"
-      ObjectArchetype=CylinderComponent'Engine.Default__CylinderComponent'
-   End Object
-   Components(0)=CollisionCylinder
-   bHidden=True
-   bCollideActors=True
-   CollisionComponent=CollisionCylinder
+{	
+	Begin Object Class=CylinderComponent Name=CollisionCylinder
+		CollisionHeight=56.000000
+		CollisionRadius=56.000000
+		ReplacementPrimitive=None
+		  CollideActors=True
+		Name="CollisionCylinder"
+		ObjectArchetype=CylinderComponent'Engine.Default__CylinderComponent'
+	End Object
+	Components(0)=CollisionCylinder
+	bHidden=True
+	bCollideActors=True
+	CollisionComponent=CollisionCylinder
 }

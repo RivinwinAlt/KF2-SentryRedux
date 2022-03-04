@@ -2,6 +2,9 @@
 Class ST_TF2 extends ST_Base
 	config(SentryRedux);
 
+var SpotLightComponent TurretSpotLight;
+var PointLightComponent TurretRedLight;
+
 simulated function UpdateDisplayMesh()
 {
 	super.UpdateDisplayMesh();
@@ -33,7 +36,7 @@ defaultproperties
 	ControllerClass = Class'ST_AI_Base'
 	UpgradesClass = Class'ST_Upgrades_TF2'
 
-	Begin Object Name=SpotLight1
+	Begin Object Class=SpotLightComponent Name=SpotLight1
 		OuterConeAngle = 35.000000
 		Radius = 2000.000000
 		FalloffExponent = 3.000000
@@ -48,7 +51,7 @@ defaultproperties
 	End Object
 	TurretSpotLight = SpotLight1
 
-	Begin Object Name=PointLightComponent1
+	Begin Object Class=PointLightComponent Name=PointLightComponent1
 		Radius = 120.000000
 		Brightness = 4.000000
 		LightColor = (B = 0, G = 0, R = 255, A = 255)

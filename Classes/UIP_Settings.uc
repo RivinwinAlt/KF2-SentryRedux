@@ -1,56 +1,15 @@
 Class UIP_Settings extends KFGUI_MultiComponent;
 
 var KFGUI_ComponentList SettingsBox;
-/*
-var KFGUI_TextLable ResetColorLabel,PerkStarsLabel,PerkStarsRowLabel,ControllerTypeLabel,PlayerInfoTypeLabel;
-var KFGUI_EditBox PerkStarsBox, PerkRowsBox;
-var KFGUI_ComboBox ControllerBox;
-*/
-
-//var KFHUDInterface HUD;
-//var ClassicPlayerController PC;
 
 function InitMenu()
 {
-    //local string S;
-    
-    //PC = ClassicPlayerController(GetPlayer());
-    //HUD = KFHUDInterface(PC.myHUD);
-
-    //TODO: this is where well get the overlay object
-    
     Super.InitMenu();
 
     // Client settings
     SettingsBox = KFGUI_ComponentList(FindComponentID('SettingsBox'));
-    
-    /*AddCheckBox("Light HUD","Show a light version of the HUD.",'bLight',HUD.bLightHUD);
-    AddCheckBox("Show weapon info","Show current weapon ammunition status.",'bWeapons',!HUD.bHideWeaponInfo);
-    AddCheckBox("Show personal info","Display health and armor on the HUD.",'bPersonal',!HUD.bHidePlayerInfo);
-    AddCheckBox("Show score","Check to show scores on the HUD.",'bScore',!HUD.bHideDosh);
-    AddCheckBox("Show kill counter","Tally specimen kills on the HUD.",'bTallySpecimenKills',!PC.bHideKillMsg);
-    AddCheckBox("Show damage counter","Tally specimen damage on the HUD.",'bHideDamageMsg',!PC.bHideDamageMsg);
-    AddCheckBox("Show player deaths","Shows when a player dies.",'bHidePlayerDeathMsg',!PC.bHidePlayerDeathMsg);
-    AddCheckBox("Show hidden player icons","Shows the hidden player icons.",'bDisableHiddenPlayers',!HUD.bDisableHiddenPlayers);
-    AddCheckBox("Show damage messages","Shows the damage popups when damaging ZEDs.",'bEnableDamagePopups',HUD.bEnableDamagePopups);
-    AddCheckBox("Show regen on player info","Shows the bar next to players health when healed.",'bDrawRegenBar',HUD.bDrawRegenBar);
-    AddCheckBox("Show player speed","Shows how fast you are moving.",'bShowSpeed',HUD.bShowSpeed);
-    AddCheckBox("Show pickup information","Shows a UI with infromation on pickups.",'bDisablePickupInfo',!HUD.bDisablePickupInfo);
-    AddCheckBox("Show lockon target","Shows who you have targeted with a medic gun.",'bDisableLockOnUI',!HUD.bDisableLockOnUI);
-    AddCheckBox("Show medicgun recharge info","Shows what the recharge info is on various medic weapons.",'bDisableRechargeUI',!HUD.bDisableRechargeUI);
-    AddCheckBox("Show last remaining ZED icons","Shows the last remaining ZEDs as icons.",'bDisableLastZEDIcons',!HUD.bDisableLastZEDIcons);
-    AddCheckBox("Show XP earned","Shows when you earn XP.",'bShowXPEarned',HUD.bShowXPEarned);
-    AddCheckBox("Disable classic trader voice","Disable the classic trader voice and portrait.",'bDisableClassicTrader',PC.bDisableClassicTrader);
-    AddCheckBox("Disable classic music","Disable the classic music.",'bDisableClassicMusic',PC.bDisableClassicMusic);
-    AddCheckBox("Enable B&W ZED Time","Enables the black and white fade to ZED Time.",'bEnableBWZEDTime',PC.bEnableBWZEDTime);
-    AddCheckBox("Enable Modern Scoreboard","Makes the scoreboard look more modern.",'bModernScoreboard',HUD.bModernScoreboard);
-    AddCheckBox("Disallow others to pickup your weapons","Disables other players ability to pickup your weapons.",'bDisallowOthersToPickupWeapons',PC.bDisallowOthersToPickupWeapons);
-    AddCheckBox("Disable console replacment","Disables the console replacment.",'bNoConsoleReplacement',HUD.bNoConsoleReplacement);
-    
-    
-    AddButton("Reset","Reset HUD Colors","Resets the color settings for the HUD.",'ResetColors',ResetColorLabel);
-    */
 }
+
 final function KFGUI_CheckBox AddCheckBox( string Cap, string TT, name IDN, bool bDefault )
 {
     local KFGUI_CheckBox CB;
@@ -64,6 +23,7 @@ final function KFGUI_CheckBox AddCheckBox( string Cap, string TT, name IDN, bool
     CB.OnCheckChange = CheckChange;
     return CB;
 }
+
 final function KFGUI_Button AddButton( string ButtonText, string Cap, string TT, name IDN, out KFGUI_TextLable Label )
 {
     local KFGUI_Button CB;
@@ -89,34 +49,7 @@ final function KFGUI_Button AddButton( string ButtonText, string Cap, string TT,
 
     return CB;
 }
-final function KFGUI_EditBox AddEditBox( string Cap, string TT, name IDN, string DefaultValue, out KFGUI_TextLable Label )
-{
-    local KFGUI_EditBox EB;
-    local KFGUI_MultiComponent MC;
-    
-    MC = KFGUI_MultiComponent(SettingsBox.AddListComponent(class'KFGUI_MultiComponent'));
-    MC.InitMenu();
-    Label = new(MC) class'KFGUI_TextLable';
-    Label.SetText(Cap);
-    Label.XSize = 0.60;
-    Label.FontScale = 1;
-    Label.AlignY = 1;
-    MC.AddComponent(Label);
-    EB = new(MC) class'KFGUI_EditBox';
-    EB.XPosition = 0.77;
-    EB.YPosition = 0.5;
-    EB.XSize = 0.15;
-    EB.YSize = 1;
-    EB.ToolTip = TT;
-    EB.bDrawBackground = true;
-    EB.ID = IDN;
-    EB.OnChange = OnTextChanged;
-    EB.SetText(DefaultValue);
-    EB.bNoClearOnEnter = true;
-    MC.AddComponent(EB);
 
-    return EB;
-}
 final function KFGUI_ComboBox AddComboBox( string Cap, string TT, name IDN, out KFGUI_TextLable Label )
 {
     local KFGUI_ComboBox CB;
@@ -143,151 +76,18 @@ final function KFGUI_ComboBox AddComboBox( string Cap, string TT, name IDN, out 
 
 function OnComboChanged(KFGUI_ComboBox Sender)
 {
-    /*
-    switch( Sender.ID )
-    {
-    case 'ControllerType':
-        PC.ControllerType = Sender.GetCurrent() ~= "Xbox One" ? "UI_Controller" : "UI_Controller_Orbis";
-        break;
-    case 'PlayerInfo':
-        switch(Sender.GetCurrent())
-        {
-            case "Classic":
-                HUD.PlayerInfoType = INFO_CLASSIC;
-                break;
-            case "Legacy":
-                HUD.PlayerInfoType = INFO_LEGACY;
-                break;
-            case "Modern":
-                HUD.PlayerInfoType = INFO_MODERN;
-                break;
-        }
-    
-        break;
-    }
-    
-    HUD.SaveConfig();
-    PC.SaveConfig();
-    */
-}
-
-function OnTextChanged(KFGUI_EditBox Sender)
-{
-    /*
-    switch( Sender.ID )
-    {
-    case 'MaxPerkStars':
-        HUD.MaxPerkStars = int(Sender.TextStr);
-        break;
-    case 'MaxStarsPerRow':
-        HUD.MaxStarsPerRow = int(Sender.TextStr);
-        break;
-    }
-    
-    HUD.SaveConfig();
-    */
 }
 
 function CheckChange( KFGUI_CheckBox Sender )
 {
-    /*
-    local MusicGRI MGRI;
-    local KFMapInfo KFMI;
-    local KFGameReplicationInfo GRI;
-    local KFPawn_Monster MPawn;
-    local bool bHideKillMsg, bHideDamageMsg, bEnableDamagePopups, bHidePlayerDeathMsg;
-    
-    bHideKillMsg = PC.bHideKillMsg;
-    bHideDamageMsg = PC.bHideDamageMsg;
-    bHidePlayerDeathMsg = PC.bHidePlayerDeathMsg;
-    bEnableDamagePopups = HUD.bEnableDamagePopups;
-
-    switch( Sender.ID )
-    {
-    case 'bLight':
-        HUD.bLightHUD = Sender.bChecked;
-        break;
-    case 'bWeapons':
-        HUD.bHideWeaponInfo = !Sender.bChecked;
-        break;
-    case 'bPersonal':
-        HUD.bHidePlayerInfo = !Sender.bChecked;
-        break;
-    case 'bScore':
-        HUD.bHideDosh = !Sender.bChecked;
-        break;
-    case 'bTallySpecimenKills':
-        PC.bHideKillMsg = !Sender.bChecked;
-        break;       
-    case 'bHideDamageMsg':
-        PC.bHideDamageMsg = !Sender.bChecked;
-        break;        
-    case 'bHidePlayerDeathMsg':
-        PC.bHidePlayerDeathMsg = !Sender.bChecked;
-        break;    
-    case 'bEnableBWZEDTime':
-        PC.bEnableBWZEDTime = Sender.bChecked;
-        break;    
-    case 'bDisableHiddenPlayers':
-        HUD.bDisableHiddenPlayers = !Sender.bChecked;
-        break;    
-    case 'bDisallowOthersToPickupWeapons':
-        PC.bDisallowOthersToPickupWeapons = Sender.bChecked;
-        PC.SetServerIgnoreDrops(PC.bDisallowOthersToPickupWeapons);
-        break;
-    case 'bEnableDamagePopups':
-        HUD.bEnableDamagePopups = Sender.bChecked;
-        break;    
-    case 'bDrawRegenBar':
-        HUD.bDrawRegenBar = Sender.bChecked;
-        break;    
-    case 'bShowSpeed':
-        HUD.bShowSpeed = Sender.bChecked;
-        break;    
-    case 'bDisableClassicTrader':
-        PC.bDisableClassicTrader = Sender.bChecked;
-        break;           
-    case 'bDisableLastZEDIcons':
-        HUD.bDisableLastZEDIcons = !Sender.bChecked;
-        break;    
-    case 'bDisablePickupInfo':
-        HUD.bDisablePickupInfo = !Sender.bChecked;
-        break;    
-    case 'bDisableLockOnUI':
-        HUD.bDisableLockOnUI = !Sender.bChecked;
-        break;   
-    case 'bDisableRechargeUI':
-        HUD.bDisableRechargeUI = !Sender.bChecked;
-        break;    
-    case 'bModernScoreboard':
-        HUD.bModernScoreboard = Sender.bChecked;
-        break;    
-    case 'bShowXPEarned':
-        HUD.bShowXPEarned = Sender.bChecked;
-        break;
-        
-    }
-    
-    if( bHideKillMsg != PC.bHideKillMsg || bHideDamageMsg != PC.bHideDamageMsg || bEnableDamagePopups != HUD.bEnableDamagePopups || bHidePlayerDeathMsg != PC.bHidePlayerDeathMsg )
-        PC.ServerSetSettings(PC.bHideKillMsg, PC.bHideDamageMsg, !HUD.bEnableDamagePopups, PC.bHidePlayerDeathMsg);
-        
-    HUD.SaveConfig();
-    PC.SaveConfig();
-    */
 }
+
 function ButtonClicked( KFGUI_Button Sender )
 {
     /*
     switch( Sender.ID )
     {
     case 'ResetColors':
-        HUD.ResetHUDColors();
-        if( PC.ColorSettingMenu != None )
-        {
-            PC.ColorSettingMenu.MainHudSlider.SetDefaultColor(HUD.HudMainColor);
-            PC.ColorSettingMenu.OutlineSlider.SetDefaultColor(HUD.HudOutlineColor);
-            PC.ColorSettingMenu.FontSlider.SetDefaultColor(HUD.FontColor);
-        }
         break;
     }
     */

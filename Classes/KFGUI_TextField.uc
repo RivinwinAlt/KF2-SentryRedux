@@ -238,7 +238,7 @@ final function ParseLines( float ClipX )
     for( i=0; i<Lines.Length; ++i )
     {
         Lines[i].Y = i*TextHeight;
-        X = 0.f;
+        X = 0.0f;
         for( j=0; j<Lines[i].Text.Length; ++j )
         {
             Lines[i].Text[j].X = (X*InitFontScale);
@@ -332,10 +332,12 @@ function DrawMenu()
     local int i,j,Index;
     local float Y;
 
+    Owner.CurrentStyle.RenderTextField(Self);
+
     if( Text=="" || !bVisible )
         return;
 
-    // Need to figure out best fitting font.
+    // Need to figure out best fitting font
     if( OldSize[0]!=CompPos[2] || OldSize[1]!=CompPos[3] )
         InitSize();
         

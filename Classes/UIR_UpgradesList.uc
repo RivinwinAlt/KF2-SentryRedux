@@ -1,14 +1,12 @@
 Class UIR_UpgradesList extends KFGUI_Frame;
 
 var KFGUI_List UpgradeList;
-var KFGUI_PurchasePopup P;
+var UI_PurchasePopup P;
 
-var float IconBorder;
 var float ItemBorder;
 var float TextTopOffset;
 var float ItemSpacing;
 var float IconToInfoSpacing;
-var float ProgressBarHeight;
 
 var string CostLabel;
 
@@ -16,36 +14,36 @@ var Texture PerkBackground;
 var Texture InfoBackground;
 var Texture SelectedPerkBackground;
 var Texture SelectedInfoBackground;
-var Texture ProgressBarBackground;
-var Texture ProgressBarForeground;
 
-var SentryUI_Network SN;
+var ST_Upgrades_Base UObj;
 
 function InitMenu()
 {
     UpgradeList = KFGUI_List(FindComponentID('Upgrades'));
-    SN = class'SentryUI_Network'.Static.GetNetwork(GetPlayer());
 
     Super.InitMenu();
-    P.InitMenu();
-
-    SN.TurretOwner.UpgradesObj.Refresh();
 }
 
 function ShowMenu()
 {
-    if(SN == None)
-        SN = class'SentryUI_Network'.Static.GetNetwork(GetPlayer());
     Super.ShowMenu();
-    UpgradeList.ChangeListSize(SN.TurretOwner.UpgradesObj.AvailableUpgrades.Length);
+
+    UObj = Owner.TurretOwner.UpgradesObj;
+    UObj.LocalMenu = Self;
+    UpdateListLength();
 
     SetTimer(0.5,true);
     Timer();
 }
 
-simulated function UpdateListLength()
+function UpdateListLength()
 {
-    UpgradeList.ChangeListSize(SN.TurretOwner.UpgradesObj.CalcAvailableUpgrades());
+    UpgradeList.ChangeListSize(UObj.AvailableUpgrades.Length);
+}
+
+function bool CanAffordUpgrade(int Index)
+{
+    return Owner.PlayerOwner.PlayerReplicationInfo.Score >= UObj.UpgradeInfos[Index].Cost;
 }
 
 function DrawUpgradeInfo( Canvas C, int Index, float YOffset, float Height, float Width, bool bFocus )
@@ -57,19 +55,18 @@ function DrawUpgradeInfo( Canvas C, int Index, float YOffset, float Height, floa
     local Texture2D UpgradeIcon;
 
     //convert index to reference an upgrade listed in dynamic array<int> AvailableUpgrades
-    Index = SN.TurretOwner.UpgradesObj.AvailableUpgrades[Index];
+    Index = UObj.AvailableUpgrades[Index];
 
     TempX = 0.f;
     TempY = YOffset + ItemSpacing / 2.0f;
-    IconSize = 0.f;
+    IconSize = Height - ItemSpacing - (ItemBorder * 2.0 * Height);
 
     // Initialize the Canvas
     C.Font = Owner.CurrentStyle.PickFont(Sc);
-    //C.SetDrawColor(255, 255, 255, 255);
 
     // Draw Item Background
     //C.SetPos(TempX, TempY);
-    if(!SN.CanAffordUpgrade(Index))
+    if(!CanAffordUpgrade(Index))
     {
         C.SetDrawColor(200,10,10, 255);
 
@@ -85,7 +82,7 @@ function DrawUpgradeInfo( Canvas C, int Index, float YOffset, float Height, floa
         //C.DrawTileStretched(SelectedPerkBackground, IconSize, IconSize, 0, 0, SelectedPerkBackground.GetSurfaceWidth(), SelectedPerkBackground.GetSurfaceHeight());
         //C.SetPos(TempX + IconSize - 1.0, YOffset + 7.0);
         C.SetPos(TempX, YOffset + 7.0);
-        C.DrawTileStretched(SelectedInfoBackground, Width - IconSize, Height - ItemSpacing - 14, 0, 0, SelectedInfoBackground.GetSurfaceWidth(), SelectedInfoBackground.GetSurfaceHeight());
+        C.DrawTileStretched(SelectedInfoBackground, Width, Height - ItemSpacing - 14, 0, 0, SelectedInfoBackground.GetSurfaceWidth(), SelectedInfoBackground.GetSurfaceHeight());
     }
     else
     {
@@ -94,21 +91,20 @@ function DrawUpgradeInfo( Canvas C, int Index, float YOffset, float Height, floa
         //C.DrawTileStretched(PerkBackground, IconSize, IconSize, 0, 0, PerkBackground.GetSurfaceWidth(), PerkBackground.GetSurfaceHeight());
         //C.SetPos(TempX + IconSize - 1.0, YOffset + 7.0);
         C.SetPos(TempX, YOffset + 7.0);
-        C.DrawTileStretched(InfoBackground, Width - IconSize, Height - ItemSpacing - 14, 0, 0, InfoBackground.GetSurfaceWidth(), InfoBackground.GetSurfaceHeight());
+        C.DrawTileStretched(InfoBackground, Width, Height - ItemSpacing - 14, 0, 0, InfoBackground.GetSurfaceWidth(), InfoBackground.GetSurfaceHeight());
     }
 
     // Offset and Calculate Icon's Size
     TempX += ItemBorder * Height;
     TempY += ItemBorder * Height;
-    IconSize = Height - ItemSpacing - (ItemBorder * 2.0 * Height);
-
+    
     // Draw Icon
-    C.DrawColor = SN.TurretOwner.UpgradesObj.UpgradeInfos[Index].DrawColor;
+    C.DrawColor = UObj.UpgradeInfos[Index].DrawColor;
     C.SetPos(TempX, TempY);
-    UpgradeIcon = SN.TurretOwner.UpgradesObj.UpgradeInfos[Index].Icon;
+    UpgradeIcon = UObj.UpgradeInfos[Index].Icon;
     C.DrawTileStretched(UpgradeIcon, IconSize, IconSize, 0, 0, UpgradeIcon.GetSurfaceWidth(), UpgradeIcon.GetSurfaceHeight());
 
-    C.TextSize(SN.TurretOwner.UpgradesObj.UpgradeInfos[Index].Title, TempWidth, TempHeight, Sc, Sc);
+    C.TextSize(UObj.UpgradeInfos[Index].Title, TempWidth, TempHeight, Sc, Sc);
 
     HeldY1 = TempY + (TextTopOffset * Height);
     TempX += IconSize + (IconToInfoSpacing * Width);
@@ -123,35 +119,35 @@ function DrawUpgradeInfo( Canvas C, int Index, float YOffset, float Height, floa
     // Draw the Upgrades Name
     //C.TextSize(SN.TurretOwner.UpgradesObj.UpgradeInfos[Index].Title, TempWidth, TempHeight, Sc, Sc);
     C.SetPos(TempX, TempY);
-    C.DrawText(SN.TurretOwner.UpgradesObj.UpgradeInfos[Index].Title,,Sc,Sc);
+    C.DrawText(UObj.UpgradeInfos[Index].Title,,Sc,Sc);
 
     TempY += HeldY2;
     //TempY += TempHeight + (0.05 * Height);
 
     // Draw the Upgrades Cost
-    C.TextSize(CostLabel $ SN.TurretOwner.UpgradesObj.UpgradeInfos[Index].Cost, TempWidth, TempHeight, Sc, Sc);
+    C.TextSize(CostLabel $ UObj.UpgradeInfos[Index].Cost, TempWidth, TempHeight, Sc, Sc);
     C.SetPos(TempX, TempY);
-    C.DrawText(CostLabel $ SN.TurretOwner.UpgradesObj.UpgradeInfos[Index].Cost,,Sc,Sc);
+    C.DrawText(CostLabel $ UObj.UpgradeInfos[Index].Cost,,Sc,Sc);
     
     ///Draw Desciption Text
     TempX = Width / 2.0f;
     TempY = HeldY1;
 
     C.Font = Owner.CurrentStyle.PickFont(Sc, FONT_NUMBER); //FONT_NUMBER corisponds to int 1 as an enum
-    C.TextSize(SN.TurretOwner.UpgradesObj.UpgradeInfos[Index].Description, TempWidth, TempHeight, Sc, Sc);
+    C.TextSize(UObj.UpgradeInfos[Index].Description, TempWidth, TempHeight, Sc, Sc);
     C.SetPos(TempX, TempY);
-    C.DrawText(SN.TurretOwner.UpgradesObj.UpgradeInfos[Index].Description,,Sc,Sc);
+    C.DrawText(UObj.UpgradeInfos[Index].Description,,Sc,Sc);
 }
 
 function ClickedUpgrade( int Index, bool bRight, int MouseX, int MouseY )
 {
-    if(Index >= 0)
+    local int TIndex;
+    TIndex = UObj.AvailableUpgrades[Index];
+    if(Index >= 0 && CanAffordUpgrade(TIndex))
     {
-        P = KFGUI_PurchasePopup(Owner.OpenMenu(class'KFGUI_PurchasePopup'));
+        P = UI_PurchasePopup(Owner.OpenMenu(class'UI_PurchasePopup'));
         if(P != None)
-        {
-            P.SetUpgrade(SN.TurretOwner.UpgradesObj.AvailableUpgrades[Index]);
-        }
+            P.SetUpgrade(TIndex);
     }
 }
 
@@ -183,12 +179,10 @@ function GetStyleTextures()
 
 defaultproperties
 {
-    IconBorder=0.05
     ItemBorder=0.11
     TextTopOffset=0.01
     ItemSpacing=0.0
     IconToInfoSpacing=0.05
-    ProgressBarHeight=0.25
     CostLabel="Cost: $"
     
     Begin Object Class=KFGUI_List Name=UpgradesList

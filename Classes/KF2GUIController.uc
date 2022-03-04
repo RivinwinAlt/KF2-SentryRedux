@@ -4,7 +4,6 @@ Class KF2GUIController extends Info
 var() class<GUIStyleBase> DefaultStyle;
 
 var PlayerController PlayerOwner;
-var KFHUDInterface HUDOwner;
 var transient KF2GUIInput CustomInput;
 var transient PlayerInput BackupInput;
 var transient GameViewportClient ClientViewport;
@@ -23,18 +22,14 @@ var transient GUIStyleBase CurrentStyle;
 
 var transient Console OrgConsole;
 var transient KFGUIConsoleHack HackConsole;
-//var transient ClientPerkRepLink ClientRep;
-
-var array<Texture2D> CursorTextures;
-var Color CursorColor;
-var int CurrentCursorIndex, CursorSize;
 
 var Texture DefaultPens[3];
-var byte CursorFlash;
 
 var bool bMouseWasIdle,bIsInMenuState,bAbsorbInput,bIsInvalid,bFinishedReplication,bUsingGamepad,bForceEngineCursor,bNoInputReset;
 
 var ObjectReferencer RepObject; //hacked in objectreferencer for direct referencing
+var ST_Base TurretOwner;
+var ST_SentryNetwork NetworkObj;
 
 static function KF2GUIController GetGUIController( PlayerController PC )
 {
@@ -65,12 +60,10 @@ simulated function PostBeginPlay()
 {
     PlayerOwner = PlayerController(Owner);
     ClientViewport = LocalPlayer(PlayerOwner.Player).ViewportClient;
-    HUDOwner = KFHUDInterface(PlayerOwner.myHUD);
     
     CurrentStyle = new (None) DefaultStyle;
     CurrentStyle.InitStyle();
     CurrentStyle.Owner = self;
-    CurrentStyle.HUDOwner = HUDOwner;
     
     SetTimer(0.25, true, 'SetupStyleTextures');
     SetupStyleTextures();
@@ -167,6 +160,11 @@ simulated function Destroyed()
 {
     if( PlayerOwner!=None )
         SetMenuState(false);
+}
+
+simulated function SetTurret(ST_Base T)
+{
+    TurretOwner = T;
 }
 
 simulated function HandleDrawMenu()
@@ -544,14 +542,6 @@ simulated function PopCloseMenu( KFGUI_Base Item )
 
     if( Item==None )
         return;
-    /* 
-    if( Item.bIsHUDWidget )
-    {
-        HUDOwner.HUDWidgets.RemoveItem(Item);
-        Item.CloseMenu();
-        return;
-    }
-    */
     
     if( KeyboardFocus!=None )
         GrabInputFocus(None);
@@ -862,10 +852,6 @@ simulated Delegate bool InternalReceivedInputChar( int ControllerId, string Unic
 defaultproperties
 {
     RepObject=ObjectReferencer'tf2sentry.ObjectRef.MainObj_List'
-
-    CursorSize=32
-    CursorColor=(R=255,G=255,B=255,A=255)
-    CurrentCursorIndex=`CURSOR_DEFAULT
     
     DefaultStyle=class'ClassicStyle'
     bAbsorbInput=true

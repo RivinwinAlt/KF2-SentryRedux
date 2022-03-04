@@ -4,7 +4,6 @@ var() float EdgeSize[4]; // Pixels wide for edges (left, top, right, bottom).
 var() float HeaderSize[2]; // Pixels wide for edges (left, top).
 var() Texture FrameTex;
 var() bool bDrawHeader,bHeaderCenter,bUseLegacyDrawTile,bDrawBackground;
-var() float FontScale;
  
 function InitMenu()
 {
@@ -30,8 +29,9 @@ function DrawMenu()
 
 delegate OnDrawFrame(Canvas C, float W, Float H)
 {
-    local float T,XL,YL,HeaderH;
+    local float FontScale,XL,YL,HeaderH;
     local FontRenderInfo FRI;
+    local int XS,YS;
     
     if( FrameTex == None )
     {
@@ -51,21 +51,21 @@ delegate OnDrawFrame(Canvas C, float W, Float H)
    
     if( bDrawHeader && WindowTitle!="" )
     {
+        XS = Canvas.ClipX-Canvas.OrgX;
+        YS = Canvas.ClipY-Canvas.OrgY;
+
         FRI.bClipText = true;
         FRI.bEnableShadow = true;
     
-        C.Font = Owner.CurrentStyle.MainFont;
-        T = Owner.CurrentStyle.ScreenScale(FontScale);
+        C.Font = Owner.CurrentStyle.PickFont(FontScale, FONT_NAME);
+        FontScale *= 0.8f;
         
-        C.SetDrawColor(250,250,250,FrameOpacity);
-        C.TextSize(WindowTitle, XL, YL, T, T);
-        
+        C.SetDrawColor(240,240,240,FrameOpacity);
+        C.TextSize(WindowTitle, XL, YL, FontScale, FontScale);
         HeaderH = EdgeSize[1]-HeaderSize[1];
-        if( bHeaderCenter )
-            C.SetPos((W/2) - (XL/2),(HeaderH/2) - (YL/2));
-        else C.SetPos(HeaderSize[0],(HeaderH/2) - (YL/2));
+        C.SetPos((W - XL) / 2.0f,(HeaderH - YL) / 2.0f);
         
-        C.DrawText(WindowTitle,,T,T,FRI);
+        C.DrawText(WindowTitle,,FontScale,FontScale,FRI);
     }
 }
  
@@ -115,7 +115,6 @@ defaultproperties
     bUseLegacyDrawTile=true
     bDrawBackground=true
     
-    FontScale=0.35f
     FrameOpacity=255
     
     HeaderSize(0)=26.f

@@ -22,9 +22,13 @@ static final function SentryOverlay GetOverlay(PlayerController PC)
 	{
 		S = SentryOverlay(I);
 		if(S != None)
+		{
+			`log("STOverlay: Found existing Overlay object");
 			return S;
+		}
 	}
 	// If there isnt one create it
+	`log("STOverlay: Creating New Overlay object");
 	S = new (PC) class'SentryOverlay';
 	S.LocalPC = PC;
 	PC.Interactions.AddItem(S);

@@ -11,7 +11,6 @@ var() byte MaxFontScale;
 var float DefaultHeight; // Default font text size.
 var transient Canvas Canvas;
 var transient KF2GUIController Owner;
-var transient KFHUDInterface HUDOwner;
 
 var Font MainFont, NumberFont, InfiniteFont, NameFont;
 var Color BlurColor, BlurColor2, CursorColor;
@@ -19,6 +18,9 @@ var Color BlurColor, BlurColor2, CursorColor;
 var int CurrentCursorIndex, CursorSize;
 var CanvasIcon CursorIcon;
 var bool bCursorInitialized;
+
+var float ScaledBorderSize;
+const BaseBorderSize = 3;
 
 enum FFontType
 {
@@ -138,11 +140,13 @@ function InitStyle()
     ColorInfo.Code='M';
     ColorInfo.Color = MakeColor(18,18,18,255); // Black
     ColorCodes.AddItem(ColorInfo);
+
+
 }
 
 function RenderFramedWindow( KFGUI_FloatingWindow P );
 function RenderWindow( KFGUI_Page P );
-function RenderBuyConfirmation( KFGUI_PurchasePopup P );
+function RenderBuyConfirmation( UI_PurchasePopup P );
 function RenderToolTip( KFGUI_Tooltip TT );
 function RenderButton( KFGUI_Button B );
 function RenderScrollBar( KFGUI_ScrollBarBase S );
@@ -151,6 +155,7 @@ function RenderRightClickMenu( KFGUI_RightClickMenu C );
 function RenderCheckbox( KFGUI_CheckBox C );
 function RenderComboBox( KFGUI_ComboBox C );
 function RenderComboList( KFGUI_ComboSelector C );
+function RenderTextField( KFGUI_TextField T );
 
 function DrawCursor(int X, int Y)
 {
@@ -165,7 +170,9 @@ function DrawCursor(int X, int Y)
 
 function Font PickFont( out float Scaler, optional FFontType FontType )
 {
-    Scaler = GetFontScaler();
+    if(ScaledBorderSize < 1.0f)
+        ScaledBorderSize = FMax(ScreenScale(BaseBorderSize), 1.f);
+    Scaler = GetFontScaler(0.6f);
     
     switch(FontType)
     {
@@ -194,11 +201,11 @@ function PickDefaultFontSize( float YRes )
 }
 final function float ScreenScale( float Size, optional float MaxRes=1080.f )
 {
-    return Size * ( HUDOwner.SizeY / MaxRes );
+    return Size * ( Canvas.SizeY / MaxRes );
 }
-final function float GetFontScaler( optional float Scaler=1.0f, optional float Min=0.5f, optional float Max=1.5f )
+final function float GetFontScaler( optional float Scaler=1.0f, optional float Min=0.3f, optional float Max=1.5f )
 {
-    return FClamp((HUDOwner.SizeY / 1080.f) * Scaler, Min, Max);
+    return FClamp((Canvas.SizeY / 1080.f) * Scaler, Min, Max);
 }
 final function DrawText( coerce string S )
 {
@@ -378,10 +385,10 @@ final function DrawTexturedString( coerce string S, float X, float Y, optional f
         Canvas.DrawColor = class'HUD'.default.WhiteColor;
         Canvas.DrawColor.A = OrgC.A;
         
-        Canvas.SetPos(X,Y+(Owner.HUDOwner.ScaledBorderSize/2));
-        Canvas.DrawRect(YL-Owner.HUDOwner.ScaledBorderSize,YL-Owner.HUDOwner.ScaledBorderSize,Mat);
+        Canvas.SetPos(X,Y+(ScaledBorderSize/2));
+        Canvas.DrawRect(YL-ScaledBorderSize,YL-ScaledBorderSize,Mat);
         
-        X += YL-Owner.HUDOwner.ScaledBorderSize;
+        X += YL-ScaledBorderSize;
         
         Canvas.DrawColor = OrgC;
         Mat = FindNextTexture(S);

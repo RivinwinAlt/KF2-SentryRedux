@@ -108,7 +108,7 @@ function DrawToolTip()
     Canvas.Font = Owner.CurrentStyle.PickFont(Scalar);
     Canvas.TextSize(S,XL,YL,Scalar,Scalar);
     
-    CursorSize = Owner.CurrentStyle.ScreenScale(Owner.CursorSize);
+    CursorSize = Owner.CurrentStyle.ScreenScale(Owner.CurrentStyle.CursorSize);
     X = Owner.MousePosition.X+CursorSize;
     Y = Owner.MousePosition.Y+CursorSize;
     BoxW = XL * 1.05f;

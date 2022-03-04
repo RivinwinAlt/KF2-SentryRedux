@@ -4,7 +4,8 @@ Functions herein must be 'static' and only use passed values. Static functions t
 still be held in the associated class.
 */
 
-Class STHelper extends Actor;
+Class STHelper extends Object
+    dependson(ST_Upgrades_Base);
 
 var string OneThousandSuffix, OneMillionSuffix, DecimalPoint;
 
@@ -22,6 +23,19 @@ static final function string FormatNumber(int Value)
     }
 
     return string(Value / 1000000) $ "." $ string((Value % 1000000) / 100000) $ default.OneMillionSuffix;
+}
+
+static final function string UpgradeIntToBinary(int Value)
+{
+    local int i;
+    local string str;
+
+    for(i = TotalUpgrades - 2; i >= 0; i--)
+    {
+        str $= ((Value & (1 << i)) > 0 ? "1" : "0");
+    }
+
+    return str;
 }
 
 static final function string FormatPercent(coerce float Lower, coerce float Upper)
