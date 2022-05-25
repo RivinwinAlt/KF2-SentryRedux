@@ -56,9 +56,18 @@ function EmptyList()
 
 function InitMenu()
 {
+    local int i;
+
     Super.InitMenu();
     ListCount = 0;
     NumColumns = Max(NumColumns,1);
+    
+    for( i=0; i<ItemComponents.Length; ++i )
+    {
+        ItemComponents[i].Owner = Owner;
+        ItemComponents[i].ParentComponent = Self;
+        ItemComponents[i].InitMenu();
+    }
 }
 
 function DrawMenu()
@@ -66,8 +75,7 @@ function DrawMenu()
     if( bDrawBackground )
     {
         Canvas.SetDrawColor(250,250,250,255);
-        Canvas.SetPos(0.f,0.f);
-        Canvas.DrawTileStretched(Owner.CurrentStyle.BorderTextures[`BOX_INNERBORDER],CompPos[2],CompPos[3],0,0,128,128);
+        Owner.CurrentStyle.DrawTileStretched(Owner.CurrentStyle.BorderTextures[`BOX_INNERBORDER], 0, 0, CompPos[2], CompPos[3]);
     }
 }
 

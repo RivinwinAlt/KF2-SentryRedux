@@ -1,7 +1,7 @@
 class KFGUI_ProgressBar extends KFGUI_Base;
 
-var Texture BarBack;
-var Texture BarTop;
+var Texture2D BarBack;
+var Texture2D BarTop;
 var Color BarColor;
 var float Low;
 var float High;

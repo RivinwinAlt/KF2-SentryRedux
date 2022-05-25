@@ -73,11 +73,12 @@ final function ParseTextLines()
     Lines.Length = SA.Length;
     C.A = 0;
     TextType = TEXT_FIELD_NONE;
-    for( i=0; i<SA.Length; ++i )
+    //for( i=0; i<SA.Length; ++i )
+    foreach SA(S, i)
     {
         Lines[i].Text.Length = 0;
         
-        S = SA[i];
+        //S = SA[i];
         if( S=="" )
             continue;
         
@@ -199,34 +200,32 @@ function InitSize()
         if( ScrollBar==None )
         {
             ScrollBar = new(Self) class'KFGUI_ScrollBarV';
-            ScrollBar.SetPosition(0.9,0.0,0.1,1.0);
+            ScrollBar.SetPosition(0.0,0.0,1.0,1.0);
             ScrollBar.Owner = Owner;
             ScrollBar.ParentComponent = Self;
             ScrollBar.InitMenu();
             ScrollBar.SetVisibility(bVisible);
+            Components.AddItem(ScrollBar);
         }
         
         // Compute scrollbar size and X-position.
         for( i=0; i<4; ++i )
             ScrollBar.InputPos[i] = CompPos[i];
-        ScrollWidth = ScrollBar.GetWidth();
-        ScrollBar.XPosition = 1.f - ScrollWidth;
-        ScrollWidth *= CompPos[2];
-
         ScrollBar.ComputeCoords();
+
+        CompPos[2] -= ScrollBar.CompPos[2] * 1.5f;
 
         // Recompute line sizes because we now have a scrollbar.
         Lines = OrgLines;
-        ParseLines((CompPos[2]-ScrollWidth) / InitFontScale);
+        ParseLines(CompPos[2] / InitFontScale);
 
-        if( Components.Find(ScrollBar)==-1 )
-            Components.AddItem(ScrollBar);
         MaxHeight = (Lines.Length * TextHeight);
         MaxScrollRange = Max(((MaxHeight-CompPos[3])/TextHeight),1);
         ScrollBar.UpdateScrollSize(bNoReset ? MaxScrollRange : 0,MaxScrollRange,1,1);
     }
-    else if( ScrollBar!=None )
-        Components.RemoveItem(ScrollBar);
+    /*else if( ScrollBar!=None )
+        Components.RemoveItem(ScrollBar); // Just why?
+    */
 }
 
 // Parse textlines to see if they're too long.
@@ -322,17 +321,10 @@ final function string StripWhiteSpaces( string S )
     return S;
 }
 
-function byte GetCursorStyle()
-{
-    return `PEN_WHITE;
-}
-
 function DrawMenu()
 {
     local int i,j,Index;
     local float Y;
-
-    Owner.CurrentStyle.RenderTextField(Self);
 
     if( Text=="" || !bVisible )
         return;
@@ -484,8 +476,8 @@ defaultproperties
     MaxHistory=0
     OutlineSize=1
     Text="TextField"
-    TextColor=(R=255,G=255,B=255,A=255)
-    TextFontInfo=(bClipText=true,bEnableShadow=true)
+    TextColor=(R=236,G=227,B=203,A=255)
+    TextFontInfo=(bClipText=true,bEnableShadow=false)
     bCanFocus=false
     bClickable=false
     bUseOutlineText=false

@@ -13,7 +13,7 @@ var enum eScaleStyle
 } ScaleStyle;
 
 var Color ImageColor;
-var Texture Image;
+var Texture2D Image;
 var bool bAlignCenter, bForceUniformSize;
 var int X1,Y1,X2,Y2;
 var float ImageScale;

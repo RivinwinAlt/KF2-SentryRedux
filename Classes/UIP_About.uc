@@ -1,41 +1,24 @@
 Class UIP_About extends KFGUI_MultiComponent;
 
-var KFGUI_TextField TF;
+var UIR_CreditsContainer CreditsBox;
 
 function InitMenu()
 {
-    TF = KFGUI_TextField(FindComponentID('AboutText'));
+    CreditsBox = UIR_CreditsContainer(FindComponentID('CrditsBoxID'));
+
     Super.InitMenu();
-
-    TF.SetText(BuildCreditsString());
-}
-
-function string BuildCreditsString()
-{
-    local string str;
-
-    str = "  Credits:";
-    str $= "|Marco - Original creator of TF2 Sentry and Server Extension mods";
-    str $= "|Commander Comrade Slav - Maintains TF2 Sentry mod workshop item";
-    str $= "|Forrest Mark X - Provided customized menu code from KFClassicMode";
-    str $= "|Rivinwin - Primary programmer, menu asset creation";
-    str $= "|Rowdy Howdy - Creative coordinator and beta tester";
-    str $= "|Dragontear - Custom wrench animations";
-    str $= "|Jasper - Aided in extracting assets from TF2 and creating KF2 weapon assets";
-
-    return str;
 }
 
 defaultproperties
 {
-    Begin Object Class=KFGUI_TextField Name=AboutText
-    ID="AboutText"
-        XPosition=0.0
-        YPosition=0.0
-        XSize=1.0
-        YSize=1.08
-        Text="Credits from function"
+    Begin Object Class=UIR_CreditsContainer Name=CreditsField
+        ID="CrditsBoxID"
+        XPosition=0.0f
+        YPosition=0.0f
+        XSize=1.0f
+        YSize=0.5f
+        WindowTitle="Credits"
     End Object
-    
-    Components.Add(AboutText)
+
+    Components.Add(CreditsField)
 }

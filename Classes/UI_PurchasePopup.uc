@@ -8,15 +8,17 @@ struct FPageInfo
 
 var transient int NumButtons;
 
-var Color ButtonTextColor;
 var int UpgradeIndex;
 var string UpgradeDescription;
+var UIR_PurchaseDesc DescriptionBox;
 
 var ST_Upgrades_Base UObj;
 
 function InitMenu()
 {
 	Super(KFGUI_Page).InitMenu();
+
+	DescriptionBox = UIR_PurchaseDesc(FindComponentID('DescriptionField'));
 	
 	AddMenuButton('Confirm',"Confirm","Finalize the purchase");
 	AddMenuButton('Cancel',"Cancel","Cancel purchase");
@@ -36,29 +38,6 @@ function ShowMenu()
 	Super.ShowMenu();
 	
 	PlayMenuSound(MN_DropdownChange);
-	
-	Timer();
-	SetTimer(0.5,true);
-}
-
-function DrawMenu()
-{
-	local float TempSize;
-	
-	if( bUseAnimation )
-	{
-		TempSize = `TimeSinceEx(GetPlayer(), OpenStartTime);
-		if ( WindowFadeInTime - TempSize > 0 && FrameOpacity != default.FrameOpacity )
-			FrameOpacity = (1.f - ((WindowFadeInTime - TempSize) / WindowFadeInTime)) * default.FrameOpacity;
-	}
-	
-	Owner.CurrentStyle.RenderBuyConfirmation(Self);
-	
-	if( HeaderComp!=None )
-	{
-		HeaderComp.CompPos[3] = Owner.CurrentStyle.DefaultHeight;
-		HeaderComp.YSize = HeaderComp.CompPos[3] / CompPos[3]; // Keep header height fit the window height.
-	}
 }
 
 function ButtonClicked( KFGUI_Button Sender )
@@ -80,15 +59,14 @@ final function KFGUI_Button AddMenuButton( name ButtonID, string Text, optional 
 	
 	B = new (Self) class'KFGUI_Button';
 	B.ButtonText = Text;
-	B.TextColor = ButtonTextColor;
 	B.ToolTip = ToolTipStr;
 	B.OnClickLeft = ButtonClicked;
 	B.OnClickRight = ButtonClicked;
 	B.ID = ButtonID;
-	B.XPosition = 0.05+NumButtons*0.5;
+	B.XPosition = NumButtons*0.6;
 	B.XSize = 0.4;
-	B.YPosition = 0.7;
-	B.YSize = 0.25;
+	B.YPosition = 0.8;
+	B.YSize = 0.2;
 
 	NumButtons++;
 	
@@ -100,19 +78,33 @@ function SetUpgrade(int Index)
 {
 	UObj = Owner.TurretOwner.UpgradesObj;
 	UpgradeIndex = Index;
-	UpgradeDescription = UObj.UpgradeInfos[Index].Description;
+	DescriptionBox.TF.SetText(UObj.UpgradeInfos[Index].Description);
 }
 
 defaultproperties
 {
 	WindowTitle="Confirm Upgrade Purchase"
-	XPosition=0.4
-	YPosition=0.4
+	XPosition=0
+	YPosition=0
 	XSize=0.2
 	YSize=0.2
-
-	ButtonTextColor=(R=240, G=240, B=240, A=255)
 	
 	bAlwaysTop=true
 	bOnlyThisFocus=true
+	bCenterCoords=true
+
+	EdgeSizes(0)=20 // X-Border
+    EdgeSizes(1)=20 // Y-Border
+    EdgeSizes(2)=20 // Header Room
+
+	Begin Object Class=UIR_PurchaseDesc Name=DescField
+        ID="DescriptionField"
+        XPosition=0.0
+        YPosition=0.0
+        XSize=1.0
+        YSize=0.75
+        WindowTitle=""
+    End Object
+
+    Components.Add(DescField)
 }

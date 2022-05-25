@@ -1,11 +1,11 @@
 class ST_SentryNetwork extends ReplicationInfo
 	dependson(ST_Upgrades_Base); // Gives access to upgrade enums;
 
-var repnotify ST_Base TurretOwner;
+var repnotify ST_Turret_Base TurretOwner;
 var repnotify PlayerController PlayerOwner;
 
 var transient byte SendIndex;
-var transient KF2GUIController GUIController;
+var transient ST_GUIController GUIController;
 var transient bool bWasInitAlready, bActiveTimer;
 
 replication
@@ -37,8 +37,27 @@ static final function ST_SentryNetwork GetNetwork( PlayerController PC)
 		break;
 	if(SN == None)
 		SN = PC.Spawn(class'ST_SentryNetwork', PC);
+	SN.PlayerOwner = PC;
 
 	return SN;
+}
+
+simulated reliable client function IncrementTurretCount()
+{
+	local ST_GUIController GC;
+
+	GC = class'ST_GUIController'.static.GetGUIController(PlayerOwner);
+	if(GC != none)
+		GC.NumTurrets++;
+}
+
+simulated reliable client function DecrementTurretCount()
+{
+	local ST_GUIController GC;
+
+	GC = class'ST_GUIController'.static.GetGUIController(PlayerOwner);
+	if(GC != none)
+		GC.NumTurrets--;
 }
 
 simulated reliable client function ClientOpenMenu()
@@ -46,7 +65,7 @@ simulated reliable client function ClientOpenMenu()
 	if(WorldInfo.NetMode != NM_Client)
 		return;
 	if( GUIController==None )
-		GUIController = Class'KF2GUIController'.Static.GetGUIController(PlayerOwner);
+		GUIController = Class'ST_GUIController'.Static.GetGUIController(PlayerOwner);
 	GUIController.TurretOwner = TurretOwner;
 	GUIController.NetworkObj = Self;
 	GUIController.OpenMenu(class'UI_SentryMenu');
@@ -57,14 +76,13 @@ simulated reliable client function ClientCloseMenu()
 	if(WorldInfo.NetMode != NM_Client)
 		return;
 	if( GUIController==None )
-		GUIController = Class'KF2GUIController'.Static.GetGUIController(PlayerOwner);
+		GUIController = Class'ST_GUIController'.Static.GetGUIController(PlayerOwner);
 	GUIController.CloseMenu(none, true); // Closes all open menus
 }
 
-function SetInfo( ST_Base T, PlayerController PC)
+function SetInfo( ST_Turret_Base T, PlayerController PC)
 {
 	TurretOwner = T;
-	PlayerOwner = PC;
 	if(Owner != PC)
 	{
 		SetOwner(PC);

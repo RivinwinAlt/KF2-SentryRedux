@@ -45,8 +45,15 @@ function PreDraw()
 {
     // Auto scale to match width to screen size.
     if( bVertical )
+    {
         XSize = GetWidth();
-    else YSize = GetWidth();
+        XPosition = 1.0f - XSize; // Right justify
+    }
+    else
+    {
+        YSize = GetWidth();
+        YPosition = 1.0f - YSize; // Bottom justify
+    }
     Super.PreDraw();
 }
 function DrawMenu()

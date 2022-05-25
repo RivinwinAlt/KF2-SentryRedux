@@ -1,19 +1,5 @@
 `define BOX_INNERBORDER 					0
-`define	BOX_INNERBORDER_TRANSPARENT 		1
-`define	BOX_MEDIUM 							2
-`define	BOX_MEDIUM_SLIGHTTRANSPARENT 		3
-`define	BOX_MEDIUM_TRANSPARENT 				4
-`define	BOX_LARGE 							5
-`define	BOX_LARGE_SLIGHTTRANSPARENT 		6
-`define	BOX_LARGE_TRANSPARENT 				7
-`define	BOX_SMALL 							8
-`define	BOX_SMALL_SLIGHTTRANSPARENT 		9
-`define	BOX_SMALL_TRANSPARENT				10
-`define	BOX_CORNER_8						11
-`define	BOX_CORNER_16						12
-`define	BOX_CORNER_32						13
-`define	BOX_CORNER_64						14
-`define	BOX_CORNER_512						15
+`define	BOX_SMALL 							1
 
 `define ITEMBOX_NORMAL		0
 `define ITEMBOX_DISABLED	1
@@ -30,9 +16,6 @@
 `define CHECKMARK_DISABLED		1
 `define CHECKMARK_HIGHLIGHTED	2
 
-`define PERK_BOX_SELECTED	0
-`define PERK_BOX_UNSELECTED	1
-
 `define	ARROW_DOWN		0
 `define	ARROW_LEFT		1
 `define	ARROW_RIGHT		2
@@ -44,11 +27,6 @@
 `define	BUTTON_PRESSED			3
 
 `define	TAB_TOP			0
-`define	TAB_BOTTOM		1
-
-`define PEN_WHITE	0
-`define PEN_BLACK	1
-`define PEN_GRAY	2
 
 `define SLIDER_NORMAL 	0
 `define SLIDER_GRIP		1
@@ -59,4 +37,14 @@
 `define CURSOR_RESIZEVERT	2
 `define CURSOR_RESIZEHORZ 	3
 
-`define Print(log) LocalPlayer(class'WorldInfo'.static.GetWorldInfo().GetALocalPlayerController().Player).ViewportClient.ViewportConsole.OutputText(`log)
+`define ICON_DEFAULT		0
+`define ICON_AMMO_BULLETS	1
+`define ICON_AMMO_ROCKET	2
+`define ICON_LEVEL_1		3
+`define ICON_LEVEL_2		4
+`define ICON_LEVEL_3		5
+
+`define TMODE_ANY		0
+`define TMODE_STRONG	1
+`define TMODE_WEAK		2
+`define TMODE_RANGED	3

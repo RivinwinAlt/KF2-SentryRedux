@@ -7,7 +7,7 @@ var() float ItemSpacing;
 var() float TextTopOffset;
 
 var string OwnerString, HealthString, ValueString;
-var Texture ItemBackground;
+var Texture2D ItemBackground;
 var float UpdatePeriod;
 
 var ST_Upgrades_Base UObj;
@@ -36,7 +36,7 @@ function RefreshStats()
 		{
 			OwnerString = "Owner: " $ Owner.TurretOwner.GetOwnerName();
 			HealthString = Owner.TurretOwner.GetHealth() $ " ( " $ Owner.TurretOwner.Health $ " / " $ Owner.TurretOwner.HealthMax $ " )";
-			ValueString = "Value: $" $ class'STHelper'.static.FormatNumber(Owner.TurretOwner.SentryWorth);
+			ValueString = "Value: $" $ class'ST_StaticHelper'.static.FormatNumber(Owner.TurretOwner.SentryWorth);
 			
 			InfoList.SetText(OwnerString $ "|" $ HealthString $ "|" $ ValueString);
 		}

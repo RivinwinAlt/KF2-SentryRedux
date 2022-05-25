@@ -3,7 +3,7 @@ class KFWeapDef_EngWrench extends KFWeaponDefinition
 
 defaultproperties
 {
-   WeaponClassPath = "SentryRemake.KFWeap_EngWrench"
+   WeaponClassPath = "SentryRedux.KFWeap_EngWrench"
    
    BuyPrice = 500
    AmmoPricePerMag = 85
