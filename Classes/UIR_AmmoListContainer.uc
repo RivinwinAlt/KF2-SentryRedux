@@ -2,13 +2,12 @@ Class UIR_AmmoListContainer extends KFGUI_Frame;
 
 var KFGUI_List AmmoList;
 var byte CurrentPerkLevel;
-var Color ButtonTextColor;
 var KFGUI_Button BuyButtons[6];
 var int BuyAmount[6];
 
-var float ItemBorder;
+var float ItemBorder, GridBorder, ItemPadding;
 
-var Texture AmmoBackground;
+var Texture2D AmmoBackground[2];
 
 function InitMenu()
 {
@@ -38,56 +37,51 @@ function bool HasAmmo(int Index)
 
 function DrawAmmoInfo( Canvas C, int Index, float YOffset, float Height, float Width, bool bFocus )
 {
-	local float TempX, TempY, GridX, GridY, CellW, CellH;
+	local float TempX, TempY, GridX, GridY, CellW, CellH, GridH;
 	local float IconSize;
 	local float TempWidth, TempHeight;
 	local float Sc;
 	local string TempStr;
-	local Texture2D AmmoIcon;
 
 	// Dont render for disabled ammo types
 	if(!AmmoTypeEnabled(Index))
 		return;
 
+	// Set up alignment grid
 	GridX = Height;
-	GridY = YOffset + 7.0f;
+	GridY = YOffset + ItemPadding;
+	GridH = (Height - ItemPadding * 2.0f);
 	CellW = (Width - GridX) / 4; // 4 Cells wide
-	CellH = (Height - 14.0f) / 2; // 2 cells high
+	CellH = GridH / 2.0f; // 2 cells high
 
-	TempX = 0.f;
+	TempX = 0.f; // Might need to make this =ItemPadding
 	TempY = GridY;
-	IconSize = Height - (ItemBorder * 2.0 * Height);
+	IconSize = GridH - (ItemBorder * 2.0f * GridH); // scale icon down within the list item
 
 	// Initialize the Canvas
 	C.Font = Owner.CurrentStyle.PickFont(Sc);
 
 	// Draw Item Background
-	//C.SetPos(TempX, TempY);
+	C.SetDrawColor(255,255,255, 255);
 	if(!HasAmmo(Index))
 	{
-		C.SetDrawColor(200,10,10, 255);
-		C.SetPos(TempX, YOffset + 7.0f);
-		C.DrawTileStretched(AmmoBackground, Width, Height - 14.0f, 0, 0, AmmoBackground.GetSurfaceWidth(), AmmoBackground.GetSurfaceHeight());
+		Owner.CurrentStyle.DrawTileStretched(AmmoBackground[0], TempX, TempY, Width, GridH);
 	}
 	else
 	{
-		C.SetDrawColor(220,220,220, 255);
-		C.SetPos(TempX, YOffset + 7.0f);
-		C.DrawTileStretched(AmmoBackground, Width, Height - 14.0f, 0, 0, AmmoBackground.GetSurfaceWidth(), AmmoBackground.GetSurfaceHeight());
+		Owner.CurrentStyle.DrawTileStretched(AmmoBackground[1], TempX, TempY, Width, GridH);
 	}
 
 	// Offset and Calculate Icon's Size
-	TempX += ItemBorder * Height;
-	TempY += ItemBorder * Height;
+	TempX += ItemBorder * GridH;
+	TempY += ItemBorder * GridH;
 
 	// Draw Icon
 	C.DrawColor = Owner.TurretOwner.UpgradesObj.AmmoInfos[Index].DrawColor;
-	C.SetPos(TempX, TempY);
-	AmmoIcon = Owner.TurretOwner.UpgradesObj.AmmoInfos[Index].Icon;
-	C.DrawTileStretched(AmmoIcon, IconSize, IconSize, 0, 0, AmmoIcon.GetSurfaceWidth(), AmmoIcon.GetSurfaceHeight());
+	Owner.CurrentStyle.DrawLibraryIcon(Owner.TurretOwner.UpgradesObj.AmmoInfos[Index].IconIndex, TempX, TempY, IconSize, IconSize);
 
 	// Select Text Color
-	C.SetDrawColor(220, 220, 220, 255);
+	C.SetDrawColor(236,227,203,255);
 
 	// Draw the Current Ammo and Max
 	C.TextSize(Owner.TurretOwner.AmmoCount[Index] $ " / " $ Owner.TurretOwner.MaxAmmoCount[Index], TempWidth, TempHeight, Sc, Sc);
@@ -99,27 +93,29 @@ function DrawAmmoInfo( Canvas C, int Index, float YOffset, float Height, float W
 	// Draw cost for partial ammo
 	TempStr = "$" $ BuyAmount[Index * 2] * Owner.TurretOwner.UpgradesObj.AmmoInfos[Index].CostPerRound;
 	C.TextSize(TempStr, TempWidth, TempHeight, Sc, Sc);
-	TempX = GridX + (CellW * 2) + ((CellW - TempWidth) / 2); // Coord position 2,1 of the grid
-	TempY = GridY + CellH + ((CellH - TempHeight) / 2);
+	TempX = GridX + (CellW * 2.0f) + ((CellW - TempWidth) / 2.0f); // Coord position 2,1 of the grid
+	TempY = GridY + CellH + ((CellH - TempHeight) / 2.0f);
 	C.SetPos(TempX, TempY);
 	C.DrawText(TempStr,,Sc,Sc);
 	
 	// Draw cost to fill ammo
 	TempStr = "$" $ BuyAmount[(Index * 2) + 1] * Owner.TurretOwner.UpgradesObj.AmmoInfos[Index].CostPerRound;
 	C.TextSize(TempStr, TempWidth, TempHeight, Sc, Sc);
-	TempX = GridX + (CellW * 3) + ((CellW - TempWidth) / 2); // Coord position 3,1 of the grid
-	TempY = GridY + CellH + ((CellH - TempHeight) / 2);
+	TempX = GridX + (CellW * 3.0f) + ((CellW - TempWidth) / 2.0f); // Coord position 3,1 of the grid
+	TempY = GridY + CellH + ((CellH - TempHeight) / 2.0f);
 	C.SetPos(TempX, TempY);
 	C.DrawText(TempStr,,Sc,Sc);
 
 	// Buttons
 	if(BuyButtons[Index * 2] == none)
 	{
-		TempX = (GridX + (CellW * 2)) / AmmoList.CompPos[2];
-		TempY = GridY / AmmoList.CompPos[3];
-		BuyButtons[Index * 2] = AddButton(Index * 2, TempX, TempY, CellW / AmmoList.CompPos[2], CellH / AmmoList.CompPos[3]); // X Y W H
-		TempX = (GridX + (CellW * 3)) / AmmoList.CompPos[2];
-		BuyButtons[(Index * 2) + 1] = AddButton((Index * 2) + 1, TempX, TempY, CellW / AmmoList.CompPos[2], CellH / AmmoList.CompPos[3]); // X Y W H
+		TempX = ((GridX + (CellW * 2.0f)) / AmmoList.CompPos[2]) + GridBorder / AmmoList.CompPos[2];
+		TempY = (GridY / AmmoList.CompPos[3]) + GridBorder / AmmoList.CompPos[3];
+		TempWidth = (CellW / AmmoList.CompPos[2]) - (GridBorder * 2.0f) / AmmoList.CompPos[2];
+		TempHeight = (CellH / AmmoList.CompPos[3]) - (GridBorder * 2.0f) / AmmoList.CompPos[3];
+		BuyButtons[Index * 2] = AddButton(Index * 2, TempX, TempY, TempWidth, TempHeight); // X Y W H
+		TempX += CellW / AmmoList.CompPos[2]; // Move one cell to the right
+		BuyButtons[(Index * 2) + 1] = AddButton((Index * 2) + 1, TempX, TempY, TempWidth, TempHeight); // X Y W H
 	}
 }
 
@@ -158,7 +154,8 @@ function GetStyleTextures()
 		return;
 	}
 	
-	AmmoBackground = Owner.CurrentStyle.ItemBoxTextures[`ITEMBOX_NORMAL];
+	AmmoBackground[0] = Owner.CurrentStyle.ItemBoxTextures[`ITEMBOX_BAR_HIGHLIGHTED];
+	AmmoBackground[1] = Owner.CurrentStyle.ItemBoxTextures[`ITEMBOX_BAR_NORMAL];
 	
 	AmmoList.OnDrawItem = DrawAmmoInfo;
 	
@@ -240,7 +237,6 @@ final function KFGUI_Button AddButton(int ButtonIndex, float X, float Y, float W
 		break;
 	}
 	
-	B.TextColor = ButtonTextColor;
 	ToolTipStr = "Buy Ammo";
 	B.ToolTip = ToolTipStr;
 	B.OnClickLeft = ButtonClicked;
@@ -256,9 +252,9 @@ final function KFGUI_Button AddButton(int ButtonIndex, float X, float Y, float W
 
 defaultproperties
 {
-	ItemBorder=0.11
-
-	ButtonTextColor=(R=240, G=240, B=240, A=255)
+	ItemPadding=7.0f // In pixels
+	ItemBorder=0.1f
+	GridBorder=5.0f // Ratio of container dimensions
 
 	Begin Object Class=KFGUI_List Name=AmmoList
 		ID="AmmoL"

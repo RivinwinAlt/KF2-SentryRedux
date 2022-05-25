@@ -112,7 +112,7 @@ function bool CaptureMouse()
 defaultproperties
 {
     Text="Label"
-    TextColor=(R=255,G=255,B=255,A=255)
+    TextColor=(R=236,G=227,B=203,A=255)
     TextFontInfo=(bClipText=false,bEnableShadow=true)
     FontScale=1.f
     OutlineSize=1

@@ -13,8 +13,6 @@ var() array<FPageInfo> Pages;
 var transient KFGUI_Button PrevButton;
 var transient int NumButtons,NumButtonRows;
 
-var Color ButtonTextColor;
-
 function InitMenu()
 {
     local int i;
@@ -89,22 +87,16 @@ final function KFGUI_Button AddMenuButton( name ButtonID, string Text, optional 
     
     B = new (Self) class'KFGUI_Button';
     B.ButtonText = Text;
-    B.TextColor = ButtonTextColor;
     B.ToolTip = ToolTipStr;
     B.OnClickLeft = ButtonClicked;
     B.OnClickRight = ButtonClicked;
     B.ID = ButtonID;
-    B.XPosition = 0.05+NumButtons*0.1;
-    B.XSize = 0.099;
-    B.YPosition = 0.92+NumButtonRows*0.04;
-    B.YSize = 0.0399;
+    B.XPosition = 0.175 + NumButtons*0.5;
+    B.XSize = 0.15;
+    B.YPosition = 0.92;
+    B.YSize = 0.08;
 
-    PrevButton = B;
-    if( ++NumButtons>8 )
-    {
-        ++NumButtonRows;
-        NumButtons = 0;
-    }
+    ++NumButtons;
     
     AddComponent(B);
     return B;
@@ -113,26 +105,30 @@ final function KFGUI_Button AddMenuButton( name ButtonID, string Text, optional 
 defaultproperties
 {
     WindowTitle="Sentry Redux Mod"
-    XPosition=0.1
-    YPosition=0.1
+    XPosition=0
+    YPosition=0
     XSize=0.6
     YSize=0.8
-
-    ButtonTextColor=(R=240, G=240, B=240, A=255)
     
     bAlwaysTop=true
     bOnlyThisFocus=false
+    bCenterCoords=true
+
+    EdgeSizes(0)=20 // X-Border
+    EdgeSizes(1)=20 // Y-Border
+    EdgeSizes(2)=20 // Header Room
     
     Pages.Add((PageClass=Class'UIP_About',Caption="About",Hint="Mod info and credits"))
     Pages.Add((PageClass=Class'UIP_Upgrades',Caption="Upgrades",Hint="Purchase upgrades"))
     Pages.Add((PageClass=Class'UIP_Settings',Caption="Settings",Hint="Client mod settings"))
-    
+    Pages.Add((PageClass=Class'UIP_Debug',Caption="Debug",Hint="Debug Page for Creator"))
+
     Begin Object Class=KFGUI_SwitchMenuBar Name=MultiPager
         ID="Pager"
-        XPosition=0.015
-        YPosition=0.04
-        XSize=0.975
-        YSize=0.8
+        XPosition=0
+        YPosition=0
+        XSize=1
+        YSize=0.9
         BorderWidth=0.05
         ButtonAxisSize=0.1
     End Object

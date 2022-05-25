@@ -1,0 +1,22 @@
+Refund for first minute is 100%
+Elemental damage type (fire, heal, grenade turrret, )
+Wall placement
+Ceiling placement
+barbed wire, AOE, 
+turrets you can give guns to
+limited number of upgrades that can be done (idea of builds)
+Ammo regen
+stalker vision upgrade
+decoy tower
+cant shoot if player hasnt shot in 120 seconds
+bastion shield -> reflect damage -> thorns
+vampire heal
+damage type reductions -> aura for players
+Explosion effects on hit with cooldown
+more damage with consecutive headshots/hits
+pulse lightning between turrets
+rof spinup, overheat, jamming
+targeting priorities for turret, be able to set small or big zeds
+shotgun turret
+penetration upgrade
+set locked target using lazerpointer

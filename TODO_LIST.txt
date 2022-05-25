@@ -1,0 +1,11 @@
+- Change all text render colors to reference a variable in ST_GUIStyle
+- Create Text color variables in ST_GUIStyle for normal, highlighted, and disabled text (maybe a dynamic array of a struct called ColorSet?)
+- Implement a variable-item-height list for the credits menu
+- Implement smooth scrolling for lists
+- Create an ST_AI_Follower_Base which follows the player at a configurable distance and speed
+- Replace Item Box textures
+- Replace progress bar textures
+- Replace Tab textures
+- Replace Slider textures
+- Implement 100% refund timer after building turret
+- Implement configurable number of upgrade slots

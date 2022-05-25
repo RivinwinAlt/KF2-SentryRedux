@@ -39,7 +39,7 @@ defaultproperties
 {
     bEnabled=true
     ButtonText="Button!"
-    TextColor=(R=0,G=0,B=0,A=255)
+    TextColor=(R=236,G=227,B=203,A=255) // From TF2 menu text
     TextFontInfo=(bClipText=true,bEnableShadow=true)
     FontScale=1
 }

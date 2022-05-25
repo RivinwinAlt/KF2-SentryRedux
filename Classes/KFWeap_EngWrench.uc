@@ -1,4 +1,4 @@
-// Defines the behavior of the Sentry Hammer (needs to be redone into Engineers Wrench)
+// Defines the behavior of the Sentry Hammer (needs to be completely rewritten into Engineers Wrench with new model and animations)
 
 class KFWeap_EngWrench extends KFWeap_Blunt_Pulverizer
 		config(SentryRedux);
@@ -7,27 +7,22 @@ var config byte MaxTurretsPerUser, MapMaxTurrets;
 var config float MinPlacementDistance, RefundMultiplier, WeaponTextScale, TurretPreviewDelay, PreviewRotationRate;
 var config int  HealPerHit;
 var config bool bHeavyAttackToSell, bCanDropWeapon;
+var ST_GUIController PlayerGUI;
 
 //var transient SentryMainRep 
 
 var SkeletalMeshComponent TurretPreview;
 var KFCharacterInfo_Monster BaseTurretArch;
 var MaterialInstanceConstant BaseTurSkin;
-var array<string> ModeInfos;
-var string AdminInfo;
-var byte NumTurrets;
 var bool bPendingDeploy;
-var class<ST_Base> CurrentTurretType;
+var class<ST_Turret_Base> CurrentTurretType;
 
 simulated function PostBeginPlay()
 {
 	Super.PostBeginPlay();
 
 	if(WorldInfo.NetMode != NM_DedicatedServer)
-	{
-		RefreshOverlayValues();
 		InitDisplay();
-	}
 }
 
 simulated final function InitDisplay()
@@ -37,54 +32,18 @@ simulated final function InitDisplay()
 	TurretPreview.SetMaterial(0, BaseTurSkin);
 }
 
-simulated final function RefreshOverlayValues()
-{
-	ModeInfos[2] = Default.ModeInfos[2]$CurrentTurretType.Default.BuildCost@Chr(163)$")";
-	ModeInfos[3] = Default.ModeInfos[3]$Int(RefundMultiplier * 100)$Chr(37)$" refund)";
-}
-
-simulated function DrawInfo(Canvas Canvas, float FontScale)
-{
-	local float X, Y, XL, YL;
-	local byte i;
-
-	FontScale *= WeaponTextScale; // Move this to a global variable thats only calculated once
-	X = Canvas.ClipX * 0.99;
-	Y = Canvas.ClipY * 0.1;
-
-	Canvas.SetDrawColor(255, 255, 64, 255);
-	
-	Canvas.TextSize(ModeInfos[2], XL, YL, FontScale, FontScale); // moved outside loop
-	for(i = 0; i < ModeInfos.Length; ++i)
-	{
-		//Canvas.TextSize(ModeInfos[2], XL, YL, FontScale, FontScale); //ModeInfos[2] is currently the longest string
-		Canvas.SetPos(X - XL, Y);
-		Canvas.DrawText(ModeInfos[i], , FontScale, FontScale);
-		Y += YL;
-	}
-	if(Instigator != None && Instigator.PlayerReplicationInfo != None && (WorldInfo.NetMode != NM_Client || Instigator.PlayerReplicationInfo.bAdmin))
-	{
-		Canvas.SetDrawColor(255, 255, 128, 255);
-		Canvas.TextSize(AdminInfo, XL, YL, FontScale, FontScale);
-		Canvas.SetPos(X - XL, Y);
-		Canvas.DrawText(AdminInfo, , FontScale, FontScale);
-		Y += YL;
-	}
-}
-
 reliable client function ClientWeaponSet(bool bOptionalSet, optional bool bDoNotActivate)
 {
 	local PlayerController PC;
 
 	// This is the first time we have a valid Instigator (see PendingClientWeaponSet)
-	if (Instigator != None && InvManager != None
-		&& WorldInfo.NetMode != NM_DedicatedServer)
+	if (Instigator != None && InvManager != None && WorldInfo.NetMode != NM_DedicatedServer)
 	{
 		PC = PlayerController(Instigator.Controller);
 		if(Instigator.Controller != none && PC != None && PC.myHUD != none)
 			InitFOV(PC.myHUD.SizeX, PC.myHUD.SizeY, PC.DefaultFOV);
 		if(PC != None)
-			class'SentryOverlay'.Static.GetOverlay(PC);
+			class'ST_Overlay'.Static.GetOverlay(PC);
 	}
 
 	Super(Weapon).ClientWeaponSet(bOptionalSet, bDoNotActivate);
@@ -94,8 +53,10 @@ function SetOriginalValuesFromPickup(KFWeapon PickedUpWeapon)
 {
 	KFInventoryManager(InvManager).AddCurrentCarryBlocks(InventorySize);
 	KFPawn(Instigator).NotifyInventoryWeightChanged();
-	
-	UpdateNumTurrets();
+
+	if(PlayerGUI == none)
+		PlayerGUI = class'ST_GUIController'.static.GetGUIController(PlayerController(Instigator.Controller));
+	PlayerGUI.UpdateNumTurrets();
 
 	bGivenAtStart = PickedUpWeapon.bGivenAtStart;
 }
@@ -107,42 +68,21 @@ function GivenTo(Pawn thisPawn, optional bool bDoNotActivate)
 	KFInventoryManager(InvManager).AddCurrentCarryBlocks(InventorySize);
 	KFPawn(Instigator).NotifyInventoryWeightChanged();
 	
-	UpdateNumTurrets();
+	if(PlayerGUI == none)
+		PlayerGUI = class'ST_GUIController'.static.GetGUIController(PlayerController(Instigator.Controller));
+	PlayerGUI.UpdateNumTurrets();
 }
-
-function UpdateNumTurrets()
-{
-	local ST_TF2 T;
-	NumTurrets = 0;
-	foreach WorldInfo.AllPawns(class'ST_TF2', T)
-		if(T.OwnerController == Instigator.Controller && T.IsAliveAndWell())
-		{
-			T.ActiveOwnerWeapon = Self;
-			++NumTurrets;
-		}
-}
-
-/*function AttachThirdPersonWeapon(KFPawn P)
-{
-	// Create weapon attachment (server only)
-	if (Role == ROLE_Authority)
-	{
-		P.WeaponAttachmentTemplate = AttachmentArchetype;
-
-		if (WorldInfo.NetMode != NM_DedicatedServer)
-			P.WeaponAttachmentChanged();
-	}
-}*/
 
 simulated function CustomFire()
 {
+	// Use this to switch between default and simplified overlay styles
 }
 
-simulated function BeginDeployment();
+simulated function BeginDeployment(); // has to be here so that we can declare a version in heavy firing state
 
 reliable server function ServerDeployTurret()
 {
-	local ST_Base S;
+	local ST_Turret_Base S;
 	local rotator R;
 	local vector Pos, HL, HN;
 	local byte i;
@@ -153,16 +93,21 @@ reliable server function ServerDeployTurret()
 			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 0);
 		return;
 	}
-	if(NumTurrets >= MaxTurretsPerUser)
+
+	if(PlayerGUI == none)
+		PlayerGUI = class'ST_GUIController'.static.GetGUIController(PlayerController(Instigator.Controller));
+	if(PlayerGUI.NumTurrets >= MaxTurretsPerUser) // Maybe handle this check in the GUIController, will need to reference the replicated mod info object
 	{
 		if(PlayerController(Instigator.Controller) != None)
 			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 3);
 		return;
 	}
+
+	// TODO: Use SettingsRep to track this instead of iterating AllPawns each time
 	if(MapMaxTurrets > 0)
 	{
 		i = 0;
-		foreach WorldInfo.AllPawns(class'ST_Base', S)
+		foreach WorldInfo.AllPawns(class'ST_Turret_Base', S)
 			if(S.IsAliveAndWell() && ++i >= MapMaxTurrets)
 			{
 				if(PlayerController(Instigator.Controller) != None)
@@ -183,7 +128,7 @@ reliable server function ServerDeployTurret()
 	}
 
 	//Check if too near another turret
-	foreach WorldInfo.AllPawns(class'ST_Base', S, HL, MinPlacementDistance)
+	foreach WorldInfo.AllPawns(class'ST_Turret_Base', S, HL, MinPlacementDistance)
 		if(S.IsAliveAndWell())
 		{
 			if(PlayerController(Instigator.Controller) != None)
@@ -196,8 +141,9 @@ reliable server function ServerDeployTurret()
 	S = Instigator.Spawn(CurrentTurretType, , , Pos, R);
 	if(S != None)
 	{
-		S.SetTurretOwner(PlayerController(Instigator.Controller), Self);
+		S.SetTurretOwner(PlayerController(Instigator.Controller));
 		Instigator.PlayerReplicationInfo.Score -= CurrentTurretType.Default.BuildCost;
+		PlayerGUI.NumTurrets++;
 	}
 	else
 	{
@@ -239,8 +185,8 @@ simulated function UpdatePreview()
 
 simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocation)
 {
-	local ST_Base T;
-	T = ST_Base(HitActor);
+	local ST_Turret_Base T;
+	T = ST_Turret_Base(HitActor);
 
 	if(T != None && T.Health > 0)
 	{
@@ -327,8 +273,8 @@ simulated state MeleeHeavyAttacking
 
 	simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocation)
 	{
-		local ST_Base T;
-		T = ST_Base(HitActor);
+		local ST_Turret_Base T;
+		T = ST_Turret_Base(HitActor);
 		if(T != None && T.Health > 0)
 		{
 			if(WorldInfo.NetMode != NM_Client)
@@ -337,9 +283,8 @@ simulated state MeleeHeavyAttacking
 			}
 			if (!IsTimerActive(nameof(BeginPulverizerFire)))
 				SetTimer(0.001f, false, nameof(BeginPulverizerFire));
-		} //else {
-			super.NotifyMeleeCollision(HitActor, HitLocation);
-		//}
+		}
+		super.NotifyMeleeCollision(HitActor, HitLocation);
 	}
 
 	simulated function byte GetWeaponStateId()
@@ -361,7 +306,7 @@ simulated state MeleeHeavyAttacking
 	}
 }
 
-// Overrides KFWeapon behavior to match Weapon, allows throwing
+// Overrides KFWeapon.uc behavior to match Weapon.uc, allows weapon dropping
 simulated function bool CanThrow()
 {
 	return bCanDropWeapon;
@@ -383,8 +328,9 @@ simulated function Rotator GetPulverizerAim( vector StartFireLoc )
 
 defaultproperties
 {
-	CurrentTurretType = class'ST_TF2'
+	//DroppedPickupClass=class'PU_InteractDroppedPickup' // THIS ONE LINE ENABLES PU_HoveringWeaponInfo.uc and PU_InteractDroppedPickup.uc FUNCTIONALITY
 
+	CurrentTurretType = class'ST_Turret_TF2' // Initial setup, will be replaced with turret-cycling code using button press
 	AssociatedPerkClasses(0) = none
 
 	PackageKey = "SentryHammer"
@@ -396,8 +342,8 @@ defaultproperties
    bCanThrow = true
    bDropOnDeath = true
 
-	BaseTurretArch = KFCharacterInfo_Monster'tf2sentry.Arch.Turret1Arch'
-	BaseTurSkin = MaterialInstanceConstant'tf2sentry.Tex.Sentry1Red'
+	BaseTurretArch = KFCharacterInfo_Monster'Turret_TF2.Arch.Turret1Arch'
+	BaseTurSkin = MaterialInstanceConstant'Turret_TF2.Mat.Sentry1Red'
 
    Begin Object Class=SkeletalMeshComponent Name=PrevMesh
       ReplacementPrimitive = None
@@ -410,12 +356,6 @@ defaultproperties
       Scale = 2.500000
    End Object
    TurretPreview = PrevMesh
-
-   ModeInfos(0) = "Sentry Hammer Controls:"
-   ModeInfos(1) = "[Fire]  Repair"
-   ModeInfos(2) = "[Hold AltFire]  Build (Cost: "
-   ModeInfos(3) = "[AltFire]  Sell ("
-   AdminInfo = "Use Admin SentryHelp for commands"
 
    InventoryGroup = IG_Equipment
    InventorySize = 1

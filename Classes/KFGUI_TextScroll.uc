@@ -26,7 +26,6 @@ function DrawMenu()
     local float Y, DTime, XL, YL, MainY, MainX, CharTime;
     local string MainString;
     local Color MainTextColor;
-    local Texture CurrentCursor;
     local ETextFieldStyles TextStyle;
 
     if( bScrollCompleted )
@@ -99,7 +98,6 @@ function DrawMenu()
     DTime = `TimeSinceEx(GetPlayer(), CharStartTime);
     if( i<Lines.Length )
     {
-        CurrentCursor = Owner.DefaultPens[GetCursorStyle()];
         Y = Lines[i].Y;
         for( i=i; i<Lines.Length; ++i )
         {
@@ -137,7 +135,7 @@ function DrawMenu()
                             {
                                 Canvas.SetDrawColor(255,255,255,255);
                                 Canvas.SetPos(MainX+XL,MainY);
-                                Canvas.DrawTile(CurrentCursor, YL/2, YL, 0, 0, CurrentCursor.GetSurfaceWidth(), CurrentCursor.GetSurfaceHeight());
+                                Canvas.DrawRect(YL/2, YL);
                             }
                             
                             continue;

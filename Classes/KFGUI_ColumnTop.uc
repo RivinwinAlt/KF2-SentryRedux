@@ -120,8 +120,7 @@ function DrawMenu()
                 Canvas.SetDrawColor(220,220,8,255);
 
             XS = Owner.CurrentStyle.DefaultHeight*0.5;
-            Canvas.SetPos(X,0.f);
-            Canvas.DrawTileStretched(Owner.CurrentStyle.TabTextures[`TAB_TOP],Min(Wd,CompPos[2]-X),CompPos[3],0,0,128,16);
+            Owner.CurrentStyle.DrawTileStretched(Owner.CurrentStyle.TabTextures[`TAB_TOP], X, 0, Min(Wd,CompPos[2]-X), CompPos[3]);
             
             Canvas.SetDrawColor(250,250,250,255);
             Canvas.SetPos(X+XS,(CompPos[3]-ListOwner.TextHeight)*0.5f);

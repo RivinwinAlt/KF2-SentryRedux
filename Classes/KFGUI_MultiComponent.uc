@@ -1,6 +1,7 @@
 Class KFGUI_MultiComponent extends KFGUI_Base;
 
 var() export editinline array<KFGUI_Base> Components;
+var() float EdgeSizes[3]; // Pixels wide for edges (left/right, top/bottom, extra top)
 
 function InitMenu()
 {
@@ -22,9 +23,6 @@ function ShowMenu()
 }
 function PreDraw()
 {
-    local int i;
-    local byte j;
-    
     if( !bVisible )
         return;
 
@@ -33,14 +31,25 @@ function PreDraw()
     Canvas.SetOrigin(CompPos[0],CompPos[1]);
     Canvas.SetClip(CompPos[0]+CompPos[2],CompPos[1]+CompPos[3]);
     DrawMenu();
+    DrawComponents();
+}
+
+function DrawComponents()
+{
+    local int i;
+
     for( i=0; i<Components.Length; ++i )
     {
         Components[i].Canvas = Canvas;
-        for( j=0; j<4; ++j )
-            Components[i].InputPos[j] = CompPos[j];
+        Components[i].InputPos[0] = CompPos[0] + EdgeSizes[0];
+        Components[i].InputPos[1] = CompPos[1] + EdgeSizes[1] + EdgeSizes[2];
+        Components[i].InputPos[2] = CompPos[2] - (EdgeSizes[0] * 2.0f);
+        Components[i].InputPos[3] = CompPos[3] - (EdgeSizes[1] * 2.0f) - EdgeSizes[2];
+        
         Components[i].PreDraw();
     }
 }
+
 function InventoryChanged(optional KFWeapon Wep, optional bool bRemove)
 {
     local int i;
@@ -57,7 +66,7 @@ function MenuTick( float DeltaTime )
         Components[i].MenuTick(DeltaTime);
 }
 
-function AddComponent( KFGUI_Base C )
+function AddComponent( KFGUI_Base C, optional int X = 0, optional int Y = 0, optional int W = 1, optional int H = 1 )
 {
     Components[Components.Length] = C;
     C.Owner = Owner;
@@ -144,4 +153,11 @@ function NotifyLevelChange()
     
     for( i=0; i<Components.Length; ++i )
         Components[i].NotifyLevelChange();
+}
+
+DefaultProperties
+{
+    EdgeSizes(0)=0 // X-Border
+    EdgeSizes(1)=0 // Y-Border
+    EdgeSizes(2)=0 // Header Room
 }

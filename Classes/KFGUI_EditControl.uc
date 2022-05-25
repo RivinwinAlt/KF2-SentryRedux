@@ -49,7 +49,7 @@ function PreDraw()
     Canvas.Font = Owner.CurrentStyle.PickFont(TextScale);
     
     TextScale *= FontScale;
-    TextFont = Canvas.Font;
+    TextFont = Canvas.Font; // Why is this line?
     
     Canvas.TextSize("ABC",XS,TextHeight,TextScale,TextScale);
     
@@ -75,7 +75,7 @@ final function DrawClippedText( string S, float TScale, float MaxX )
     for( i=0; i<l; ++i )
     {
         Canvas.TextSize(Mid(S,i,1),XL,YL,TScale,TScale);
-        if( (Canvas.CurX+X+XL)>MaxX )
+        if( (Canvas.CurX+X+XL) > MaxX )
         {
             --i;
             break;
@@ -87,10 +87,10 @@ final function DrawClippedText( string S, float TScale, float MaxX )
 
 defaultproperties
 {
-    LableColor=(R=255,G=255,B=255,A=255)
+    LableColor=(R=236,G=227,B=203,A=255)
     FontScale=1
     LableWidth=0.5
-    bScaleByFontSize=true
+    bScaleByFontSize=false
     TextFontInfo=(bClipText=true,bEnableShadow=true)
 
     Begin Object Class=KFGUI_TextLable Name=MyBoxLableText

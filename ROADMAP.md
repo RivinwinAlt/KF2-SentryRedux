@@ -17,8 +17,8 @@ Goals are in order of what should be acomplished. Input is welcome.
 - ~~Disable right click to sell~~
 - ~~Customizable refund modifier~~
 - GFX disabling booleans
-- Client side settings menu
-- Admin locked server side settings menu
+- Client side graphic-centric settings menu
+- Server mod settings menu page available to Admins
 
 
 ### 3: Source turret models and animations
@@ -35,26 +35,19 @@ Goals are in order of what should be acomplished. Input is welcome.
 - Implement config value clamping
 
 
-
 ### 5: Fix long-standing bugs
 - ~~Change purple light on turret to red~~
 - ~~Replace green hammer material~~
 - ~~Patch taking over existing turrets beyond max number~~
 - Stop the Sentry Hammer from showing as EMPTY in inventory
-- Improve pop-in when obstructed by thin walls, etc
+- Improve pop-in when obstructed by narrow walls, etc
 
 
 ### 6: Implement new features
 - ~~Be able to rotate turret during placement~~
 - More turret varieties (Perkified versions)
 - Integrate more buyable upgrades
-  - Missile Firerate
-  - Range
-  - Damage
-  - Defence
-  - AOE knockback
-  - Stun / knockdown
-  - Degrees of rotation / targeting angle
+  - See Discord google sheets (Rowdy Howdy's Server)
 - ~~Turret Preview hugs ground when placing~~
 - ~~Decrease delay when right clicking~~
 - ~~Faster rockets~~
@@ -66,6 +59,9 @@ Goals are in order of what should be acomplished. Input is welcome.
 - ~~Disable explosion GFX when selling turret~~
 - Add custom "selling turret" SFX
 - Add idle wrench animation from TF2
+- ~~Alter menu rendering to enforce 16:9 aspect ratio on all screens~~
+- Be able to queue upgrades
+- Add menu accesible with Hammer AltFire to change turret being placed
 
 
 ### 6: Optimization
@@ -77,5 +73,4 @@ Goals are in order of what should be acomplished. Input is welcome.
   - Turret preview
 
 
-### Unsorted
-Config turret cost doesnt change first overlay and placement cost
+### Bugs

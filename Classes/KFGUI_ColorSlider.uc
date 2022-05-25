@@ -96,7 +96,7 @@ delegate OnColorSliderValueChanged(KFGUI_ColorSlider Sender, KFGUI_Slider Slider
 
 function DrawMenu()
 {
-    Owner.CurrentStyle.DrawTileStretched(Owner.CurrentStyle.BorderTextures[`BOX_SMALL],0,0,CompPos[2],CompPos[3]);
+    Owner.CurrentStyle.DrawTileStretched(Owner.CurrentStyle.BorderTextures[`BOX_SMALL], 0, 0, CompPos[2], CompPos[3]);
 }
 
 defaultproperties

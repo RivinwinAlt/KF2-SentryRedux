@@ -278,8 +278,7 @@ function DrawMenu()
     local bool bCheckMouse;
 
     Canvas.SetDrawColor(250,250,250,255);
-    Canvas.SetPos(0.f,0.f);
-    Canvas.DrawTileStretched(Owner.CurrentStyle.BorderTextures[`BOX_SMALL_SLIGHTTRANSPARENT],CompPos[2],CompPos[3],0,0,128,128);
+    Owner.CurrentStyle.DrawTileStretched(Owner.CurrentStyle.BorderTextures[`BOX_SMALL], 0, 0, CompPos[2], CompPos[3]);
     
     // Mouse focused item check.
     bCheckMouse = bClickable && bFocused;
