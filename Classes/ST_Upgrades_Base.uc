@@ -15,12 +15,20 @@ enum UpgradeEnums
 	EUpHeadshots,
 	EUpHomingMissiles,
 	EUpAutoRepair,
-	EUpFireDamage,
+	EUpPrimaryDamageType,
+	EUpSecondaryDamageType,
 	EUpDamageReduceA,
 	EUpDamageReduceB,
 	EUpTurnRadiusA,
 	EUpTurnRadiusB,
+	EUpPrimaryAmmoUp,
 	EUpTurnRadiusC,
+	EUpHealthUp,
+	
+	EUpSecondaryAmmoUp,
+	EUpPrimaryAmmoUp,
+	EUpSecondaryAmmoUp,
+	EUpAggroUp,
 
 	TotalUpgrades // As int represents the total number of upgrades available
 };
