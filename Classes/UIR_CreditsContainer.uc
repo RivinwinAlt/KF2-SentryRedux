@@ -21,7 +21,7 @@ function string BuildCreditsString()
     str $= "|Rowdy Howdy - Creative coordinator and beta tester";
     str $= "|Dragontear - Custom wrench animations";
     str $= "|Jasper - Aided in extracting assets from TF2 and creating KF2 weapon assets";
-
+//PyroHominid - menu icons
     return str;
 }
 

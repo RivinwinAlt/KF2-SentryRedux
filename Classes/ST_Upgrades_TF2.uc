@@ -137,6 +137,7 @@ simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, 
 		if(ST_Turret_Base(Owner).FireCounter[0] % 10 == 0) // TODO: Find faster math, maybe bitshift
 			OutDamageType = class'KFDT_Fire';
 	}
+
 }
 
 defaultproperties
@@ -218,4 +219,12 @@ defaultproperties
 	UpgradeInfos(EUpTurnRadiusA)=(bIsEnabled=True)
 	UpgradeInfos(EUpTurnRadiusB)=(bIsEnabled=True)
 	UpgradeInfos(EUpTurnRadiusC)=(bIsEnabled=True)
+
+	UpgradeInfos(EUpTurnRadiusC)={(
+		Cost=9876, // Is set dynamicly in SetLevelUpgrade()
+		Title="Turret Level",
+		Description="Upgrade to the next turret level to get higher base stats and more upgrade options",
+		bIsEnabled=True
+		IconIndex=`ICON_4
+	)}
 }
