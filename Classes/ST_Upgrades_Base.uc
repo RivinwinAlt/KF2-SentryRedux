@@ -7,9 +7,9 @@ class ST_Upgrades_Base extends ReplicationInfo;
 //order of enums is order in menu
 enum UpgradeEnums
 {
-	EUpLevelUp, // 0
-	EUpRangeA, // 1
-	EUpRangeB, // 2
+	EUpLevelUp,
+	EUpRangeA,
+	EUpRangeB,
 	EUpAccuracyA,
 	EUpAccuracyB,
 	EUpHeadshots,
@@ -21,12 +21,14 @@ enum UpgradeEnums
 	EUpDamageReduceB,
 	EUpTurnRadiusA,
 	EUpTurnRadiusB,
+	EUpPrimaryAmmoUp,
 	EUpTurnRadiusC,
 	EUpHealthUp,
-	EUpPrimaryAmmoUp,
+	
 	EUpSecondaryAmmoUp,
 	EUpPrimaryAmmoUp,
 	EUpSecondaryAmmoUp,
+	EUpAggroUp,
 
 	TotalUpgrades // As int represents the total number of upgrades available
 };

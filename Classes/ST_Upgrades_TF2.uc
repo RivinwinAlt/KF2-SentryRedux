@@ -4,35 +4,6 @@ Class ST_Upgrades_TF2 extends ST_Upgrades_Base;
 var bool bRegen, bFireDamage, bFireArmor;
 var float SonicDamageMultiplier;
 
-/* For reference when building values to match original mod
-simulated final function SetUpgrades()
-{
-	if(HasUpgradeFlags(ETU_IronSightB))
-		AccuracyMod = BaseAccuracyMod / 4.0f;
-	else if(HasUpgradeFlags(ETU_IronSightA))
-		AccuracyMod = BaseAccuracyMod / 2.0f;
-	else AccuracyMod = BaseAccuracyMod;
-	
-	if(WorldInfo.NetMode != NM_Client)
-	{
-		SightRadius = BaseSightRadius;
-		if(HasUpgradeFlags(ETU_EagleEyeB))
-			SightRadius = BaseSightRadius * 1.3f;
-		else if(HasUpgradeFlags(ETU_EagleEyeA))
-			SightRadius = BaseSightRadius * 1.6f;
-		
-		bHeadHunter = HasUpgradeFlags(ETU_Headshots);
-		bHasAutoRepair = HasUpgradeFlags(ETU_AutoRepair);
-		
-		if(bHasAutoRepair && AutoRepairState == 0 && Health < HealthMax)
-		{
-			AutoRepairState = 1;
-			SetTimer(30, false, 'AutoRepairTimer');
-		}
-	}
-}
-*/
-
 //Handles passive upgrade effects
 //NB: Only called when TurretLevel or PurchasedUpgrades is changed
 simulated function UpdateUpgrades()
@@ -221,7 +192,7 @@ defaultproperties
 	UpgradeInfos(EUpTurnRadiusC)=(bIsEnabled=True)
 
 	UpgradeInfos(EUpTurnRadiusC)={(
-		Cost=9876, // Is set dynamicly in SetLevelUpgrade()
+		Cost=1000, // Is set dynamicly in SetLevelUpgrade()
 		Title="Turret Level",
 		Description="Upgrade to the next turret level to get higher base stats and more upgrade options",
 		bIsEnabled=True
