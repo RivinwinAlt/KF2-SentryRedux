@@ -3,11 +3,13 @@
 
 class ST_Upgrades_Base extends ReplicationInfo;
 
-//max number of enums (and upgrades) is 32 not including EUpLevelUp and TotalUpgrades
-//order of enums is order in menu
+// Max number of enums (and upgrades) is 32 not including EUpLevelUp and TotalUpgrades
+// Order of enums is order in menu
 enum UpgradeEnums
 {
-	EUpLevelUp,
+	EUpLevelUp, // Must be first in list
+
+	// Upgrades are processed and shown in the menu in this order, so RangeB must be after RangeA for instance
 	EUpRangeA,
 	EUpRangeB,
 	EUpAccuracyA,
@@ -24,13 +26,12 @@ enum UpgradeEnums
 	EUpPrimaryAmmoUp,
 	EUpTurnRadiusC,
 	EUpHealthUp,
-	
 	EUpSecondaryAmmoUp,
 	EUpPrimaryAmmoUp,
 	EUpSecondaryAmmoUp,
 	EUpAggroUp,
 
-	TotalUpgrades // As int represents the total number of upgrades available
+	TotalUpgrades // Must be last in list (can be cast to int)
 };
 
 struct LevelInfo
@@ -46,21 +47,20 @@ struct LevelInfo
 	var float BaseRoF, BaseTurnRadius, BaseAccuracyMod, BaseSightRadius;
 
 	var int BaseMaxAmmoCount[3];
-	var SoundCue FiringSounds[3];
 
 	structdefaultproperties
 	{
 		IconIndex=`ICON_DEFAULT;
-		DrawColor = (R=220,G=220,B=0,A=255); //Default color is gold
+		DrawColor = (R=220, G=220, B=0, A=255); // Default color is yellow
 		BaseTurnRadius = 0.6f;
 		BaseAccuracyMod = 0.06f;
 		BaseSightRadius = 2200.0f
-		BaseMaxAmmoCount[0] = 0;	//Disabled by default
-		BaseMaxAmmoCount[1] = 0;	//Disabled by default
-		BaseMaxAmmoCount[2] = 0;	//Disabled by default
+		BaseMaxAmmoCount[0] = 0;	// Disabled by default
+		BaseMaxAmmoCount[1] = 0;	// Disabled by default
+		BaseMaxAmmoCount[2] = 0;	// Disabled by default
 	}
 };
-var array<LevelInfo> LevelInfos;	//Holds all upgrades in an iterable list
+var array<LevelInfo> LevelInfos;	// Holds all upgrades in an iterable list
 
 struct UpgradeInfo
 {
@@ -72,14 +72,14 @@ struct UpgradeInfo
 	var array<UpgradeEnums> RequiredUpgrades, ExcludedUpgrades;
 	var int Value;					// Reserved for integer math to increase speed during upgrade checks
 	var float FValue;				// Reserved for floating point math during upgrade checks
-	var float BValue;				// Base value in code
-	var float ValueModifier;		// Exposed in config file to allow effect scaling by user
+	var float BValue;				// Base value set by modder
+	var float ValueModifier;		// Exposed in config file to allow effect scaling by end-user
 	var string Title, Description;
 	var bool bIsEnabled;
 
 	structdefaultproperties
 	{
-		IconIndex=`ICON_DEFAULT;
+		IconIndex=`ICON_DEFAULT; // A "missing texture" icon by default
 		RequiredLevel = 0;
 		DrawColor = (R=255, G=255, B=255, A=255);	// Defaults to white icon
 		ValueModifier = 1.0f;
@@ -159,12 +159,12 @@ function SetTurretOwner(ST_Turret_Base T)
 	if(T != none && T != TurretOwner)
 	{
 		TurretOwner = T;
-		TurretLevel = 0; // This is a replicated value that triggers TurretLevelChange() for clients
-		TurretLevelChange(); // Initialize turret variables
+		TurretLevel = 0; // This is a replicated value that triggers synchronization for clients
+		TurretLevelChange(); // Initialize turret variables on server
 	}
 }
 
-// Server function to attach Self to pawn's variable
+// Function to attach Self to pawn's variable
 simulated function LinkTurret()
 {
 	if(TurretOwner != none)
@@ -191,7 +191,9 @@ final function BoughtUpgrade(int Index)
 	else
 	{
 		// If any other upgrade was purchased
-		PurchasedUpgrades = (1 << Index - 1) | PurchasedUpgrades;
+		PurchasedUpgrades = (1 << Index - 1) | PurchasedUpgrades; // This one line kicks off replication and state synchronization for the proxy actors
+		
+		// While these don't need to be here for the server, they will need to be implemented here for single player and hosted games
 		CalcAvailableUpgrades();
 		UpdateUpgrades();
 	}
@@ -200,18 +202,13 @@ final function BoughtUpgrade(int Index)
 // Updates owner turret's variables to reflect current int TurretLevel
 simulated function TurretLevelChange()
 {
-	if(WorldInfo.NetMode != NM_Client)
-	{
-		TurretOwner.bRecentlyBuilt = true;
-		SetTimer(0.5, false, 'UnsetBuilt');
-	}
-
 	// Operations to perform when turret is first initialized
 	if(!bInitialized)
 	{
 		TurretOwner.Health = LevelInfos[TurretLevel].BaseMaxHealth;
 		InitializeUpgrades();
 		SetTimer(TimerPeriod, true, 'UpgradesTimer');
+		bInitialized = true;
 	}
 
 	// Initialize mesh and materials (Resets AI)
@@ -222,15 +219,6 @@ simulated function TurretLevelChange()
 
 	// Update turret stats
 	UpdateUpgrades();
-
-	// Set initialization flag
-	bInitialized = true;
-}
-
-// Helper function for server to clear build flag
-function UnsetBuilt()
-{
-	TurretOwner.bRecentlyBuilt = false;
 }
 
 simulated function SetLevelUpgrade()
@@ -261,7 +249,7 @@ simulated function CalcAvailableUpgrades()
 	local int i;
 
 	// Exit function if called on server to save unnecesary compute time
-	if(WorldInfo.NetMode != NM_Client)
+	if(WorldInfo.NetMode == NM_DedicatedServer)
 		return;
 
 	// Empty current list of upgrades
@@ -272,6 +260,7 @@ simulated function CalcAvailableUpgrades()
 		AvailableUpgrades.AddItem(EUpLevelUp);
 
 	// Iterate through rest of upgrades
+	// TODO: this could be sped up by using foreach and making MeetsRequirements() a member of UpgradeInfo
 	for(i = 1; i < TotalUpgrades; i++) // TotalUpgrades must be the last value of UpgradeEnums
 	{
 		if(MeetsRequirements(i))
@@ -285,7 +274,7 @@ simulated function CalcAvailableUpgrades()
 }
 
 // Helper function to check upgrade requirements to be purchased
-// TODO: Add mutually-exlusive check
+// TODO: replace logic with: build a local bit mask and then OR it with PurchasedUpgrades to get a boolean pass or fail (optimization)
 simulated function bool MeetsRequirements(int Index)
 {
 	local bool passed;
@@ -305,7 +294,7 @@ simulated function bool MeetsRequirements(int Index)
 			passed = false;
 	}
 
-	// Check excluded upgrades array
+	// Check mutualy exclusive upgrades array
 	foreach UpgradeInfos[Index].ExcludedUpgrades(TempIndex)
 	{
 		if(HasUpgrade(TempIndex))
@@ -370,30 +359,31 @@ simulated function ModifyDamageGiven( out int InDamage, optional Actor HitActor,
 
 defaultproperties
 {
-	bAlwaysRelevant=true // Replicates to all clients to ensure synchronization. May not be necessary
-	StartingAmmoModifier=0.2f // TODO: Move to config
-	TurretLevel=250 // Can't start on 0 so that the value is replicated after being initialized in code
-	TimerPeriod=3.0f // Time between calls to UpgradesTimer()
+	bAlwaysRelevant = true // Replicates to all clients to ensure synchronization. May not be necessary
+	StartingAmmoModifier = 0.2f // TODO: Move to config
+	TurretLevel = 255 // Start on anything but 0 so that replication immediatly leads to state synchronization
+	TimerPeriod = 3.0f // Time between calls to UpgradesTimer()
 
-	AmmoInfos(EPrimaryFire)={(
-		IconIndex=`ICON_AMMO_BULLETS,
-		CostPerRound=1
+	AmmoInfos(EPrimaryFire) = {(
+		IconIndex = `ICON_DEFAULT,
+		CostPerRound = 1
 	)}
 
-	AmmoInfos(ESecondaryFire)={(
-		IconIndex=`ICON_AMMO_ROCKET,
-		CostPerRound=5
+	AmmoInfos(ESecondaryFire) = {(
+		IconIndex = `ICON_DEFAULT,
+		CostPerRound = 5
 	)}
 
-	AmmoInfos(ESpecialFire)={(
-		CostPerRound=25
+	AmmoInfos(ESpecialFire) = {(
+		IconIndex = `ICON_DEFAULT,
+		CostPerRound = 25
 	)}
 
-	UpgradeInfos(EUpLevelUp)={(
-		Cost=9876, // Is set dynamicly in SetLevelUpgrade()
+	UpgradeInfos(EUpLevelUp)={( // Never override this SPECIFIC upgrade, it is just a container for what you put in LevelInfos[]
+		Cost=9876,
 		Title="Turret Level",
 		Description="Upgrade to the next turret level to get higher base stats and more upgrade options",
-		bIsEnabled=False
+		bIsEnabled=False // Dont even try to enable this. Its automatically enabled when theres a levelup available.
 	)}
 
 	UpgradeInfos(EUpRangeA)={(

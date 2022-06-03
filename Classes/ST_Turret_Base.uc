@@ -16,7 +16,7 @@ var ST_Upgrades_Base UpgradesObj;
 var class<ST_Upgrades_Base> UpgradesClass;
 
 var transient ST_Overlay LocalOverlay;
-var transient float ScanLocTimer, BuildTimer, NextMissileTimer, NextTakeHitSound, NextFireSoundTime;
+var transient float ScanLocTimer, BuildTimer, NextTakeHitSound, NextFireSoundTime;
 var transient bool bRecentlyBuilt, bIsScanning, bLeftScanned, bAlterFired, bAltMissileFired;
 var transient int TempDamage;
 var transient class<DamageType> TempDamageType;
@@ -33,9 +33,9 @@ var PlayerController OwnerController;
 var ST_Trigger_Base ActiveTrigger;
 var vector ScanLocation, DesScanLocation;
 var vector RepHitLocation;
-var bool bIsUserCreated;
 
-//REPLICATED VARIABLES CANNOT BE DYNAMIC ARRAYS - Using static arrays instead, limits to 3 integrated weapons per turret
+// You cant replicate dynamic arrays easily - Using static arrays instead
+// This limits us to 3 (or some arbitrary integer) integrated weapons per turret
 var int AmmoCount[3], MaxAmmoCount[3], Damage[3];
 var class<KFDamageType> DamageTypes[3];
 var float AccuracyMod, TurnRadius, RoF, RefundMultiplier;
@@ -43,6 +43,15 @@ var AnimNodeSlot AnimationNode, UpperAnimNode;
 
 var KFMuzzleFlash MuzzleFlash[4];
 
+// SOUND
+var SoundCue FiringSounds[3];
+var SoundCue EmptySounds[3];
+var SoundCue ScanningSound;
+var SoundCue DamageTakenSound;
+var SoundCue DieingSound;
+var float NextFiringTime[3];
+
+// REPLICATION
 replication
 {
 	if(bNetDirty)
@@ -59,15 +68,12 @@ simulated event ReplicatedEvent(name VarName)
 	case 'bFiringMode':
 		TurretSetFiring(bFiringMode);
 		break;
-	case 'bIsPendingFireMode':
-		if(bIsPendingFireMode)
-			PlayOutOfAmmo();
-		break;
 	default:
 		Super.ReplicatedEvent(VarName);
 	}
 }
 
+// FUNCTIONS
 simulated function PostBeginPlay()
 {
 	Super.PostBeginPlay();
@@ -106,25 +112,24 @@ simulated function InitBuild()
 	if(bIsScanning)
 		EndScanning();
 
-	PreBuildAnim();
-
-	// Fetch the build animation length in seconds then queue PostBuildAnim() when it finishes
-	BuildTimer = FClamp(AnimationNode.PlayCustomAnim('Build',1.f,0.f,0.f,false,true),0.5,3.f);
-	SetTimer(BuildTimer, false, 'PostBuildAnim');
+	PreBuildAnimation(); // TODO: is there any optimization when using events instead of functions?
+	// Fetch the build animation length in seconds then queue PostBuildAnimation() when it finishes
+	BuildTimer = FClamp(AnimationNode.PlayCustomAnim('Build',1.f,0.f,0.f,false,true),0.5,5.0f); // 5.0 max up from 3.0
+	SetTimer(BuildTimer, false, 'PostBuildAnimation');
 
 	// Play build animation on clients
-	if( WorldInfo.NetMode!=NM_DedicatedServer && UpperAnimNode!=None )
+	if( WorldInfo.NetMode != NM_DedicatedServer && UpperAnimNode!=None )
 		UpperAnimNode.PlayCustomAnim('Build',1.f,0.f,0.f,false,true);
 }
 
-simulated function PreBuildAnim()
+simulated function PreBuildAnimation()
 {
 	// Disable AI targeting during build animation
 	if(Controller != None)
 		Controller.GoToState('Disabled');
 }
 
-simulated function PostBuildAnim()
+simulated function PostBuildAnimation()
 {
 	// Reenable AI targeting
 	if(Controller != None)
@@ -154,7 +159,10 @@ simulated function UpdateDisplayMesh()
 			Mesh.SetMaterial(i, TempMat);
 		}
 	}
+
+	UpdateSounds();
 }
+simulated function UpdateSounds(); // Implement in child classes if soundcues change when the model does
 
 simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 {
@@ -176,6 +184,7 @@ simulated final function AddHUDOverlay()
 	PC = GetALocalPlayerController();
 	if(PC == None)
 		return;
+
 	LocalOverlay = class'ST_Overlay'.Static.GetOverlay(PC);
 	LocalOverlay.ActiveTurrets.AddItem(Self);
 }
@@ -208,12 +217,11 @@ function SetTurretOwner(PlayerController Other)
 	SetTimer(4, true, 'CheckUserConnected');
 	OwnerController = Other;
 	PlayerReplicationInfo = Other.PlayerReplicationInfo;
-	bIsUserCreated = true;
 }
 
-function AddAmmo(int Index, int Amount)
+function AddAmmo(coerce byte Index, int Amount) // Intentionally cast Index to byte for faster overflow checking
 {
-	if(Index >= 0 && Index < 3)
+	if(Index < 3)
 		AmmoCount[Index] = Min(AmmoCount[Index] + Amount, MaxAmmoCount[Index]);
 }
 
@@ -235,7 +243,6 @@ simulated function string GetHealth() //for overlay
 	return "Health: " $ class'ST_StaticHelper'.static.FormatPercent(Health, HealthMax);
 }
 
-//will need to step through array of ammo amounts
 simulated function string GetAmmoStatus(optional int Index = 3)
 {
 	local string S;
@@ -248,8 +255,7 @@ simulated function string GetAmmoStatus(optional int Index = 3)
 		{
 			if(MaxAmmoCount[i] != 0)
 			{
-				S $= " - ";
-				S $= GetAmmoStatus(i); //Recursively get ammocounts if MaxAmmoCount != 0
+				S $= " - " $ GetAmmoStatus(i); //Recursively get ammocounts if MaxAmmoCount != 0
 			}
 		}
 	}
@@ -272,6 +278,8 @@ simulated function SetViewFocus(Actor Other)
 	if(WorldInfo.NetMode == NM_DedicatedServer)
 		return;
 
+	// I'm gonne be honest: idk what this section really does because it looks really dumb and I didnt want to research it.
+	// There must be a native way to do it instead
 	if(Other == None && !bIsScanning)
 	{
 		YawControl.SetSkelControlStrength(0.0f, 0.15f);
@@ -350,13 +358,8 @@ function bool TryToSellTurret(Controller User)
 	}
 
 	else if(PlayerController(User) != None)
-		PlayerController(User).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 5);
+		PlayerController(User).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 5);
 	return false;
-}
-
-function DelayedStartFire()
-{
-	TurretSetFiring(true);
 }
 
 simulated function TurretSetFiring(bool bFire, optional bool bInstant)
@@ -367,11 +370,11 @@ simulated function TurretSetFiring(bool bFire, optional bool bInstant)
 	{
 		if(WorldInfo.NetMode != NM_Client)
 		{
-			if(NextMissileTimer < WorldInfo.TimeSeconds) // Sometimes delay missile firing (just so all turrets dont fire at same time).
+			if(NextMissileTimer < WorldInfo.TimeSeconds)
 				NextMissileTimer = WorldInfo.TimeSeconds + FRand() * 2.0f;
 		}
 		FireShot();
-		SetTimer(RoF, true, 'FireShot');
+		
 	}
 	else
 	{
@@ -392,26 +395,13 @@ simulated function TurretSetFiring(bool bFire, optional bool bInstant)
 		}
 	}
 }
-simulated function PlayOutOfAmmo()
-{
-	PlaySoundBase(SoundCue'Turret_TF2.Sounds.sentry_empty_Cue', true);
-}
-
 simulated function ScanSound()
 {
-	local SoundCue C;
-	if(!bIsScanning || Health <= 0)
-		return;
-	if(UpgradesObj.TurretLevel == 0)
-		C = SoundCue'Turret_TF2.Sounds.sentry_scan_Cue';
-	else if(UpgradesObj.TurretLevel == 1)
-		C = SoundCue'Turret_TF2.Sounds.sentry_scan2_Cue';
-	else C = SoundCue'Turret_TF2.Sounds.sentry_scan3_Cue';
-	if(C == None)
+	if(ScanningSound == None)
 		return;
 
-	PlaySoundBase(C, true);
-	SetTimer(C.GetCueDuration(), false, 'ScanSound');
+	PlaySoundBase(ScanningSound, true);
+	SetTimer(ScanningSound.GetCueDuration(), false, 'ScanSound');
 }
 simulated function EndScanning()
 {
@@ -419,40 +409,48 @@ simulated function EndScanning()
 	SetViewFocus(ViewFocusActor);
 }
 
-simulated function FireShot()
+simulated function FirePrimary()
 {
-	if(WorldInfo.NetMode != NM_Client)
+	// More efficient to do this here than to do it on a timer
+	if(!Controller.CheckEnemyState())
+		return;
+
+	if(AmmoCount[0] <= 0)
 	{
-		if(UpgradesObj.TurretLevel == 2 && NextMissileTimer < WorldInfo.TimeSeconds && AmmoCount[1] > 0)
-			CheckFireMissile();
-		if(AmmoCount[0] <= 0)
+		if(WorldInfo.NetMode != NM_DedicatedServer)
+			PlayOutOfAmmo();
+
+		if(!bIsPendingFireMode)
 		{
-			if(!bIsPendingFireMode)
-			{
-				bFiringMode = false;
-				bIsPendingFireMode = true;
-				if(WorldInfo.NetMode != NM_DedicatedServer)
-					PlayOutOfAmmo();
-			}
-			return;
+			bFiringMode = false;
+			bIsPendingFireMode = true;
 		}
-		else if(bIsPendingFireMode)
-		{
-			bFiringMode = true;
-			bIsPendingFireMode = false;
-		}
-		--AmmoCount[0];
+		return;
 	}
+	else if(bIsPendingFireMode)
+	{
+		bFiringMode = true;
+		bIsPendingFireMode = false;
+	}
+
+	if(WorldInfo.NetMode != NM_Client)
+		--AmmoCount[0];
+
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 	{
 		AnimationNode.PlayCustomAnim('Fire', 1.0f, 0.0f, 0.0f, false, true);
 		if(NextFireSoundTime < WorldInfo.TimeSeconds)
 		{
 			NextFireSoundTime = WorldInfo.TimeSeconds + 0.15f;
-			PlaySoundBase(UpgradesObj.LevelInfos[UpgradesObj.TurretLevel].FiringSounds[EPrimaryFire], true);
+			PlaySoundBase(FiringSounds[EPrimaryFire], true);
 		}
 	}
-	TraceFire();
+}
+simulated function FireSecondary()
+{
+}
+simulated function FireSpecial()
+{
 }
 
 function CheckFireMissile()
@@ -566,7 +564,7 @@ function vector GetAimPos(vector CamLoc, Pawn TPawn)
 	return Location + BaseEyeHeight * vect(0,0,0.5f);
 }
 
-simulated function TraceFire() // Pass in int weaponindex and use for asset indexes
+simulated function FireBullet()
 {
 	local vector Start, End, Dir, HL, HN;
 	local Actor A;
@@ -638,6 +636,10 @@ simulated function TraceFire() // Pass in int weaponindex and use for asset inde
 	// Client side graphical effects
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 		DrawImpact(A, HL, HN);
+}
+
+simulated function FireProjectile() // Pass in int weaponindex and use for asset indexes
+{
 }
 
 simulated function DrawImpact(Actor A, vector HitLocation, vector HitNormal)
@@ -770,7 +772,7 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 	
 	if(!bWasSold && WorldInfo.NetMode != NM_DedicatedServer)
 	{
-		PlaySoundBase(SoundCue'Turret_TF2.Sounds.sentry_explode_Cue', true);
+		PlaySoundBase(DieingSound, true);
 		WorldInfo.MyEmitterPool.SpawnEmitter(ParticleSystem'WEP_3P_EMP_EMIT.FX_EMP_Grenade_Explosion', Location);
 		WorldInfo.MyEmitterPool.SpawnEmitter(ParticleSystem'WEP_3P_MKII_EMIT.FX_MKII_Grenade_Explosion', Location);
 	}
@@ -782,12 +784,12 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 	}
 }
 
-function PlayHit(float InDamage, Controller InstigatedBy, vector HitLocation, class<DamageType> damageType, vector Momentum, TraceHitInfo HitInfo)
+simulated function PlayHit(float InDamage, Controller InstigatedBy, vector HitLocation, class<DamageType> damageType, vector Momentum, TraceHitInfo HitInfo)
 {
 	if(InDamage > 5 && NextTakeHitSound < WorldInfo.TimeSeconds)
 	{
-		NextTakeHitSound = WorldInfo.TimeSeconds + 0.75; // Up from 0.5
-		PlaySoundBase(SoundCue'Turret_TF2.Sounds.sentry_damage1_Cue');
+		NextTakeHitSound = WorldInfo.TimeSeconds + 1.5f; // Up from 0.5
+		PlaySoundBase(DamageTakenSound);
 	}
 }
 

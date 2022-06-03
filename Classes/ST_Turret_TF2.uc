@@ -5,6 +5,7 @@ Class ST_Turret_TF2 extends ST_Turret_Base
 var SpotLightComponent TurretSpotLight;
 var PointLightComponent TurretRedLight;
 
+// Called when building OR changing turret level
 simulated function UpdateDisplayMesh()
 {
 	if(WorldInfo.NetMode != NM_DedicatedServer && Mesh.SkeletalMesh != None)
@@ -22,18 +23,69 @@ simulated function UpdateDisplayMesh()
 	}
 }
 
-simulated function PreBuildAnim()
+// Called when building OR changing turret level
+simulated function UpdateSounds()
 {
-	super.PreBuildAnim();
+	// WHEN A SOUND DOESNT CHANGE DURING GAMEPLAY PUT IT IN defaultproperties
+	switch(UpgradesObj.TurretLevel)
+	{
+		case 0:
+			ScanningSound = SoundCue'Turret_TF2.Sounds.sentry_scan_Cue'
+			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot_Cue',
+			break;
+		case 1:
+			ScanningSound = SoundCue'Turret_TF2.Sounds.sentry_scan2_Cue'
+			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot2_Cue',
+			break;
+		case 2:
+			ScanningSound = SoundCue'Turret_TF2.Sounds.sentry_scan3_Cue'
+			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot3_Cue',
+			break;
+	}
+}
+
+// Called when building OR changing turret level
+simulated function PreBuildAnimation()
+{
+	super.PreBuildAnimation();
 
 	TurretSpotLight.SetEnabled(false);
 }
 
-simulated function PostBuildAnim()
+// Called when building OR changing turret level
+simulated function PostBuildAnimation()
 {
-	super.PostBuildAnim();
+	super.PostBuildAnimation();
 
 	TurretSpotLight.SetEnabled(true);
+}
+
+// The 3 weapon slots have their own function calls for optimization
+simulated function FirePrimary()
+{
+	super.FirePrimary();
+
+	if(WorldInfo.NetMode != NM_Client)
+	{
+		if(AmmoCount[1] > 0 && NextMissileTimer[ESecondaryFire] < WorldInfo.TimeSeconds) // Disabled weapons will always have 0 ammo
+			CheckFireMissile();
+	}
+
+	for(i = 0; i < 5; ++i)
+	{
+		FireBullet();
+	}
+	//FireProjectileLobbed
+	//FireProjectile
+}
+simulated function FireSecondary()
+{
+	super.FireSecondary();
+}
+simulated function FireSpecial()
+{
+	super.FireSecondary();
+	FireProjectileLobbed();
 }
 
 defaultproperties
@@ -47,8 +99,14 @@ defaultproperties
 	DamageTypes(0) = class'KFDT_Ballistic' // Used for bullet damage
 	DamageTypes(1) = class'KFDT_Explosive' // Used for missile damage
 
-	ControllerClass = Class'ST_AI_Base'
+	ControllerClass = Class'ST_AI_TF2'
 	UpgradesClass = Class'ST_Upgrades_TF2'
+
+
+	FiringSounds(ESecondaryFire) = 
+	EmptySounds(EPrimaryFire) = 
+	DamageTakenSound = SoundCue'Turret_TF2.Sounds.sentry_damage1_Cue'
+	DieingSound = SoundCue'Turret_TF2.Sounds.sentry_explode_Cue'
 
 	Begin Object Class=SpotLightComponent Name=SpotLight1
 		OuterConeAngle = 35.000000

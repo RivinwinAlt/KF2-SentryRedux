@@ -90,7 +90,7 @@ reliable server function ServerDeployTurret()
 	if(Instigator.PlayerReplicationInfo == None || Instigator.PlayerReplicationInfo.Score < CurrentTurretType.Default.BuildCost)
 	{
 		if(PlayerController(Instigator.Controller) != None)
-			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 0);
+			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 0);
 		return;
 	}
 
@@ -99,7 +99,7 @@ reliable server function ServerDeployTurret()
 	if(PlayerGUI.NumTurrets >= MaxTurretsPerUser) // Maybe handle this check in the GUIController, will need to reference the replicated mod info object
 	{
 		if(PlayerController(Instigator.Controller) != None)
-			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 3);
+			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 3);
 		return;
 	}
 
@@ -111,7 +111,7 @@ reliable server function ServerDeployTurret()
 			if(S.IsAliveAndWell() && ++i >= MapMaxTurrets)
 			{
 				if(PlayerController(Instigator.Controller) != None)
-					PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 6);
+					PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 6);
 				return;
 			}
 	}
@@ -123,7 +123,7 @@ reliable server function ServerDeployTurret()
 	if(Trace(HL, HN, Pos - vect(0, 0, 300), Pos, false, vect(30, 30, 50)) == None)
 	{
 		if(PlayerController(Instigator.Controller) != None)
-			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 2);
+			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 2);
 		return;
 	}
 
@@ -132,7 +132,7 @@ reliable server function ServerDeployTurret()
 		if(S.IsAliveAndWell())
 		{
 			if(PlayerController(Instigator.Controller) != None)
-				PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 1);
+				PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 1);
 			return;
 		}
 
@@ -148,7 +148,7 @@ reliable server function ServerDeployTurret()
 	else
 	{
 		if(PlayerController(Instigator.Controller) != None)
-			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'KFLocalMessage_Turret', 2);
+			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 2);
 	}
 }
 

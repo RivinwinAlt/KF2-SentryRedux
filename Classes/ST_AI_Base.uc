@@ -220,8 +220,7 @@ state FightEnemy
 			return;
 
 		TurretOwner.PlaySoundBase(SoundCue'Turret_TF2.Sounds.sentry_spot_Cue');
-		TurretOwner.SetTimer(0.18, false, 'DelayedStartFire'); // Give time to turn turret skeletal mesh then fire
-		SetTimer(0.1, true, 'CheckEnemyState'); // 10 times a second check the current enemies is still valid
+		TurretOwner.SetTimer(TurretOwner.RoF, true, 'FirePrimary'); // Give time to turn turret skeletal mesh then fire
 	}
 	function EndState(name NewState)
 	{
@@ -230,6 +229,11 @@ state FightEnemy
 		// Stop shooting
 		if(TurretOwner != None)
 			TurretOwner.TurretSetFiring(false);
+	}
+
+	function DelayedFiring()
+	{
+
 	}
 }
 

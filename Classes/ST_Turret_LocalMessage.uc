@@ -1,6 +1,6 @@
 // Defines the messages which a turret can send to players
 
-class KFLocalMessage_Turret extends LocalMessage
+class ST_Turret_LocalMessage extends LocalMessage
 	abstract;
 	//TODO Implement localization of messages? use P.myHUD.LocalizedMessage()
 	//TODO implement enums for message switch

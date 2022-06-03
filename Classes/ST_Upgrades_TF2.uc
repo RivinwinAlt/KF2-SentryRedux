@@ -90,6 +90,7 @@ simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType
 	// Check for Fire damage reduction upgrade
 	if(bFireArmor)
 	{
+		TurretOwner.Controller.GotoState();
 		if(InDamageType.IsA('KFDT_Fire')) // Try to cast to Fire damage
 		{
 			InDamage *= UpgradeInfos[EUpDamageReduceA].FValue;
@@ -113,14 +114,13 @@ simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, 
 
 defaultproperties
 {
-	bRegen=false
-	SonicDamageMultiplier=0.1f // Reduces all sonic damage by 90%
+	bRegen = false
+	SonicDamageMultiplier = 0.1f // Reduces all sonic damage by 90%
 
-	//Turret Level Settings
-	LevelInfos(0)={(
-		IconIndex=`ICON_LEVEL_1,
-		TurretArch=KFCharacterInfo_Monster'Turret_TF2.Arch.Turret1Arch',
-		FiringSounds[EPrimaryFire]=SoundCue'Turret_TF2.Sounds.sentry_shoot_Cue',
+	// LEVELS
+	LevelInfos(0) = {(
+		IconIndex = `ICON_LEVEL_1,
+		TurretArch = KFCharacterInfo_Monster'Turret_TF2.Arch.Turret1Arch',
 
 		Title="Level 1",
 		Description="Low level TF2 sentry turret",
@@ -138,7 +138,6 @@ defaultproperties
 	LevelInfos(1)={(
 		IconIndex=`ICON_LEVEL_2,
 		TurretArch=KFCharacterInfo_Monster'Turret_TF2.Arch.Turret2Arch',
-		FiringSounds[EPrimaryFire]=SoundCue'Turret_TF2.Sounds.sentry_shoot2_Cue',
 
 		Title="Level 2",
 		Description="Mid level TF2 sentry turret",
@@ -156,7 +155,6 @@ defaultproperties
 	LevelInfos(2)={(
 		IconIndex=`ICON_LEVEL_3,
 		TurretArch=KFCharacterInfo_Monster'Turret_TF2.Arch.Turret3Arch',
-		FiringSounds[EPrimaryFire]=SoundCue'Turret_TF2.Sounds.sentry_shoot3_Cue',
 
 		Title="Level 3",
 		Description="High level TF2 sentry turret",
@@ -173,11 +171,20 @@ defaultproperties
 		BaseAccuracyMod=0.05f
 	)}
 
-	// Ammo Settings
-	AmmoInfos(EPrimaryFire)=(CostPerRound=2, BuyAmount = 250)
-	AmmoInfos(ESecondaryFire)=(CostPerRound=20, BuyAmount = 20)
+	// AMMO
+	AmmoInfos(EPrimaryFire) = {(
+		IconIndex = `ICON_AMMO_BULLETS,
+		CostPerRound = 1,
+		BuyAmount = 250
+	)}
 
-	// Upgrade Settings
+	AmmoInfos(ESecondaryFire) = {(
+		IconIndex = `ICON_AMMO_ROCKET,
+		CostPerRound = 20,
+		BuyAmount = 20
+	)}
+
+	// UPGRADES
 	UpgradeInfos(EUpRangeA)=(bIsEnabled=True)
 	UpgradeInfos(EUpRangeB)=(bIsEnabled=True)
 	UpgradeInfos(EUpAccuracyA)=(bIsEnabled=True)
@@ -192,10 +199,10 @@ defaultproperties
 	UpgradeInfos(EUpTurnRadiusC)=(bIsEnabled=True)
 
 	UpgradeInfos(EUpTurnRadiusC)={(
-		Cost=1000, // Is set dynamicly in SetLevelUpgrade()
-		Title="Turret Level",
-		Description="Upgrade to the next turret level to get higher base stats and more upgrade options",
+		Cost=1000,
+		Title="Turning Radius",
+		Description="Allows the turret to turn in a wider circle to target Zeds",
 		bIsEnabled=True
-		IconIndex=`ICON_4
+		IconIndex=`ICON_DEFAULT
 	)}
 }

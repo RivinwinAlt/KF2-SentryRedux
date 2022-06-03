@@ -1,5 +1,5 @@
 # Roadmap
-Goals are in order of what should be acomplished. Input is welcome.
+Goals are roughly in order. Input is welcome.
 
 
 ### 1: Merge the UEx and SDK Decompiles into the main branch
@@ -7,45 +7,27 @@ Goals are in order of what should be acomplished. Input is welcome.
 - ~~Remove unecessary comments and entries from the new source~~
 - ~~Format new source in accordance with coding conventions~~
 - ~~Merge menu classes from ClassicMode into the codebase~~
-- Comment source for readability
-  - Status: Ongoing
+- ~~Comment original source for readability~~
 
 
-### 2: Move default properties and variables to config file
-- ~~Sentry Missile speed~~
-- ~~Place turret delay when right clicking~~
-- ~~Disable right click to sell~~
-- ~~Customizable refund modifier~~
-- GFX disabling booleans
-- Client side graphic-centric settings menu
-- Server mod settings menu page available to Admins
-
-
-### 3: Source turret models and animations
+### 2: Source turret models and animations
 - ~~Get original assets used in TF2 Sentry mod~~
 - ~~Get permission from Marco/Slav to use them~~
 - ~~Extract the TF2 wrench mesh + animations + material~~
 - Obtain new turret models + animations + materials to craft new turrets
 
 
-### 4: Streamline code
-- ~~Combine simple functions and remove null calls~~
-- ~~Move TF2 Turret dependant variables to a new extended class~~
-- ~~Rework the base turret class to be more flexible~~
-- Implement config value clamping
-
-
-### 5: Fix long-standing bugs
+### 4: Fix long-standing bugs
 - ~~Change purple light on turret to red~~
 - ~~Replace green hammer material~~
-- ~~Patch taking over existing turrets beyond max number~~
+- ~~Disable taking over existing turrets beyond max allowed~~
 - Stop the Sentry Hammer from showing as EMPTY in inventory
 - Improve pop-in when obstructed by narrow walls, etc
 
 
-### 6: Implement new features
+### 5: Implement new features
 - ~~Be able to rotate turret during placement~~
-- More turret varieties (Perkified versions)
+- More turret types
 - Integrate more buyable upgrades
   - See Discord google sheets (Rowdy Howdy's Server)
 - ~~Turret Preview hugs ground when placing~~
@@ -61,16 +43,25 @@ Goals are in order of what should be acomplished. Input is welcome.
 - Add idle wrench animation from TF2
 - ~~Alter menu rendering to enforce 16:9 aspect ratio on all screens~~
 - Be able to queue upgrades
-- Add menu accesible with Hammer AltFire to change turret being placed
+- Add menu accesible with Hammer AltFire to change selected turret type
 
 
-### 6: Optimization
+### 6: Move default properties and variables to config file
+- Sentry Missile speed
+- Place turret delay when right clicking
+- Disable right click to sell
+- Customizable refund modifier
+- GFX disabling booleans
+- Client side graphic-centric settings menu
+- Server mod settings menu page available to Admins
+- Implement config value clamping
+
+
+### 7: Optimization
 - Run clocked test to compare old random bullet trajectory to new method
-- Only load one copy of each texture used in mod
-- Implement Skip flags for complex If statements (use booleans and timers to reduce branching frequency)
-- Minimise raytracing
-  - ~~Missiles~~
-  - Turret preview
+- ~~Only load one copy of each texture used in mod~~
+- Minimise missile raytracing
 
 
 ### Bugs
+- Custom sounds aren't working, unlinked when transfering assets to new package
