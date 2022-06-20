@@ -43,10 +43,11 @@ function bool UsedBy(Pawn User)
 	local ST_SentryNetwork SN;
 
 	
-	if( WorldInfo.NetMode!=NM_Client && PlayerController(User.Controller)!=None )
+	if(WorldInfo.NetMode != NM_Client && PlayerController(User.Controller) != None)
 	{
 		SN = class'ST_SentryNetwork'.static.GetNetwork(PlayerController(User.Controller));
 		SN.SetInfo(TurretOwner, PlayerController(User.Controller));
+		SN.ClientOpenMenu();
 	}
 
 	return true;

@@ -9,8 +9,8 @@ var KFGUI_Category ParentCategory;
 function SetCategoryName(string NewText)
 {
 	ButtonText = NewText;
-	OnClickLeft = ExpandCategory;
-	OnClickRight = CollapseCategory;
+	OnClickLeft = ToggleCategory;
+	OnClickRight = ToggleCategory;
 }
 
 function ExpandCategory( KFGUI_Button Sender )

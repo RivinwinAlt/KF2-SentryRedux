@@ -1,9 +1,11 @@
+// Each Player Actor actually has their own object of this type on both the server and client as a simulated proxy.
 class ST_SentryNetwork extends ReplicationInfo
 	dependson(ST_Upgrades_Base); // Gives access to upgrade enums;
 
-var repnotify ST_Turret_Base TurretOwner;
+var ST_Turret_Base TurretOwner;
 var repnotify PlayerController PlayerOwner;
 
+var transient ST_Settings_Rep Settings;
 var transient byte SendIndex;
 var transient ST_GUIController GUIController;
 var transient bool bWasInitAlready, bActiveTimer;
@@ -17,19 +19,26 @@ replication
 
 simulated event ReplicatedEvent( name VarName )
 {
-	if( TurretOwner!=None && PlayerOwner!=None && !bWasInitAlready)
+	//if( TurretOwner!=None && PlayerOwner!=None && !bWasInitAlready)
+	if(VarName == 'PlayerOwner')
 	{
 		bWasInitAlready = true;
 		SetOwner(PlayerOwner);
-		ClientOpenMenu();
 	}
-	else if(TurretOwner==None || PlayerOwner==None)
+	else
 	{
-		bWasInitAlready = false;
+		super.ReplicatedEvent(VarName);
 	}
 }
 
-static final function ST_SentryNetwork GetNetwork( PlayerController PC)
+simulated function PostBeginPlay()
+{
+	super.PostBeginPlay();
+
+	Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+}
+
+static final function ST_SentryNetwork GetNetwork(PlayerController PC)
 {
 	local ST_SentryNetwork SN;
 	
@@ -38,26 +47,8 @@ static final function ST_SentryNetwork GetNetwork( PlayerController PC)
 	if(SN == None)
 		SN = PC.Spawn(class'ST_SentryNetwork', PC);
 	SN.PlayerOwner = PC;
-
+	
 	return SN;
-}
-
-simulated reliable client function IncrementTurretCount()
-{
-	local ST_GUIController GC;
-
-	GC = class'ST_GUIController'.static.GetGUIController(PlayerOwner);
-	if(GC != none)
-		GC.NumTurrets++;
-}
-
-simulated reliable client function DecrementTurretCount()
-{
-	local ST_GUIController GC;
-
-	GC = class'ST_GUIController'.static.GetGUIController(PlayerOwner);
-	if(GC != none)
-		GC.NumTurrets--;
 }
 
 simulated reliable client function ClientOpenMenu()
@@ -109,7 +100,6 @@ reliable server function SellTurret()
 reliable server function ClosedMenu()
 {
 	GUIController = none;
-    Destroy();
 }
 
 simulated function Destroyed()

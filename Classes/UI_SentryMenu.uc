@@ -11,7 +11,7 @@ var() array<FPageInfo> Pages;
 //var KFGUI_Button ;
 
 var transient KFGUI_Button PrevButton;
-var transient int NumButtons,NumButtonRows;
+var transient int NumButtons, NumButtonRows;
 
 function InitMenu()
 {

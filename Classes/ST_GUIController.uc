@@ -25,7 +25,6 @@ var transient Console OrgConsole;
 var transient KFGUIConsoleHack HackConsole;
 
 var bool bMouseWasIdle,bIsInMenuState,bAbsorbInput,bIsInvalid,bFinishedReplication,bUsingGamepad,bForceEngineCursor,bNoInputReset;
-var byte NumTurrets; // Used to track number of turrets owned by player
 
 var ObjectReferencer RepObject, RepIcons; // Hacked in objectreferencer for direct referencing
 var ST_Turret_Base TurretOwner;
@@ -63,18 +62,6 @@ simulated function PostBeginPlay()
 	
 	SetTimer(0.25, true, 'SetupStyleTextures');
 	SetupStyleTextures();
-}
-
-simulated function UpdateNumTurrets()
-{
-	local ST_Turret_Base T;
-
-	NumTurrets = 0;
-	foreach WorldInfo.AllPawns(class'ST_Turret_Base', T)
-	{
-		if(T.OwnerController == PlayerOwner && T.IsAliveAndWell())
-			++NumTurrets;
-	}
 }
 
 simulated function SetupStyleTextures()
@@ -196,9 +183,9 @@ simulated function RenderMenu( Canvas C )
 	OrgY = C.OrgY;
 	ClipX = C.ClipX;
 	ClipY = C.ClipY;
-	WSOffset = C.OrgX - (C.OrgY * 16.0f / 9.0f); // Ultra widescreen offset, brings us down to a consistant 16:9 ratio
+	WSOffset = C.ClipX - (C.ClipY * 16.0f / 9.0f); // Ultra widescreen offset, brings us down to a consistant 16:9 ratio
 
-	for( i=(ActiveMenus.Length-1); i>=0; --i ) // TODO: optimize: move to foreach model
+	for(i = (ActiveMenus.Length - 1); i >= 0; --i) // TODO: optimize: move to foreach model
 	{
 		ActiveMenus[i].bWindowFocused = (i==0);
 		ActiveMenus[i].InputPos[0] = WSOffset / 2.0f;
@@ -218,8 +205,8 @@ simulated function RenderMenu( Canvas C )
 		InputFocus.PreDraw();
 	}
 
-	C.SetOrigin(0, 0);
-	C.SetClip(ScreenSize.X, ScreenSize.Y);
+	C.SetOrigin(OrgX, OrgY);
+	C.SetClip(ClipX, ClipY);
 
 	CurrentStyle.DrawCursor(MousePosition.X, MousePosition.Y);
 }

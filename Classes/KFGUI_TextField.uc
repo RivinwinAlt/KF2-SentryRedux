@@ -476,7 +476,7 @@ defaultproperties
     MaxHistory=0
     OutlineSize=1
     Text="TextField"
-    TextColor=(R=236,G=227,B=203,A=255)
+    TextColor=`TEXT_COLOR
     TextFontInfo=(bClipText=true,bEnableShadow=false)
     bCanFocus=false
     bClickable=false

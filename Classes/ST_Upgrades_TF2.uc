@@ -58,10 +58,10 @@ simulated function UpdateUpgrades()
 					TurretOwner.SetSightRadius(TurretOwner.SightRadius * UpgradeInfos[i].FValue);
 					break;
 				case EUpAccuracyA:
-					TurretOwner.AccuracyMod *= UpgradeInfos[i].FValue;
+					TurretOwner.AccuracyMod[EPrimaryFire] *= UpgradeInfos[i].FValue;
 					break;
 				case EUpAccuracyB:
-					TurretOwner.AccuracyMod *= UpgradeInfos[i].FValue;
+					TurretOwner.AccuracyMod[EPrimaryFire] *= UpgradeInfos[i].FValue;
 					break;
 				case EUpTurnRadiusA:
 					if(HasUpgrade(EUpTurnRadiusB)) // Dont decrease the turn radius if a better one is purchased
@@ -71,6 +71,11 @@ simulated function UpdateUpgrades()
 					break;
 				case EUpTurnRadiusC:
 					TurretOwner.SetTurnRadius(UpgradeInfos[i].FValue); // Executed for all three turn radius upgrades
+				case EUpAutoRepair:
+					bRegen = true;
+					break;
+				case EUpPrimaryDamageType:
+					bFireDamage = true;
 					break;
 				case EUpDamageReduceA:
 					break;
@@ -118,6 +123,7 @@ simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType
 	// Check for Fire damage reduction upgrade
 	if(bFireArmor)
 	{
+		TurretOwner.Controller.GotoState();
 		if(InDamageType.IsA('KFDT_Fire')) // Try to cast to Fire damage
 		{
 			InDamage *= UpgradeInfos[EUpDamageReduceA].FValue;
@@ -127,7 +133,7 @@ simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType
 
 //Handles upgrades that modify damage given
 //NB: Should be as slim as possible to decrease overhead
-simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, optional out class<DamageType> OutDamageType, optional int HitZoneIdx)
+simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, optional out class<KFDamageType> OutDamageType, optional int HitZoneIdx)
 {
 	// Check for Fire damage upgrade
 	if(EUpPrimaryDamageType)
@@ -227,8 +233,4 @@ defaultproperties
 	UpgradeInfos(EUpHeadshots)=(bIsEnabled=True)
 	UpgradeInfos(EUpWeaponBehaviour)=(bIsEnabled=True)
 	UpgradeInfos(EUpAutoRepair)=(bIsEnabled=True)
-
-
-
-
 }
