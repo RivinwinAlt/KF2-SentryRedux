@@ -1,35 +1,63 @@
 // Defines the behavior of the Sentry Hammer (needs to be completely rewritten into Engineers Wrench with new model and animations)
 
 class KFWeap_EngWrench extends KFWeap_Blunt_Pulverizer
-		config(SentryRedux);
+	dependson(ST_Settings_Rep)
+	config(SentryRedux);
 
 var config byte MaxTurretsPerUser, MapMaxTurrets;
-var config float MinPlacementDistance, RefundMultiplier, WeaponTextScale, TurretPreviewDelay, PreviewRotationRate;
+var config float MinPlacementDistance, RefundMultiplier, WeaponTextScale, TurretPreviewDelay;
 var config int  HealPerHit;
 var config bool bHeavyAttackToSell, bCanDropWeapon;
-var ST_GUIController PlayerGUI;
 
-//var transient SentryMainRep 
+var transient ST_Settings_Rep Settings;
+var transient TurretBuildInfo BuildInfo;
 
 var SkeletalMeshComponent TurretPreview;
 var KFCharacterInfo_Monster BaseTurretArch;
 var MaterialInstanceConstant BaseTurSkin;
 var bool bPendingDeploy;
-var class<ST_Turret_Base> CurrentTurretType;
+var float PreviewRotationRate;
 
 simulated function PostBeginPlay()
 {
+	if(WorldInfo.NetMode == NM_DedicatedServer)
+	{
+		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+		`log("KFWeap_EngWrench: PostBeginPlay() called on server");
+	}
+
 	Super.PostBeginPlay();
 
 	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+		`log("KFWeap_EngWrench: PostBeginPlay() called on server");
+	}
+
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
 		InitDisplay();
+	}
+	InitTurretSelection();
 }
 
 simulated final function InitDisplay()
 {
+	if(Settings == none)
+		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+
 	TurretPreview.SetSkeletalMesh(BaseTurretArch.CharacterMesh);
 	TurretPreview.CreateAndSetMaterialInstanceConstant(0);
 	TurretPreview.SetMaterial(0, BaseTurSkin);
+}
+
+simulated function InitTurretSelection()
+{
+	if(Settings == none)
+		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+
+	BuildInfo = Settings.PreBuildInfos[0]; // Placeholder, hardcoded to load the first buildinfo for now
+	PreviewRotationRate = Settings.repPreviewRot;
 }
 
 reliable client function ClientWeaponSet(bool bOptionalSet, optional bool bDoNotActivate)
@@ -37,13 +65,16 @@ reliable client function ClientWeaponSet(bool bOptionalSet, optional bool bDoNot
 	local PlayerController PC;
 
 	// This is the first time we have a valid Instigator (see PendingClientWeaponSet)
-	if (Instigator != None && InvManager != None && WorldInfo.NetMode != NM_DedicatedServer)
+	if (Instigator != None && InvManager != None)
 	{
-		PC = PlayerController(Instigator.Controller);
-		if(Instigator.Controller != none && PC != None && PC.myHUD != none)
-			InitFOV(PC.myHUD.SizeX, PC.myHUD.SizeY, PC.DefaultFOV);
-		if(PC != None)
-			class'ST_Overlay'.Static.GetOverlay(PC);
+		if(WorldInfo.NetMode != NM_DedicatedServer)
+		{
+			PC = PlayerController(Instigator.Controller);
+			if(Instigator.Controller != none && PC != None && PC.myHUD != none)
+				InitFOV(PC.myHUD.SizeX, PC.myHUD.SizeY, PC.DefaultFOV);
+			if(PC != None)
+				class'ST_Overlay'.Static.GetOverlay(PC, WorldInfo);
+		}
 	}
 
 	Super(Weapon).ClientWeaponSet(bOptionalSet, bDoNotActivate);
@@ -54,10 +85,6 @@ function SetOriginalValuesFromPickup(KFWeapon PickedUpWeapon)
 	KFInventoryManager(InvManager).AddCurrentCarryBlocks(InventorySize);
 	KFPawn(Instigator).NotifyInventoryWeightChanged();
 
-	if(PlayerGUI == none)
-		PlayerGUI = class'ST_GUIController'.static.GetGUIController(PlayerController(Instigator.Controller));
-	PlayerGUI.UpdateNumTurrets();
-
 	bGivenAtStart = PickedUpWeapon.bGivenAtStart;
 }
 
@@ -67,83 +94,72 @@ function GivenTo(Pawn thisPawn, optional bool bDoNotActivate)
 
 	KFInventoryManager(InvManager).AddCurrentCarryBlocks(InventorySize);
 	KFPawn(Instigator).NotifyInventoryWeightChanged();
-	
-	if(PlayerGUI == none)
-		PlayerGUI = class'ST_GUIController'.static.GetGUIController(PlayerController(Instigator.Controller));
-	PlayerGUI.UpdateNumTurrets();
 }
 
 simulated function CustomFire()
 {
-	// Use this to switch between default and simplified overlay styles
+	// Use this to open the turret type selection window
 }
 
-simulated function BeginDeployment(); // has to be here so that we can declare a version in heavy firing state
+simulated function BeginDeployment();
 
 reliable server function ServerDeployTurret()
 {
-	local ST_Turret_Base S;
-	local rotator R;
-	local vector Pos, HL, HN;
-	local byte i;
+	local ST_Turret_Base NewTurret;
+	local rotator NewRotation;
+	local vector Pos, HitLocation, HitNormal;
+
+	if(Settings == none)
+		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
 	
-	if(Instigator.PlayerReplicationInfo == None || Instigator.PlayerReplicationInfo.Score < CurrentTurretType.Default.BuildCost)
+	// Does the player have enough Dosh?
+	if(Instigator.PlayerReplicationInfo == None || Instigator.PlayerReplicationInfo.Score < BuildInfo.BuildCost)
 	{
-		if(PlayerController(Instigator.Controller) != None)
-			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 0);
+		if( PlayerController(Instigator.Controller)!=None )
+			PlayerController(Instigator.Controller).ReceiveLocalizedMessage( class'ST_Turret_LocalMessage', 0 );
 		return;
 	}
 
-	if(PlayerGUI == none)
-		PlayerGUI = class'ST_GUIController'.static.GetGUIController(PlayerController(Instigator.Controller));
-	if(PlayerGUI.NumTurrets >= MaxTurretsPerUser) // Maybe handle this check in the GUIController, will need to reference the replicated mod info object
+	// Are there too many turrets on the server?
+	if(!Settings.CheckNumMapTurrets(BuildInfo.TurretClass))
 	{
-		if(PlayerController(Instigator.Controller) != None)
-			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 3);
+		if( PlayerController(Instigator.Controller)!=None )
+			PlayerController(Instigator.Controller).ReceiveLocalizedMessage( class'ST_Turret_LocalMessage', 6 );
 		return;
 	}
-
-	// TODO: Use SettingsRep to track this instead of iterating AllPawns each time
-	if(MapMaxTurrets > 0)
-	{
-		i = 0;
-		foreach WorldInfo.AllPawns(class'ST_Turret_Base', S)
-			if(S.IsAliveAndWell() && ++i >= MapMaxTurrets)
-			{
-				if(PlayerController(Instigator.Controller) != None)
-					PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 6);
-				return;
-			}
-	}
 	
-	R.Yaw = Instigator.Rotation.Yaw;
-	Pos = Instigator.Location + vector(R) * 120.f; //120 units in front of player
+	// Calculate where we'd be putting the turret
+	NewRotation.Yaw = Instigator.Rotation.Yaw;
+	Pos = Instigator.Location + vector(NewRotation) * 120.f; //120 units in front of player
 
-	//HL = out HitLocation, HN = out HitNormal,
-	if(Trace(HL, HN, Pos - vect(0, 0, 300), Pos, false, vect(30, 30, 50)) == None)
+	if(Trace(HitLocation, HitNormal, Pos - vect(0, 0, 300), Pos, false, vect(30, 30, 50)) == None)
 	{
 		if(PlayerController(Instigator.Controller) != None)
 			PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 2);
 		return;
 	}
 
-	//Check if too near another turret
-	foreach WorldInfo.AllPawns(class'ST_Turret_Base', S, HL, MinPlacementDistance)
-		if(S.IsAliveAndWell())
+	// Check if too near another turret
+	foreach WorldInfo.AllPawns(class'ST_Turret_Base', NewTurret, HitLocation, 500)
+	{
+		if(NewTurret.IsAliveAndWell() && NewTurret.BuildRadius + BuildInfo.BuildRadius > VSize(NewTurret.Location - HitLocation))
 		{
 			if(PlayerController(Instigator.Controller) != None)
 				PlayerController(Instigator.Controller).ReceiveLocalizedMessage(class'ST_Turret_LocalMessage', 1);
 			return;
 		}
+	}
 
-	//spawn a new turret
-	R.Yaw += Instigator.Controller.Rotation.Pitch * PreviewRotationRate;
-	S = Instigator.Spawn(CurrentTurretType, , , Pos, R);
-	if(S != None)
+	// Spawn a new turret
+	NewRotation.Yaw += Instigator.Controller.Rotation.Pitch * PreviewRotationRate;
+	NewTurret = Instigator.Spawn(BuildInfo.TurretClass, , , HitLocation, NewRotation);
+	
+	if(NewTurret != None)
 	{
-		S.SetTurretOwner(PlayerController(Instigator.Controller));
-		Instigator.PlayerReplicationInfo.Score -= CurrentTurretType.Default.BuildCost;
-		PlayerGUI.NumTurrets++;
+		NewTurret.SetTurretOwner(PlayerController(Instigator.Controller));
+		NewTurret.BuildRadius = BuildInfo.BuildRadius;
+		NewTurret.DoshValue = BuildInfo.BuildCost;
+		Instigator.PlayerReplicationInfo.Score -= BuildInfo.BuildCost;
 	}
 	else
 	{
@@ -154,8 +170,8 @@ reliable server function ServerDeployTurret()
 
 simulated function UpdatePreview()
 {
-	local rotator R;
-	local vector StartPos, TracedPos, HN;
+	local rotator NewRotation;
+	local vector StartPos, TracedPos, HitNormal;
 
 	if(Instigator == None)
 		bPendingDeploy = false;
@@ -169,18 +185,18 @@ simulated function UpdatePreview()
 	if(TurretPreview.HiddenGame)
 		TurretPreview.SetHidden(false);
 
-	R.Yaw = Instigator.Rotation.Yaw;
+	NewRotation.Yaw = Instigator.Rotation.Yaw;
 
-	StartPos = Instigator.Location + vector(R) * 120.f;
-	if(Trace(TracedPos, HN, StartPos - vect(0, 0, 330), StartPos, false) != None)
+	StartPos = Instigator.Location + vector(NewRotation) * 120.f;
+	if(Trace(TracedPos, HitNormal, StartPos - vect(0, 0, 330), StartPos, false) != None)
 	{
 		TurretPreview.SetTranslation(TracedPos);
 	}else
 	{
 		TurretPreview.SetTranslation(StartPos);
 	}
-	R.Yaw += Instigator.Controller.Rotation.Pitch * PreviewRotationRate;
-	TurretPreview.SetRotation(R);
+	NewRotation.Yaw += Instigator.Controller.Rotation.Pitch * PreviewRotationRate;
+	TurretPreview.SetRotation(NewRotation);
 }
 
 simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocation)
@@ -245,8 +261,19 @@ simulated state MeleeHeavyAttacking
 		if(bPendingDeploy)
 		{
 			bPendingDeploy = false;
+			// Does the player own the max turrets already?
+			if(!Settings.CheckNumPlayerTurrets(BuildInfo.TurretClass))
+			{
+				if( PlayerController(Instigator.Controller)!=None )
+					PlayerController(Instigator.Controller).ReceiveLocalizedMessage( class'ST_Turret_LocalMessage', 3 );
+				Super(KFWeap_MeleeBase).StopFire(FireModeNum);
+				bPulverizerFireReleased = true;
+				return;
+			}
 			ServerDeployTurret();
-		} else {
+		}
+		else
+		{
 			InstigatorPerk = GetPerk();
 			if( InstigatorPerk != none )
 			{
@@ -268,7 +295,7 @@ simulated state MeleeHeavyAttacking
 		ClearTimer('BeginDeployment');
 
 		Super(KFWeap_MeleeBase).StopFire(FireModeNum);
-		//bPulverizerFireReleased = true;
+		bPulverizerFireReleased = true;
 	}
 
 	simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocation)
@@ -330,7 +357,6 @@ defaultproperties
 {
 	//DroppedPickupClass=class'PU_InteractDroppedPickup' // THIS ONE LINE ENABLES PU_HoveringWeaponInfo.uc and PU_InteractDroppedPickup.uc FUNCTIONALITY
 
-	CurrentTurretType = class'ST_Turret_TF2' // Initial setup, will be replaced with turret-cycling code using button press
 	AssociatedPerkClasses(0) = none
 
 	PackageKey = "SentryHammer"

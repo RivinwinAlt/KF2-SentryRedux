@@ -1,61 +1,71 @@
-//Main Turret object class extends pawn, but notably not _Monster or _Human
+// Main Turret class extends Pawn, but notably not _Monster or _Human
 Class ST_Turret_Base extends KFPawn
 	config(SentryRedux)
 	dependson(ST_Upgrades_Base);
 
-enum FireTypeEnums // Used to easily access 
+`define NUM_WEAPONS 3
+
+// STRUCTS
+enum FireTypeEnums // Used to easily access each of the integrated weapons
 {
-	EPrimaryFire,
+	EPrimaryFire, // Example use: Damage[ESecondaryFire] will be the base damage the second integrated weapon does at any given time
 	ESecondaryFire,
 	ESpecialFire,
 
-	ENumFireTypes // Used as int to cycle through fire types
+	ENumFireTypes // Used as int to cycle through fire types or use `NUM_WEAPONS, should always be equal
 };
 
-var ST_Upgrades_Base UpgradesObj;
-var class<ST_Upgrades_Base> UpgradesClass;
+// OBJECTS
+var ST_Upgrades_Base UpgradesObj; // The object that describes and knows what upgrades are currently purchased
+var class<ST_Upgrades_Base> UpgradesClass; // Specifies which class type to use for the above object ^
+var ST_Trigger_Base ActiveTrigger; // The object responsable for interactng with the player and opening the menu
 
-var transient ST_Overlay LocalOverlay;
-var transient float ScanLocTimer, BuildTimer, NextTakeHitSound, NextFireSoundTime;
-var transient bool bRecentlyBuilt, bIsScanning, bLeftScanned, bAlterFired, bAltMissileFired;
-var transient int TempDamage;
-var transient class<DamageType> TempDamageType;
+// CACHED REFERENCES
+var repnotify Actor ViewFocusActor; // Where the turret mesh should be looking, set by server along with controller.enemy
+var PlayerController OwnerController; // The player authorized to sell/downgrade the turret
+var transient ST_Overlay LocalOverlay; // The completely local player overlay object to tie into HUD rendering
+var transient ST_Settings_Rep Settings;
+var transient ST_AI_Base AIController;
 
-var int SentryWorth, IntSightRadius;
-var repnotify Actor ViewFocusActor;
-var repnotify bool bFiringMode, bIsPendingFireMode, bWasSold;
-var repnotify byte FireCounter[3];
+// STATS / GENERAL
+var bool bRecentlyBuilt;
+var float RefundMultiplier; // This is a fallback value and can be set at any time. This should really be determined by a Main Replicated Object.
+var int HealthLostNoOwner, DoshValue, IntSightRadius, BuildRadius; // IntSightRadius is used for faster Integer math when comparing distances
+var float BuildTimer, NextTakeHitSound;
+var repnotify bool bWasSold; // Notifies proxies of sale going on, only set by server
 
-var config int BuildCost, MissileSpeed, HealthLostNoOwner;
+// WEAPONS - we have to use static arrays instead of dynamic arrays because dynamic arrays don't replicate well
+var class<DamageType> DamageTypes[`NUM_WEAPONS];
+var transient class<KFDamageType> TempDamageType; // Cached temporary value, faster to allocate once
+var class<KFProjectile> ProjectileTypes[`NUM_WEAPONS];
+var float AccuracyMod[`NUM_WEAPONS], TurnRadius, RoF, NextFireSoundTime;
+var int WeaponRange[`NUM_WEAPONS], AmmoCount[`NUM_WEAPONS], MaxAmmoCount[`NUM_WEAPONS], Damage[`NUM_WEAPONS];
+var byte Armor, MaxArmor; // Pulled from KFPawn_Human
+var int TempDamage; // Float rather than int to allow precise muilti-float calculations nb efore using Round(), pulled from Weapon.uc
+var vector RepHitLocation; // Moving away from this being replicated, its just where to render the hit fx
+var repnotify byte FireCounter[`NUM_WEAPONS];
 
-var SkelControlLookAt YawControl, PitchControl;
-var PlayerController OwnerController;
-var ST_Trigger_Base ActiveTrigger;
-var vector ScanLocation, DesScanLocation;
-var vector RepHitLocation;
-
-// You cant replicate dynamic arrays easily - Using static arrays instead
-// This limits us to 3 (or some arbitrary integer) integrated weapons per turret
-var int AmmoCount[3], MaxAmmoCount[3], Damage[3];
-var class<KFDamageType> DamageTypes[3];
-var float AccuracyMod, TurnRadius, RoF, RefundMultiplier;
-var AnimNodeSlot AnimationNode, UpperAnimNode;
-
+// ANIMATION / FX
 var KFMuzzleFlash MuzzleFlash[4];
+var byte MuzzleFlashIndex;
+var AnimNodeSlot AnimationNode, UpperAnimNode;
+var float ScanLocTimer;
+var SkelControlLookAt YawControl, PitchControl;
+var bool bIsScanning, bLeftScanned, bAltMissileFired;
+var vector ScanLocation, DesScanLocation;
 
 // SOUND
-var SoundCue FiringSounds[3];
-var SoundCue EmptySounds[3];
+var SoundCue FiringSounds[`NUM_WEAPONS];
+var SoundCue EmptySounds[`NUM_WEAPONS];
 var SoundCue ScanningSound;
 var SoundCue DamageTakenSound;
 var SoundCue DieingSound;
-var float NextFiringTime[3];
 
 // REPLICATION
 replication
 {
 	if(bNetDirty)
-		bWasSold, ViewFocusActor, bFiringMode, RepHitLocation, SentryWorth, bRecentlyBuilt, FireCounter, AmmoCount, bIsPendingFireMode, OwnerController;
+		bWasSold, ViewFocusActor, /*RepHitLocation,(remove if no bugs ensue)*/ DoshValue, bRecentlyBuilt, FireCounter, AmmoCount, OwnerController;
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -64,9 +74,6 @@ simulated event ReplicatedEvent(name VarName)
 	{
 	case 'ViewFocusActor':
 		SetViewFocus(ViewFocusActor);
-		break;
-	case 'bFiringMode':
-		TurretSetFiring(bFiringMode);
 		break;
 	default:
 		Super.ReplicatedEvent(VarName);
@@ -78,9 +85,12 @@ simulated function PostBeginPlay()
 {
 	Super.PostBeginPlay();
 
+	Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 	{
 		AddHUDOverlay();
+		++Settings.NumPlayerTurrets;
 	}
 
 	if(WorldInfo.NetMode != NM_Client)
@@ -94,19 +104,18 @@ simulated function PostBeginPlay()
 
 		if(Controller == None)
 			SpawnDefaultController();
+		AIController = ST_AI_Base(Controller);
+
+		Settings.TurretCreated(Self);
 	}
 
-	SentryWorth = BuildCost;
+	HealthLostNoOwner = Settings.TurretHealthTickDown;
 }
 
 simulated function InitBuild()
 {
 	// Reset skeletal mesh to default orientation
 	SetViewFocus(None);
-
-	// Stop shooting / shooting animation
-	if(bFiringMode || bIsPendingFireMode)
-		TurretSetFiring(false,true);
 
 	// Stop the scanning animation
 	if(bIsScanning)
@@ -185,7 +194,7 @@ simulated final function AddHUDOverlay()
 	if(PC == None)
 		return;
 
-	LocalOverlay = class'ST_Overlay'.Static.GetOverlay(PC);
+	LocalOverlay = class'ST_Overlay'.Static.GetOverlay(PC, WorldInfo);
 	LocalOverlay.ActiveTurrets.AddItem(Self);
 }
 
@@ -351,7 +360,7 @@ function bool TryToSellTurret(Controller User)
 	{
 		bWasSold = true;
 		if(User.PlayerReplicationInfo != None)
-			User.PlayerReplicationInfo.Score += (SentryWorth * RefundMultiplier);
+			User.PlayerReplicationInfo.Score += (DoshValue * RefundMultiplier);
 		
 		KilledBy(None);
 		return true;
@@ -362,86 +371,63 @@ function bool TryToSellTurret(Controller User)
 	return false;
 }
 
-simulated function TurretSetFiring(bool bFire, optional bool bInstant)
+// Called from AI
+simulated function BeginScanning()
 {
-	bFiringMode = bFire;
-	
-	if(bFire)
+	if(WorldInfo.NetMode != NM_DedicatedServer)
 	{
-		if(WorldInfo.NetMode != NM_Client)
-		{
-			if(NextMissileTimer < WorldInfo.TimeSeconds)
-				NextMissileTimer = WorldInfo.TimeSeconds + FRand() * 2.0f;
-		}
-		FireShot();
-		
-	}
-	else
-	{
-		bIsPendingFireMode = false;
-		FireCounter[0] = 0;
-		ClearTimer('DelayedStartFire');
-		ClearTimer('FireShot');
-		
-		if(WorldInfo.NetMode != NM_DedicatedServer && !bInstant)
-		{
-			ScanLocation = vector(Rotation);
-			DesScanLocation = ScanLocation;
-			AnimationNode.StopCustomAnim(0.05f);
-			bIsScanning = true;
-			SetViewFocus(ViewFocusActor);
-			SetTimer(0.2f, false, 'ScanSound');
-			SetTimer(6.0f, false, 'EndScanning');
-		}
+		ScanLocation = vector(Rotation);
+		DesScanLocation = ScanLocation;
+		AnimationNode.StopCustomAnim(0.05f);
+		bIsScanning = true;
+		//SetViewFocus(ViewFocusActor);
+		SetTimer(0.2f, false, 'ScanSound');
+		SetTimer(6.0f, false, 'EndScanning');
 	}
 }
+	
 simulated function ScanSound()
 {
-	if(ScanningSound == None)
+	if(ScanningSound == None || !bIsScanning) // Check to end recursion
 		return;
 
 	PlaySoundBase(ScanningSound, true);
-	SetTimer(ScanningSound.GetCueDuration(), false, 'ScanSound');
+	SetTimer(ScanningSound.GetCueDuration(), false, 'ScanSound'); // Recursively calls own function when soundcue ends
 }
-simulated function EndScanning()
+simulated function EndScanning() // Can be called automatically or from AI
 {
 	bIsScanning = false;
-	SetViewFocus(ViewFocusActor);
+	ClearTimer('ScanSound');
+	//SetViewFocus(ViewFocusActor); // This makes the mesh look straight ahead? (60% sure)
 }
 
 simulated function FirePrimary()
 {
 	// More efficient to do this here than to do it on a timer
-	if(!Controller.CheckEnemyState())
-		return;
+	if(!AIController.CheckEnemyState())
+		return; // If the enemy is dead or can't be targeted just dont shoot
 
-	if(AmmoCount[0] <= 0)
+	if(AmmoCount[EPrimaryFire] <= 0)
 	{
 		if(WorldInfo.NetMode != NM_DedicatedServer)
-			PlayOutOfAmmo();
-
-		if(!bIsPendingFireMode)
 		{
-			bFiringMode = false;
-			bIsPendingFireMode = true;
+			PlayPrimaryOutOfAmmo();
 		}
 		return;
 	}
-	else if(bIsPendingFireMode)
-	{
-		bFiringMode = true;
-		bIsPendingFireMode = false;
-	}
 
 	if(WorldInfo.NetMode != NM_Client)
-		--AmmoCount[0];
+	{
+		--AmmoCount[EPrimaryFire];
+		++FireCounter[EPrimaryFire];
+	}
 
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 	{
 		AnimationNode.PlayCustomAnim('Fire', 1.0f, 0.0f, 0.0f, false, true);
 		if(NextFireSoundTime < WorldInfo.TimeSeconds)
 		{
-			NextFireSoundTime = WorldInfo.TimeSeconds + 0.15f;
+			NextFireSoundTime = WorldInfo.TimeSeconds + 0.15f; // This is an arbitrary time, how do we fetch the soundcue length?
 			PlaySoundBase(FiringSounds[EPrimaryFire], true);
 		}
 	}
@@ -453,48 +439,52 @@ simulated function FireSpecial()
 {
 }
 
+simulated function PlayPrimaryOutOfAmmo()
+{
+	PlaySoundBase(EmptySounds[EPrimaryFire], true);
+}
+
 function CheckFireMissile()
 {
-	local Pawn T;
-	local KFPawn P;
-	local int HP;
-	local rotator R;
-	local vector Start;
+	local Pawn TargetPawn;
+	local KFPawn tempPawn;
+	local int HealthPool;
+	local rotator ProjRotation;
+	local vector StartLocation;
 	local ST_Proj_Missile Proj;
 	
-	T = Controller.Enemy;
-	if(T == None)
+	TargetPawn = Controller.Enemy;
+	if(TargetPawn == None)
 		return;
 	
-	foreach WorldInfo.AllPawns(class'KFPawn', P, T.Location, 600.0f)
+	foreach WorldInfo.AllPawns(class'KFPawn', tempPawn, TargetPawn.Location, 600.0f) // TODO: instead of 600 tie this range to the damage radius of the projectile to be used
 	{
-		if(P == T || FastTrace(P.Location, T.Location))
-			HP += (200 + P.Health);
+		if(tempPawn == TargetPawn || FastTrace(tempPawn.Location, TargetPawn.Location))
+			HealthPool += (200 + tempPawn.Health);
 	}
 	
-	if(HP > 800)
+	if(HealthPool > 800)
 	{
-		NextMissileTimer = WorldInfo.TimeSeconds + 3.8f;
-		if(++FireCounter[0] > 250)
-			FireCounter[0] = 1;
+		//NextMissileTimer = WorldInfo.TimeSeconds + 3.8f;
+		if(++FireCounter[EPrimaryFire] > 250)
+			FireCounter[EPrimaryFire] = 1;
 		if(WorldInfo.NetMode != NM_DedicatedServer)
 			MakeFireMissileFX();
 		
 		// Fire proj itself.
-		Start = Location + vect(0, 0, 122.0f); // Offset to put missile outside the turrets collision
-		R = Controller.GetAdjustedAimFor(None, Start);
-		Proj = Spawn(class'ST_Proj_Missile', , , Start, R);
+		StartLocation = Location + vect(0, 0, 122.0f); // Offset to put missile outside the turrets collision
+		ProjRotation = rotator(GetAimPos(StartLocation, Controller.Enemy) - StartLocation);
+		Proj = ST_Proj_Missile(Spawn(ProjectileTypes[ESecondaryFire], , , StartLocation, ProjRotation));
 		if(Proj != None)
 		{
 			if(UpgradesObj.HasUpgrade(EUpHomingMissiles))
-				Proj.AimTarget = T;
+				Proj.AimTarget = TargetPawn;
 			Proj.Damage = Damage[1];
 			Proj.ExplosionTemplate.Damage = Damage[1];
-			Proj.Init(vector(R));
+			Proj.Init(vector(ProjRotation));
 			Proj.InstigatorController = OwnerController != None ? OwnerController : Controller;
-			Proj.Speed = MissileSpeed;
+			Proj.Speed = 1500;
 		}
-		 --AmmoCount[1];
 	}
 }
 
@@ -517,180 +507,188 @@ simulated function MakeFireMissileFX()
 	MuzzleFlash[i].CauseMuzzleFlash(0);
 }
 
+// Gets the bullet spawn height, logic is mesh dependant
 simulated final function vector GetTraceStart()
 {
 	return Location + (UpgradesObj.TurretLevel == 0 ? vect(0, 0, 38.0f) : vect(0, 0, 77.0f));
 }
 
-final function bool CanSeeSpot(vector P)
-{
-	return (Normal(P - Location) Dot vector(Rotation)) > TurnRadius;
-}
-
 function vector GetAimPos(vector CamLoc, Pawn TPawn)
 {
-	local vector			HitLocation, HitNormal;
+	local vector			HitLocation, HitNormal, TorsoLocation, tempLocation;
 	local Actor				HitActor;
 	local TraceHitInfo		HitInfo;
-	local vector                HeadLocation, TorsoLocation, PelvisLocation;
 
 	// if bHeadhunter upgrade Check to see if we can hit the head
 	if(UpgradesObj.HasUpgrade(EUpHeadshots))
 	{
-		HeadLocation = TPawn.Mesh.GetBoneLocation(HeadBoneName);
-		HitActor = TPawn.Trace(HitLocation, HitNormal, HeadLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
-		if( HitActor == none || HitActor == Self )
+		tempLocation = TPawn.Mesh.GetBoneLocation(HeadBoneName);
+		HitActor = TPawn.Trace(HitLocation, HitNormal, tempLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
+		if( HitActor == none || HitActor == Self || HitActor == TPawn)
 		{
-			//`log("Autotarget - found head");
-			return HeadLocation + (vect(0,0,-10.0));
+			return tempLocation; //+ (vect(0,0,-10.0)); // I don't remember why we were shooting low on the head-bone, I think its leftover from shooting high on the torso
 		}
 	}
 	// Try for the torso
 	TorsoLocation = TPawn.Mesh.GetBoneLocation(TorsoBoneName);
 	HitActor = TPawn.Trace(HitLocation, HitNormal, TorsoLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
-	if( HitActor == none || HitActor == Self)
+	if( HitActor == none || HitActor == Self || HitActor == TPawn)
 	{
 		return TorsoLocation;
 	}
 	// Try for the pelvis
-	PelvisLocation = TPawn.Mesh.GetBoneLocation(PelvisBoneName);
-	HitActor = TPawn.Trace(HitLocation, HitNormal, PelvisLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
-	if( HitActor == none || HitActor == Self)
+	tempLocation = TPawn.Mesh.GetBoneLocation(PelvisBoneName);
+	HitActor = TPawn.Trace(HitLocation, HitNormal, tempLocation, CamLoc, TRUE, vect(0,0,0), HitInfo, TRACEFLAG_Bullet);
+	if( HitActor == none || HitActor == Self || HitActor == TPawn)
 	{
-		//`log("Autotarget - found pelvis");
-		return PelvisLocation;
+		return tempLocation;
 	}
-	//`log("Autotarget - found noting - returning location");
-	return Location + BaseEyeHeight * vect(0,0,0.5f);
+	// Return the torso location by default
+	// TODO: lets actually return the first hitactor encountered between the turret and this point instead, so that we can simulate bullet FX on walls etc in between quickly
+	return TorsoLocation;
 }
 
 simulated function FireBullet()
 {
-	local vector Start, End, Dir, HL, HN;
-	local Actor A;
-	local Pawn E;
-	local TraceHitInfo H;
-	local array<ImpactInfo> IL;
+	local vector StartLocation, EndLocation, Dir, HitLocation, HitNormal;
+	local Actor HitActor;
+	local TraceHitInfo HitInfo;
 	local int HitZoneIndex;
 
-	Start = GetTraceStart();
-	if(WorldInfo.NetMode != NM_Client)
-	{
-		E = Controller != None ? Controller.Enemy : None;
-		if(E != None && CanSeeSpot(E.Location))
-		{
-			if(ViewFocusActor != E)
-				SetViewFocus(E);
-			RepHitLocation = GetAimPos(Start, E);
-		}
-		else RepHitLocation = Location + vector(Rotation) * 2000.0f;
-	}
-	else if(RepHitLocation == vect(0, 0, 0))
-		RepHitLocation = Location + vector(Rotation) * 2000.0f;
+	if(Controller.Enemy == none)
+		return;
 
-	Dir = Normal(RepHitLocation - Start);
-	Dir = VRandCone(Dir, AccuracyMod); // Official way, should be faster. Angle is in radians
+	if(WorldInfo.NetMode != NM_Client && ViewFocusActor != Controller.Enemy)
+		SetViewFocus(Controller.Enemy);
 
-	End = Start + Dir * 10000.0f;
-	foreach TraceActors(class'Actor', A, HL, HN, End, Start, , H)
-	{
-		if(A.bBlockActors || A.bProjTarget)
-		{
-			if(Pawn(A) != None)
-			{
-				if(Pawn(A).IsSameTeam(Self))
-					continue;
-				// TODO: Is there a faster trace function?
-				if(KFPawn(A) != None && A.TraceAllPhysicsAssetInteractions(Pawn(A).Mesh, End, Start, IL, , true) && IL.Length > 0) // Try to trace for hitzone info.
-				{
-					H = IL[0].HitInfo;
-				}
-			}
-			break;
-		}
-	}
+	StartLocation = GetTraceStart();
+	RepHitLocation = GetAimPos(StartLocation, Controller.Enemy);
+	Dir = VRandCone(Normal(RepHitLocation - StartLocation), AccuracyMod[EPrimaryFire]); // Official way, should be faster than Marco's. Angle is in radians
+	EndLocation = StartLocation + Dir * WeaponRange[EPrimaryFire];
 
-	// If trace hit an actor on other team
-	if(A != None)
+	// I'm not happy about having to make this but its almost always going to be faster than Marco's way. This design concept is from Weapon.uc
+	RecursiveBulletTrace(HitActor, HitLocation, HitNormal, EndLocation, StartLocation, HitInfo);
+
+	// If trace hit a pawn (not on same team) deal damage
+	if(HitActor.IsA('KFPawn'))
 	{
 		// Set up and run damage modification on both client and server
-		TempDamage = Damage[0];
-		TempDamageType = DamageTypes[0];
-		HitZoneIndex = HitZones.Find('ZoneName', H.BoneName);
-		UpgradesObj.ModifyDamageGiven(TempDamage, A, TempDamageType, HitZoneIndex);
+		TempDamage = Damage[EPrimaryFire];
+		TempDamageType = class<KFDamageType>(DamageTypes[EPrimaryFire]);
+		HitZoneIndex = HitZones.Find('ZoneName', HitInfo.BoneName);
+		UpgradesObj.ModifyDamageGiven(TempDamage, HitActor, TempDamageType, HitZoneIndex);
 
 		if(WorldInfo.NetMode != NM_Client)
 		{
 			Controller.bIsPlayer = false;
 
-			A.TakeDamage(TempDamage, (OwnerController != None ? OwnerController : Controller), HL, Dir * 10000.f, TempDamageType, H, Self);
-			if(Controller != None) // Enemy may have exploded and killed the turret. 
-				Controller.bIsPlayer = true;
-			if(OwnerController != None && Pawn(A) != None && Pawn(A).Controller != None)
-				Pawn(A).Controller.NotifyTakeHit(Controller, HL, TempDamage, TempDamageType, Dir); // Make enemy AI aggro the turret
-		}
-		else A.TakeDamage(TempDamage, Controller, HL, Dir * 10000.f, TempDamageType, H, Self);
-	}
-	else HL = End;
+			HitActor.TakeDamage(TempDamage, (OwnerController != None ? OwnerController : Controller), HitLocation, Dir * 10000.f, TempDamageType, HitInfo, Self);
+			KFPawn(HitActor).AddHitFX(TempDamage, Controller, HitZoneIndex, HitLocation, Dir * 10000.f, TempDamageType);
 
+			if(Controller != None) // Enemy may have exploded and killed the turret, check before assuming access to variable
+				Controller.bIsPlayer = true; // I dont know why this is a thing, but it means we should have access to SeeMonster() in the AI
+			
+			if(Pawn(HitActor).Controller != None)
+				Pawn(HitActor).Controller.NotifyTakeHit(Controller, HitLocation, TempDamage, TempDamageType, Dir); // Add aggro to the target pawn
+		}
+		//else
+		//{
+		//	HitActor.TakeDamage(TempDamage, Controller, HitLocation, Dir * 10000.f, TempDamageType, HitInfo, Self);
+		//}
+	}
+
+	
 	// Client side graphical effects
 	if(WorldInfo.NetMode != NM_DedicatedServer)
-		DrawImpact(A, HL, HN);
+		DrawBulletFX(HitActor, HitLocation, HitNormal);
 }
 
-simulated function FireProjectile() // Pass in int weaponindex and use for asset indexes
+simulated function RecursiveBulletTrace(out actor HitActor, out vector HitLocation, out vector HitNormal, vector EndTrace, vector StartTrace, out TraceHitInfo HitInfo, optional vector Extent) // Helper function to efficiently find a bullets resting place
 {
-}
+	local actor TempActor;
+	local bool bOldBlockActors, bOldCollideActors;
 
-simulated function DrawImpact(Actor A, vector HitLocation, vector HitNormal)
-{
-	local ParticleSystemComponent E;
-	local vector Start, Dir;
-	local float Dist;
-	local byte i;
-	local name M;
-	
-	bAlterFired = !bAlterFired;
-	if(UpgradesObj.TurretLevel == 0 || bAlterFired)
+	TempActor = Trace(HitLocation, HitNormal, EndTrace, StartTrace, TRUE, Extent, HitInfo, TRACEFLAG_Bullet);
+	// If we didn't hit anything, then set the HitLocation as being the EndTrace location
+	if( TempActor == None )
 	{
-		M = 'Muz';
-		i = 0;
+		HitLocation	= EndTrace;
+		return;
 	}
 	else
 	{
-		M = 'Muz2';
-		i = 1;
+		// This statement allows passing through permiable barriers and teammates
+		if (!TempActor.bBlockActors || TempActor.IsA('Trigger') || TempActor.IsA('TriggerVolume') || TempActor.IsA('InteractiveFoliageActor') || (Pawn(TempActor) != none && Pawn(TempActor).IsSameTeam(Self)))
+		{
+			TempActor.bProjTarget = false;
+			bOldCollideActors = TempActor.bCollideActors;
+			bOldBlockActors = TempActor.bBlockActors;
+
+			if (TempActor.IsA('Pawn'))
+			{
+				TempActor.SetCollision(false, false);
+			}
+			else
+			{
+				if( bOldBlockActors )
+				{
+					TempActor.SetCollision(bOldCollideActors, false);
+				}
+			}
+			RecursiveBulletTrace(HitActor, HitLocation, HitNormal, EndTrace, HitLocation, HitInfo, Extent);
+			TempActor.bProjTarget = true;
+			TempActor.SetCollision(bOldCollideActors, bOldBlockActors);
+		}
+		else
+		{
+			// In Weapon.uc there is code here for bullets going through portals and hitting stuff on the other side. Fuck this for many reasons.
+			HitActor = TempActor;
+		}
+	}
+}
+
+simulated function FireProjectile()
+{
+}
+
+simulated function FireProjectileLobbed()
+{
+}
+
+simulated function DrawBulletFX(Actor TargetActor, vector HitLocation, vector HitNormal)
+{
+	local ParticleSystemComponent Emitter;
+	local vector Start, Dir;
+	local float Dist;
+	local name M;
+	
+	if(UpgradesObj.TurretLevel > 0)
+	{
+		MuzzleFlashIndex = 1 - MuzzleFlashIndex;
 	}
 
-	if (MuzzleFlash[i] == None)
+	if (MuzzleFlash[MuzzleFlashIndex] == None)
 	{
-		// This implies the muzzle flash is the same for both indexes. Why use an array?
-		MuzzleFlash[i] = new(self) Class'KFMuzzleFlash'(KFMuzzleFlash'WEP_AA12_ARCH.Wep_AA12Shotgun_MuzzleFlash_3P');
-		MuzzleFlash[i].AttachMuzzleFlash(Mesh, M, M);
-		MuzzleFlash[i].MuzzleFlash.PSC.SetScale(2.5f);
+		MuzzleFlash[MuzzleFlashIndex] = new(self) Class'KFMuzzleFlash'(KFMuzzleFlash'WEP_AA12_ARCH.Wep_AA12Shotgun_MuzzleFlash_3P');
+		MuzzleFlash[MuzzleFlashIndex].AttachMuzzleFlash(Mesh, M, M);
+		MuzzleFlash[MuzzleFlashIndex].MuzzleFlash.PSC.SetScale(2.5f);
 	}
-	MuzzleFlash[i].CauseMuzzleFlash(0);
+	MuzzleFlash[MuzzleFlashIndex].CauseMuzzleFlash(0);
 	
-	if(A != None)
+	/*
+	if(TargetActor != None)
 	{
-		KFImpactEffectManager(WorldInfo.MyImpactEffectManager).PlayImpactEffects(HitLocation, self, HitNormal, Class'KFProj_Bullet_LazerCutter'.Default.ImpactEffects);
-	}
+		KFImpactEffectManager(WorldInfo.MyImpactEffectManager).PlayImpactEffects(HitLocation, self, HitNormal, DamageTypes[EPrimaryFire].Default.ImpactEffects);
+	}*/
 
 	Mesh.GetSocketWorldLocationAndRotation(M, Start);
 	Dir = HitLocation - Start;
-	Dist = VSize(Dir);
+	Dist = Max(VSize(Dir), 300);
 	
-	if(Dist > 300.0f)
-	{
-		Dist = fMin((Dist - 100.0f) / 8000.0f, 1.0f);
-		if(Dist > 0.0f) // Dont think this does anything based on above logic
-		{
-			E = WorldInfo.MyEmitterPool.SpawnEmitter(ParticleSystem'FX_Projectile_EMIT.FX_Common_Tracer_Instant', Start, rotator(Dir));
-			E.SetScale(2);
-			E.SetVectorParameter('Tracer_Velocity', vect(4000, 0, 0));
-			E.SetFloatParameter('Tracer_Lifetime', Dist);
-		}
-	}
+	Emitter = WorldInfo.MyEmitterPool.SpawnEmitter(ParticleSystem'FX_Projectile_EMIT.FX_Common_Tracer_Instant', Start, rotator(Dir));
+	Emitter.SetScale(2);
+	Emitter.SetVectorParameter('Tracer_Velocity', vect(4000, 0, 0));
+	Emitter.SetFloatParameter('Tracer_Lifetime', Dist);
 }
 
 simulated function KFSkinTypeEffects GetHitZoneSkinTypeEffects(int HitZoneIdx)
@@ -705,17 +703,19 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 
 simulated function Destroyed()
 {
-	local ST_SentryNetwork SN;
-
 	if(WorldInfo.NetMode != NM_Client)
 	{
-		SN = class'ST_SentryNetwork'.static.GetNetwork(OwnerController); // Use the sentry network to notify the player locally to decrease the turret count
-		if(SN != none)
-			SN.DecrementTurretCount();
+		Settings.TurretDestroyed(self);
+	}
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		if(Settings != none)
+			--Settings.NumPlayerTurrets;
 	}
 
 	if(LocalOverlay != None)
 		LocalOverlay.ActiveTurrets.RemoveItem(Self);
+
 	RemoveMuzzles();
 	if(ActiveTrigger != None)
 	{
@@ -844,8 +844,10 @@ defaultproperties
 	HealthMax = 350 // Immediatly overwritten by config, ensures turret isnt spawnerd with 0 health
 	ControllerClass = Class'ST_AI_Base'
 	RefundMultiplier = 1.0f
+	WeaponRange(EPrimaryFire) = 10000.0f
 
 	DamageTypes(0) = class'KFDT_Ballistic'
+	ProjectileTypes(ESecondaryFire) = class'ST_Proj_Missile'
 
 	Begin Object Name=ThirdPersonHead0
 		ReplacementPrimitive = None

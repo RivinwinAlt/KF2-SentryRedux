@@ -9,7 +9,7 @@ simulated function RunAllBenchmarks()
 	local float totalBenchTime;
 
 	Clock(totalBenchTime);
-	`log("ST_Benchmark: Each Test will be run " $ Cycles $ " times";
+	`log("ST_Benchmark: Each Test will be run " $ Cycles $ " times");
 	`log("ST_Benchmark: Filter by CanSee()   : " $ CanSeeFilterBench());
 	`log("ST_Benchmark: Filter by Render Time: " $ RenderTimeFilterBench());
 	`log("ST_Benchmark: Combined Filter      : " $ ModifiedRenderTimeFilterBench());
@@ -23,15 +23,15 @@ simulated function RunAllBenchmarks()
 	`log("ST_Benchmark: Divide by Float      : " $ DivideFloatBench());
 	`log("ST_Benchmark: Type Cast            : " $ CastBench());
 	`log("ST_Benchmark: IsA                  : " $ IsABench());
-	//`log("ST_Benchmark:  Benchamrk Name: " $ ());
+	//`log("ST_Benchmark:  Benchmark Name: " $ ());
 	UnClock(totalBenchTime);
 
-	`log("ST_Benchmark: All benchmarks completed in " $ totalBenchTime $ " seconds total";
+	//`log("ST_Benchmark: All benchmarks completed in " $ totalBenchTime $ " seconds total";
 }
 
 /* EQUATIONS */
 
-simulated function CanSeeFilterBench()
+simulated function float CanSeeFilterBench()
 {
 	local int i, filteredPawns, totalPawns;
 	local float BenchTime;
@@ -44,7 +44,7 @@ simulated function CanSeeFilterBench()
 	Clock(BenchTime);
 	for(i = 0; i < Cycles; i++)
 	{
-		foreach WorldInfo.AllPawns(class'Pawn', TempPawn, LocalPlayerController.Location, LocalPlayerController.SightRadius)
+		foreach WorldInfo.AllPawns(class'Pawn', TempPawn, LocalPlayerController.Location, LocalPlayerController.Pawn.SightRadius)
 		{
 			++totalPawns;
 			if(LocalPlayerController.CanSee(TempPawn))
@@ -55,20 +55,23 @@ simulated function CanSeeFilterBench()
 	}
 	UnClock(BenchTime);
 
-	`log("ST_Benchmark: Filter by CanSee()   : Filtered " $ filteredPawns $ " of " $ totalPawns $ " Pawns";
+	//`log("ST_Benchmark: Filter by CanSee()   : Filtered " $ filteredPawns $ " of " $ totalPawns $ " Pawns";
 
 	return BenchTime;
 }
 
-simulated function RenderTimeFilterBench()
+simulated function float RenderTimeFilterBench()
 {
 	local int i, filteredPawns, totalPawns;
 	local float BenchTime, ThisDot;
 	local Pawn TempPawn;
 	local PlayerController LocalPlayerController;
+	local Vector Loc;
+	local Rotator Rot;
 
 	// Allocate variables
 	LocalPlayerController = GetALocalPlayerController();
+	LocalPlayerController.GetPlayerViewPoint( Loc, Rot );
 
 	Clock(BenchTime);
 	for(i = 0; i < Cycles; i++)
@@ -76,7 +79,7 @@ simulated function RenderTimeFilterBench()
 		foreach WorldInfo.AllPawns( class'Pawn', TempPawn )
 		{
 			++totalPawns;
-			ThisDot = ViewDir dot Normal( TempPawn.Location - LocalPlayerController.Location );
+			ThisDot = vector(Rot) dot Normal( TempPawn.Location - LocalPlayerController.Location );
 			// Calling IsAliveAndWell is an extra feature, would skew the benchmark result. Code by Pissjar.
 			if( /*P.IsAliveAndWell() &&*/ `TimeSince(TempPawn.Mesh.LastRenderTime) < 0.5f && ThisDot > 0.f )
 			{
@@ -86,15 +89,15 @@ simulated function RenderTimeFilterBench()
 	}
 	UnClock(BenchTime);
 
-	`log("ST_Benchmark: Filter by Render Time: Filtered " $ filteredPawns $ " of " $ totalPawns $ " Pawns";
+	//`log("ST_Benchmark: Filter by Render Time: Filtered " $ filteredPawns $ " of " $ totalPawns $ " Pawns";
 
 	return BenchTime;
 }
 
-simulated function ModifiedRenderTimeFilterBench()
+simulated function float ModifiedRenderTimeFilterBench()
 {
-	local int i, filteredPawns, totalPawns;
-	local float BenchTime, ThisDot;
+	local int i, filteredPawns, totalPawns, peripheralPawns;
+	local float BenchTime;
 	local Pawn TempPawn;
 	local PlayerController LocalPlayerController;
 
@@ -104,27 +107,33 @@ simulated function ModifiedRenderTimeFilterBench()
 	Clock(BenchTime);
 	for(i = 0; i < Cycles; i++)
 	{
-		foreach WorldInfo.AllPawns( class'Pawn', TempPawn )
+		foreach WorldInfo.AllPawns( class'Pawn', TempPawn, LocalPlayerController.Location, LocalPlayerController.Pawn.SightRadius)
 		{
 			++totalPawns;
-			ThisDot = ViewDir dot Normal( TempPawn.Location - LocalPlayerController.Location );
-			// Calling IsAliveAndWell is an extra feature, would skew the benchmark result. Code by Pissjar.
-			if( /*P.IsAliveAndWell() &&*/ `TimeSince(TempPawn.Mesh.LastRenderTime) < 0.5f && ThisDot > 0.f )
+			if(!TempPawn.IsAliveAndWell())
+				continue;
+
+			if(LocalPlayerController.CanSee(TempPawn))
 			{
 				++filteredPawns;
 			}
+			/*else if( `TimeSince(TempPawn.Mesh.LastRenderTime) < 0.2f && ViewDir dot Normal( TempPawn.Location - LocalPlayerController.Location ) > 0.4f )
+			{
+				++peripheralPawns;
+			}*/
 		}
 	}
 	UnClock(BenchTime);
 
-	`log("ST_Benchmark: Combined Filter      : Can see " $ filteredPawns $ " of " $ totalPawns $ " Pawns";
+	//`log("ST_Benchmark: Combined Filter      : Filtered " $ filteredPawns $ " of " $ totalPawns $ " Pawns";
+	//`log("ST_Benchmark: Combined Filter      : Edge cases " $ peripheralPawns $ " of " $ totalPawns - filteredPawns $ " Pawns";
 
 	return BenchTime;
 }
 
-simulated function MarcoTraceFireBench()
+simulated function float MarcoTraceFireBench()
 {
-	local int i, TempVal;
+	local int i;
 	local float BenchTime, AccuracyMod;
 	local vector Dir;
 
@@ -135,16 +144,16 @@ simulated function MarcoTraceFireBench()
 	Clock(BenchTime);
 	for(i = 0; i < Cycles; i++)
 	{
-		Dir = Normal(Dir+VRand()*(0.075*AccurancyMod*FRand()));
+		Dir = Normal(Dir + VRand() * (0.075 * AccuracyMod * FRand()));
 	}
 	UnClock(BenchTime);
 
 	return BenchTime;
 }
 
-simulated function NewTraceFireBench() // Pass in int weaponindex and use for asset indexes
+simulated function float NewTraceFireBench() // Pass in int weaponindex and use for asset indexes
 {
-	local int i, TempVal;
+	local int i;
 	local float BenchTime, AccuracyMod;
 	local vector Dir;
 
@@ -264,7 +273,6 @@ simulated function float CastBench()
 	local bool TempVal;
 	local float BenchTime;
 	local DamageType DT;
-	local KFDT_Sonic_VortexScream DTS;
 
 	// Allocate variables
 	DT = new(Self) class'KFDT_Sonic_VortexScream';
@@ -272,8 +280,7 @@ simulated function float CastBench()
 	Clock(BenchTime);
 	for(i=0; i < Cycles; i++)
 	{
-		DTS = DT;
-		TempVal = (DTS != none);
+		TempVal = (KFDT_Sonic_VortexScream(DT) != none);
 	}
 	UnClock(BenchTime);
 
@@ -293,7 +300,7 @@ simulated function float IsABench()
 	Clock(BenchTime);
 	for(i=0; i < Cycles; i++)
 	{
-		TempVal = DT.IsA(class'KFDT_Sonic_VortexScream');
+		TempVal = DTS.IsA('KFDT_Sonic_VortexScream');
 	}
 	UnClock(BenchTime);
 

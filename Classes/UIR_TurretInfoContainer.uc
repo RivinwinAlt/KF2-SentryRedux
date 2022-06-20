@@ -36,7 +36,7 @@ function RefreshStats()
 		{
 			OwnerString = "Owner: " $ Owner.TurretOwner.GetOwnerName();
 			HealthString = Owner.TurretOwner.GetHealth() $ " ( " $ Owner.TurretOwner.Health $ " / " $ Owner.TurretOwner.HealthMax $ " )";
-			ValueString = "Value: $" $ class'ST_StaticHelper'.static.FormatNumber(Owner.TurretOwner.SentryWorth);
+			ValueString = "Value: $" $ class'ST_StaticHelper'.static.FormatNumber(Owner.TurretOwner.DoshValue);
 			
 			InfoList.SetText(OwnerString $ "|" $ HealthString $ "|" $ ValueString);
 		}

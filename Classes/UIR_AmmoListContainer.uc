@@ -43,6 +43,9 @@ function DrawAmmoInfo( Canvas C, int Index, float YOffset, float Height, float W
 	local float Sc;
 	local string TempStr;
 
+	if(Owner.TurretOwner == none)
+		return;
+
 	// Dont render for disabled ammo types
 	if(!AmmoTypeEnabled(Index))
 		return;

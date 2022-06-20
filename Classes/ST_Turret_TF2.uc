@@ -30,16 +30,16 @@ simulated function UpdateSounds()
 	switch(UpgradesObj.TurretLevel)
 	{
 		case 0:
-			ScanningSound = SoundCue'Turret_TF2.Sounds.sentry_scan_Cue'
-			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot_Cue',
+			ScanningSound = SoundCue'Turret_TF2.Sounds.sentry_scan_Cue';
+			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot_Cue';
 			break;
 		case 1:
-			ScanningSound = SoundCue'Turret_TF2.Sounds.sentry_scan2_Cue'
-			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot2_Cue',
+			ScanningSound = SoundCue'Turret_TF2.Sounds.sentry_scan2_Cue';
+			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot2_Cue';
 			break;
 		case 2:
-			ScanningSound = SoundCue'Turret_TF2.Sounds.sentry_scan3_Cue'
-			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot3_Cue',
+			ScanningSound = SoundCue'Turret_TF2.Sounds.sentry_scan3_Cue';
+			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot3_Cue';
 			break;
 	}
 }
@@ -63,13 +63,15 @@ simulated function PostBuildAnimation()
 // The 3 weapon slots have their own function calls for optimization
 simulated function FirePrimary()
 {
+	local int i;
+	
 	super.FirePrimary();
 
-	if(WorldInfo.NetMode != NM_Client)
+	/*if(WorldInfo.NetMode != NM_Client)
 	{
 		if(AmmoCount[1] > 0 && NextMissileTimer[ESecondaryFire] < WorldInfo.TimeSeconds) // Disabled weapons will always have 0 ammo
 			CheckFireMissile();
-	}
+	}*/
 
 	for(i = 0; i < 5; ++i)
 	{
@@ -103,8 +105,8 @@ defaultproperties
 	UpgradesClass = Class'ST_Upgrades_TF2'
 
 
-	FiringSounds(ESecondaryFire) = 
-	EmptySounds(EPrimaryFire) = 
+	//FiringSounds(ESecondaryFire) = 
+	//EmptySounds(EPrimaryFire) = 
 	DamageTakenSound = SoundCue'Turret_TF2.Sounds.sentry_damage1_Cue'
 	DieingSound = SoundCue'Turret_TF2.Sounds.sentry_explode_Cue'
 

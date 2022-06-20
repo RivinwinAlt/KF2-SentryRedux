@@ -33,10 +33,10 @@ simulated function UpdateUpgrades()
 					TurretOwner.SetSightRadius(TurretOwner.SightRadius * UpgradeInfos[i].FValue);
 					break;
 				case EUpAccuracyA:
-					TurretOwner.AccuracyMod *= UpgradeInfos[i].FValue;
+					TurretOwner.AccuracyMod[EPrimaryFire] *= UpgradeInfos[i].FValue;
 					break;
 				case EUpAccuracyB:
-					TurretOwner.AccuracyMod *= UpgradeInfos[i].FValue;
+					TurretOwner.AccuracyMod[EPrimaryFire] *= UpgradeInfos[i].FValue;
 					break;
 				case EUpHeadshots:
 					break;
@@ -45,7 +45,7 @@ simulated function UpdateUpgrades()
 				case EUpAutoRepair:
 					bRegen = true;
 					break;
-				case EUpFireDamage:
+				case EUpPrimaryDamageType:
 					bFireDamage = true;
 					break;
 				case EUpDamageReduceA:
@@ -100,7 +100,7 @@ simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType
 
 //Handles upgrades that modify damage given
 //NB: Should be as slim as possible to decrease overhead
-simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, optional out class<DamageType> OutDamageType, optional int HitZoneIdx)
+simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, optional out class<KFDamageType> OutDamageType, optional int HitZoneIdx)
 {
 	// Check for Fire damage upgrade
 	if(bFireDamage)
@@ -193,16 +193,15 @@ defaultproperties
 	UpgradeInfos(EUpHomingMissiles)=(bIsEnabled=True)
 	UpgradeInfos(EUpAutoRepair)=(bIsEnabled=True)
 	UpgradeInfos(EUpDamageReduceB)=(bIsEnabled=True)
-	UpgradeInfos(EUpFireDamage)=(bIsEnabled=True)
+	UpgradeInfos(EUpPrimaryDamageType)=(bIsEnabled=True)
 	UpgradeInfos(EUpTurnRadiusA)=(bIsEnabled=True)
 	UpgradeInfos(EUpTurnRadiusB)=(bIsEnabled=True)
-	UpgradeInfos(EUpTurnRadiusC)=(bIsEnabled=True)
 
 	UpgradeInfos(EUpTurnRadiusC)={(
 		Cost=1000,
 		Title="Turning Radius",
 		Description="Allows the turret to turn in a wider circle to target Zeds",
-		bIsEnabled=True
+		bIsEnabled=True,
 		IconIndex=`ICON_DEFAULT
 	)}
 }

@@ -24,11 +24,9 @@ enum UpgradeEnums
 	EUpTurnRadiusA,
 	EUpTurnRadiusB,
 	EUpPrimaryAmmoUp,
+	EUpSecondaryAmmoUp,
 	EUpTurnRadiusC,
 	EUpHealthUp,
-	EUpSecondaryAmmoUp,
-	EUpPrimaryAmmoUp,
-	EUpSecondaryAmmoUp,
 	EUpAggroUp,
 
 	TotalUpgrades // Must be last in list (can be cast to int)
@@ -181,7 +179,7 @@ simulated final function bool HasUpgrade(byte Index)
 // This function is called from the networking object inside a replicated server function
 final function BoughtUpgrade(int Index)
 {
-	TurretOwner.SentryWorth += UpgradeInfos[Index].Cost;
+	TurretOwner.DoshValue += UpgradeInfos[Index].Cost;
 	if(Index == EUpLevelUp)
 	{
 		// If the turret level upgrade was purchased
@@ -350,12 +348,12 @@ simulated function UpdateUpgrades()
 	TurretOwner.HealthMax = LevelInfos[TurretLevel].BaseMaxHealth;
 	TurretOwner.SetTurnRadius(LevelInfos[TurretLevel].BaseTurnRadius);
 	TurretOwner.SetSightRadius(LevelInfos[TurretLevel].BaseSightRadius);
-	TurretOwner.AccuracyMod = LevelInfos[TurretLevel].BaseAccuracyMod;
+	TurretOwner.AccuracyMod[EPrimaryFire] = LevelInfos[TurretLevel].BaseAccuracyMod;
 }
 
 simulated function UpgradesTimer(); // Executed on a timer
 simulated function ModifyDamageTaken( out int InDamage, optional class<DamageType> InDamageType, optional Controller InstigatedBy );
-simulated function ModifyDamageGiven( out int InDamage, optional Actor HitActor, optional out class<DamageType> OutDamageType, optional int HitZoneIdx );
+simulated function ModifyDamageGiven( out int InDamage, optional Actor HitActor, optional out class<KFDamageType> OutDamageType, optional int HitZoneIdx );
 
 defaultproperties
 {
@@ -444,7 +442,7 @@ defaultproperties
 		bIsEnabled=False
 	)}
 	
-	UpgradeInfos(EUpFireDamage)={(
+	UpgradeInfos(EUpPrimaryDamageType)={(
 		Cost=500,
 		Title="Fire Damage",
 		Description="Deals fire damage every ... attacks",

@@ -20,14 +20,14 @@ simulated function UpdateUpgrades()
 			// If purchased execute the associated calculation
 			switch(i)
 			{
-				case EUpEnum:
+				case EUpRangeA:
+					break;
+				/*case EUpEnum:
 					break;
 				case EUpEnum:
 					break;
 				case EUpEnum:
-					break;
-				case EUpEnum:
-					break;
+					break;*/
 			}
 		}
 	}
@@ -43,7 +43,7 @@ simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType
 {
 }
 
-simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, optional out class<DamageType> OutDamageType, optional int HitZoneIdx)
+simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, optional out class<KFDamageType> OutDamageType, optional int HitZoneIdx)
 {
 }
 
