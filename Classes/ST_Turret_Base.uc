@@ -40,7 +40,6 @@ var transient class<KFDamageType> TempDamageType; // Cached temporary value, fas
 var class<KFProjectile> ProjectileTypes[`NUM_WEAPONS];
 var float AccuracyMod[`NUM_WEAPONS], TurnRadius, RoF, NextFireSoundTime;
 var int WeaponRange[`NUM_WEAPONS], AmmoCount[`NUM_WEAPONS], MaxAmmoCount[`NUM_WEAPONS], Damage[`NUM_WEAPONS];
-var byte Armor, MaxArmor; // Pulled from KFPawn_Human
 var int TempDamage; // Float rather than int to allow precise muilti-float calculations nb efore using Round(), pulled from Weapon.uc
 var vector RepHitLocation; // Moving away from this being replicated, its just where to render the hit fx
 var repnotify byte FireCounter[`NUM_WEAPONS];

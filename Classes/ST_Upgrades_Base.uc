@@ -120,6 +120,7 @@ var byte InitState;
 var repnotify ST_Turret_Base TurretOwner;
 var float StartingAmmoModifier, TimerPeriod;
 var bool bInitialized;
+var byte Armor, MaxArmor; // Pulled from KFPawn_Human
 
 //Only set on client, used to notify changes
 var transient UIR_UpgradesList LocalMenu;
@@ -349,6 +350,19 @@ simulated function UpdateUpgrades()
 	TurretOwner.SetTurnRadius(LevelInfos[TurretLevel].BaseTurnRadius);
 	TurretOwner.SetSightRadius(LevelInfos[TurretLevel].BaseSightRadius);
 	TurretOwner.AccuracyMod[EPrimaryFire] = LevelInfos[TurretLevel].BaseAccuracyMod;
+}
+
+// Armor calculations by FluX
+simulated function ShieldAbsorb( out int InDamage )
+{
+	local int AbsorbedDmg;
+
+	if(Armor < 1)
+		return;
+
+	AbsorbedDmg = Min(Round(0.5 * InDamage), Armor);
+	Armor -= Max(AbsorbedDmg * 0.7, 1);
+	InDamage = Max(InDamage - AbsorbedDmg, 1);
 }
 
 simulated function UpgradesTimer(); // Executed on a timer

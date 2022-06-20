@@ -1,5 +1,7 @@
 Class ST_Upgrades_Example extends ST_Upgrades_Base;
 
+var ST_Turret_Base TargetTurret;
+
 //Runs whenever the upgrades or level changes
 simulated function UpdateUpgrades()
 {
@@ -20,14 +22,27 @@ simulated function UpdateUpgrades()
 			// If purchased execute the associated calculation
 			switch(i)
 			{
-				case EUpRangeA:
+				case EUpRange:
+					UpgradeInfos[EUpRange].Cost = UpgradeInfos[EUpRange].InitialCost * UpgradeInfos[EUpRange].CurrentLevel;
 					break;
-				/*case EUpEnum:
+				case EUpEnum:
 					break;
 				case EUpEnum:
 					break;
 				case EUpEnum:
-					break;*/
+					MaxArmor += 50;
+					break;
+				case EFormBeam;
+					if(TargetTurret == none)
+					{
+						foreach TurretOwner.LocalOverlay.ActiveTurrets(TargetTurret)
+						{
+							if(TargetTurret meets some requirements)
+								break;
+						}
+					}
+					TargetTurret = none;
+					break;
 			}
 		}
 	}
@@ -41,10 +56,18 @@ simulated function UpgradesTimer()
 
 simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType> InDamageType, optional Controller InstigatedBy)
 {
+	ShieldaAbsorb(InDamage);
 }
 
 simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, optional out class<KFDamageType> OutDamageType, optional int HitZoneIdx)
 {
+	if(HasUpgrade(EUpRange))
+	{
+		if(UpgradeInfos[EUpRange].CurrentLevel > 2)
+		{
+
+		}
+	}
 }
 
 defaultproperties
@@ -65,6 +88,7 @@ defaultproperties
 		BaseTurnRadius=0.6f,
 		BaseSightRadius=1800.0f,
 		BaseAccuracyMod=0.05f
+		MaxArmor = 100;
 	)}
 
 	// AMMO
@@ -74,7 +98,7 @@ defaultproperties
 	)}
 
 	//UPGRADES
-	UpgradeInfos(EUpHeadshots)=(bIsEnabled=True)		// The minimum entry required to turn an upgrade on
+	UpgradeInfos(EUpHeadshots)=(bIsEnabled=True, bRebuyable=True, MaxUpgradeLevel=3)		// The minimum entry required to turn an upgrade on
 
 	UpgradeInfos(EUpRangeA)={(
 		//Cost = 200,									// If the default value from ST_Upgrades_Base is fine you don't need to list it here
