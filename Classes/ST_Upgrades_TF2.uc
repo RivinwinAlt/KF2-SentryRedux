@@ -1,8 +1,9 @@
 // Upgrades class for the TF2 Turret
 Class ST_Upgrades_TF2 extends ST_Upgrades_Base;
 
-var bool bRegen, bFireDamage, bFireArmor;
+var bool bRegen, EUpPrimaryDamageType, bFireArmor;
 var float SonicDamageMultiplier;
+var int Damage, BaseMaxAmmoCount, BaseMaxHealth;
 
 //Handles passive upgrade effects
 //NB: Only called when TurretLevel or PurchasedUpgrades is changed
@@ -15,7 +16,7 @@ simulated function UpdateUpgrades()
 
 	// Reset booleans in case an upgrade has been sold
 	bRegen = false;
-	bFireDamage = false;
+	EUpPrimaryDamageType = false;
 
 	// Skipping the turret level-up upgrade iterate through all potential upgrades
 	for(i = 1; i < TotalUpgrades; i++) // TotalUpgrades is always the last upgrade enum value, can be used as int
@@ -26,6 +27,30 @@ simulated function UpdateUpgrades()
 			// If purchased execute the associated calculation
 			switch(i)
 			{
+				case EUpPrimaryDamageA:
+					TurretOwner.Damage[EPrimaryFire] *= UpgradeInfos[i].FValue;
+					break;
+				case EUpPrimaryDamageB:
+					TurretOwner.Damage[EPrimaryFire] *= UpgradeInfos[i].FValue;
+					break;
+				case EUpSecondaryDamageA:
+					TurretOwner.Damage[ESecondaryFire] *= UpgradeInfos[i].FValue;
+					break;
+				case EUpSecondaryDamageB:
+					TurretOwner.Damage[ESecondaryFire] *= UpgradeInfos[i].FValue;
+					break;
+				case EUpHealthUpA:
+					TurretOwner.HealthMax *= UpgradeInfos[i].FValue;
+					break;
+				case EUpHealthUpB:
+					TurretOwner.HealthMax *= UpgradeInfos[i].FValue;
+					break;
+				case EUpFireRateA:
+					TurretOwner.RoF *= UpgradeInfos[i].FValue;
+					break;
+				case EUpFireRateB:
+					TurretOwner.RoF *= UpgradeInfos[i].FValue;
+					break;
 				case EUpRangeA:
 					TurretOwner.SetSightRadius(TurretOwner.SightRadius * UpgradeInfos[i].FValue);
 					break;
@@ -38,29 +63,32 @@ simulated function UpdateUpgrades()
 				case EUpAccuracyB:
 					TurretOwner.AccuracyMod *= UpgradeInfos[i].FValue;
 					break;
-				case EUpHeadshots:
+				case EUpTurnRadiusA:
+					if(HasUpgrade(EUpTurnRadiusB)) // Dont decrease the turn radius if a better one is purchased
 					break;
-				case EUpHomingMissiles:
+				case EUpTurnRadiusB:
+					if(HasUpgrade(EUpTurnRadiusC)) // Dont decrease the turn radius if a better one is purchased
 					break;
-				case EUpAutoRepair:
-					bRegen = true;
-					break;
-				case EUpFireDamage:
-					bFireDamage = true;
+				case EUpTurnRadiusC:
+					TurretOwner.SetTurnRadius(UpgradeInfos[i].FValue); // Executed for all three turn radius upgrades
 					break;
 				case EUpDamageReduceA:
 					break;
 				case EUpDamageReduceB:
 					bFireArmor = true;
 					break;
-				case EUpTurnRadiusA:
-					if(HasUpgrade(EUpTurnRadiusB)) // Dont decrease the turn radius if a better one is purchased
-						break;
-				case EUpTurnRadiusB:
-					if(HasUpgrade(EUpTurnRadiusC)) // Dont decrease the turn radius if a better one is purchased
-						break;
-				case EUpTurnRadiusC:
-					TurretOwner.SetTurnRadius(UpgradeInfos[i].FValue); // Executed for all three turn radius upgrades
+				case EUpPrimaryAmmoUp:
+					TurretOwner.MaxAmmoCount[0] *= UpgradeInfos[i].FValue;
+					break;
+				case EUpSecondaryAmmoUp:
+					TurretOwner.MaxAmmoCount[1] *= UpgradeInfos[i].FValue;
+					break;
+				case EUpHeadshots:
+					break;
+				case EUpWeaponBehaviour:
+					break;
+				case EUpAutoRepair:
+					bRegen = true;
 					break;
 			}
 		}
@@ -102,7 +130,7 @@ simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType
 simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, optional out class<DamageType> OutDamageType, optional int HitZoneIdx)
 {
 	// Check for Fire damage upgrade
-	if(bFireDamage)
+	if(EUpPrimaryDamageType)
 	{
 		//Every 10th bullet the damage type gets set to fire damage
 		if(ST_Turret_Base(Owner).FireCounter[0] % 10 == 0) // TODO: Find faster math, maybe bitshift
@@ -178,24 +206,29 @@ defaultproperties
 	AmmoInfos(ESecondaryFire)=(CostPerRound=20, BuyAmount = 20)
 
 	// Upgrade Settings
+	UpgradeInfos(EUpPrimaryDamageA)=(bIsEnabled=True)
+	UpgradeInfos(EUpPrimaryDamageB)=(bIsEnabled=True)
+	UpgradeInfos(EUpSecondaryDamageA)=(bIsEnabled=True)
+	UpgradeInfos(EUpSecondaryDamageB)=(bIsEnabled=True)
+	UpgradeInfos(EUpHealthUpA)=(bIsEnabled=True)
+	UpgradeInfos(EUpHealthUpB)=(bIsEnabled=True)
+	UpgradeInfos(EUpFireRateA)=(bIsEnabled=True)
+	UpgradeInfos(EUpFireRateB)=(bIsEnabled=True)
 	UpgradeInfos(EUpRangeA)=(bIsEnabled=True)
 	UpgradeInfos(EUpRangeB)=(bIsEnabled=True)
 	UpgradeInfos(EUpAccuracyA)=(bIsEnabled=True)
 	UpgradeInfos(EUpAccuracyB)=(bIsEnabled=True)
-	UpgradeInfos(EUpHeadshots)=(bIsEnabled=True)
-	UpgradeInfos(EUpHomingMissiles)=(bIsEnabled=True)
-	UpgradeInfos(EUpAutoRepair)=(bIsEnabled=True)
-	UpgradeInfos(EUpDamageReduceB)=(bIsEnabled=True)
-	UpgradeInfos(EUpFireDamage)=(bIsEnabled=True)
 	UpgradeInfos(EUpTurnRadiusA)=(bIsEnabled=True)
 	UpgradeInfos(EUpTurnRadiusB)=(bIsEnabled=True)
 	UpgradeInfos(EUpTurnRadiusC)=(bIsEnabled=True)
+	UpgradeInfos(EUpDamageReduceB)=(bIsEnabled=True)
+	UpgradeInfos(EUpPrimaryAmmoUp)=(bIsEnabled=True)
+	UpgradeInfos(EUpSecondaryAmmoUp)=(bIsEnabled=True)
+	UpgradeInfos(EUpHeadshots)=(bIsEnabled=True)
+	UpgradeInfos(EUpWeaponBehaviour)=(bIsEnabled=True)
+	UpgradeInfos(EUpAutoRepair)=(bIsEnabled=True)
 
-	UpgradeInfos(EUpTurnRadiusC)={(
-		Cost=1000, // Is set dynamicly in SetLevelUpgrade()
-		Title="Turret Level",
-		Description="Upgrade to the next turret level to get higher base stats and more upgrade options",
-		bIsEnabled=True
-		IconIndex=`ICON_4
-	)}
+
+
+
 }

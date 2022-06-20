@@ -488,7 +488,7 @@ function CheckFireMissile()
 		Proj = Spawn(class'ST_Proj_Missile', , , Start, R);
 		if(Proj != None)
 		{
-			if(UpgradesObj.HasUpgrade(EUpHomingMissiles))
+			if(UpgradesObj.HasUpgrade(EUpWeaponBehaviour))
 				Proj.AimTarget = T;
 			Proj.Damage = Damage[1];
 			Proj.ExplosionTemplate.Damage = Damage[1];
