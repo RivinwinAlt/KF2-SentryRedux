@@ -7,29 +7,36 @@ class ST_Upgrades_Base extends ReplicationInfo;
 // Order of enums is order in menu
 enum UpgradeEnums
 {
-	EUpLevelUp, // Must be first in list
-
-	// Upgrades are processed and shown in the menu in this order, so RangeB must be after RangeA for instance
+	EUpLevelUp,
+	EUpPrimaryDamageA,
+	EUpPrimaryDamageB,
+	EUpSecondaryDamageA,
+	EUpSecondaryDamageB,
+	EUpHealthUpA,
+	EUpHealthUpB,
+	EUpFireRateA,
+	EUpFireRateB,
 	EUpRangeA,
 	EUpRangeB,
 	EUpAccuracyA,
 	EUpAccuracyB,
+	EUpTurnRadiusA,
+	EUpTurnRadiusB,
+	EUpTurnRadiusC,
+	EUpDamageReduceA,
+	EUpDamageReduceB,
+	EUpPrimaryAmmoUp,
+	EUpSecondaryAmmoUp,
+	EUpSpecialAmmoUp,
 	EUpHeadshots,
-	EUpHomingMissiles,
+	EUpWeaponBehaviour,
 	EUpAutoRepair,
 	EUpPrimaryDamageType,
 	EUpSecondaryDamageType,
-	EUpDamageReduceA,
-	EUpDamageReduceB,
-	EUpTurnRadiusA,
-	EUpTurnRadiusB,
-	EUpPrimaryAmmoUp,
-	EUpSecondaryAmmoUp,
-	EUpTurnRadiusC,
-	EUpHealthUp,
+	EUpSpecialDamageType,
 	EUpAggroUp,
 
-	TotalUpgrades // Must be last in list (can be cast to int)
+	TotalUpgrades // As int represents the total number of upgrades available
 };
 
 struct LevelInfo
@@ -398,6 +405,74 @@ defaultproperties
 		bIsEnabled=False // Dont even try to enable this. Its automatically enabled when theres a levelup available.
 	)}
 
+		UpgradeInfos(EUpPrimaryDamageA)={(
+		Cost=750,
+		Title="Primary Damage Up",
+		Description="Increase Primary Damage by 20%",
+		BValue=1.2f, // cos(360 / 2)
+		bIsEnabled=False
+	)}
+
+		UpgradeInfos(EUpPrimaryDamageB)={(
+		Cost=1250,
+		RequiredUpgrades=(EUpPrimaryDamageA),
+		Title="Primary Damage Up +",
+		Description="Increase Primary Damage by another 30%",
+		BValue=1.3f, // cos(360 / 2)
+		bIsEnabled=False
+	)}
+
+		UpgradeInfos(EUpSecondaryDamageA)={(
+		Cost=1000,
+		Title="Secondary Damage Up",
+		Description="Increase Secondary Damage by another 20%",
+		BValue=1.2f, // cos(360 / 2)
+		bIsEnabled=False
+	)}
+
+		UpgradeInfos(EUpSecondaryDamageB)={(
+		Cost=1500,
+		RequiredUpgrades=(EUpSecondaryDamageA),
+		Title="Secondary Damage Up",
+		Description="Increase Secondary Damage by another 30%",
+		BValue=1.3f, // cos(360 / 2)
+		bIsEnabled=False
+	)}
+
+		UpgradeInfos(EUpHealthUpA)={(
+		Cost=600,
+		Title="Health Up",
+		Description="Max Health Increased by 30%",
+		BValue=1.3f, // cos(360 / 2)
+		bIsEnabled=False
+	)}
+
+		UpgradeInfos(EUpHealthUpB)={(
+		Cost=800,
+		RequiredUpgrades=(EUpHealthUpA),
+		Title="Health Up +",
+		Description="Max Health Increased by another 30%",
+		BValue=1.3f, // cos(360 / 2)
+		bIsEnabled=False
+	)}
+
+		UpgradeInfos(EUpFireRateA)={(
+		Cost=600,
+		Title="Fire Rate Up",
+		Description="Rate of Fire Increased by another 20%",
+		BValue=0.80f, // cos(360 / 2)
+		bIsEnabled=False
+	)}
+
+		UpgradeInfos(EUpFireRateB)={(
+		Cost=800,
+		RequiredUpgrades=(EUpFireRateA),
+		Title="Fire Rate Up +",
+		Description="Rate of Fire Increased by another 20%",
+		BValue=0.80f, // cos(360 / 2)
+		bIsEnabled=False
+	)}
+
 	UpgradeInfos(EUpRangeA)={(
 		Cost=200,
 		Title="Eagle Eye",
@@ -440,7 +515,7 @@ defaultproperties
 		bIsEnabled=False
 	)}
 	
-	UpgradeInfos(EUpHomingMissiles)={(
+	UpgradeInfos(EUpWeaponBehaviour)={(
 		Cost=500,
 		RequiredUpgrades=(EUpAccuracyB),
 		Title="Homing Missiles",
@@ -501,6 +576,22 @@ defaultproperties
 		Title="Zero Turn Mower",
 		Description="Allows the turret to turn in any direction",
 		BValue=-1f, // cos(360 / 2)
+		bIsEnabled=False
+	)}
+
+		UpgradeInfos(EUpPrimaryAmmoUp)={(
+		Cost=2000,
+		Title="Primary Ammo Up",
+		Description="Max Ammo for Primary Weapon Increased by 40%",
+		BValue=1.4f, // cos(360 / 2)
+		bIsEnabled=False
+	)}
+
+		UpgradeInfos(EUpSecondaryAmmoUp)={(
+		Cost=2000,
+		Title="Secondary Ammo Up",
+		Description="Max Ammo for Secondary Weapon Increased by 40%",
+		BValue=1.4f, // cos(360 / 2)
 		bIsEnabled=False
 	)}
 }
