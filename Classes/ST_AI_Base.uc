@@ -2,6 +2,7 @@ Class ST_AI_Base extends AIController
 	dependson(ST_Upgrades_Base);
 
 var ST_Turret_Base TurretOwner;
+var byte FailedTargetCount, FailedTargetThresh;
 
 var byte TargetingPriority;
 /* for reference from Globals.uci
@@ -30,9 +31,9 @@ function InitPlayerReplicationInfo()
 {
 	if(PlayerReplicationInfo == None)
 		PlayerReplicationInfo = Spawn(class'KFDummyReplicationInfo', self, , vect(0, 0, 0), rot(0, 0, 0));
-	PlayerReplicationInfo.PlayerName="SentryTurret";
+	PlayerReplicationInfo.PlayerName="SentryTurret";		// TODO: change to refelct turret type
 	if(WorldInfo.GRI != None && WorldInfo.GRI.Teams.Length > 0)
-		PlayerReplicationInfo.Team = WorldInfo.GRI.Teams[0]; // This is one of the places well assign team membership for versus
+		PlayerReplicationInfo.Team = WorldInfo.GRI.Teams[0]; // TODO: This is where we'll assign team membership for versus
 }
 
 event Destroyed()
@@ -48,6 +49,7 @@ event SeePlayer(Pawn Seen)
 event SeeMonster(Pawn Seen)
 {
 	// Currently disabled because bIsPlayer = false
+	// I think I can reenable it at any time though
 }
 event HearNoise(float Loudness, Actor NoiseMaker, optional Name NoiseType)
 {
@@ -111,7 +113,7 @@ function bool IsValidTarget(Pawn Other)
 	return true;
 }
 
-final function FindBestEnemy()
+final function FindBestEnemy(optional Pawn ExcludePawn)
 {
 	local Pawn TestPawn, BestPawn;
 	local int TestWeight, BestWeight;
@@ -128,7 +130,8 @@ final function FindBestEnemy()
 
 			// Sort enemies and only hold the best one
 			TestWeight = TestEnemy(TestPawn);
-			if(TestWeight < BestWeight || BestPawn == None)
+
+			if(TestWeight < BestWeight / (1 + int(TestPawn == ExcludePawn)) || BestPawn == None)
 			{
 				BestPawn = TestPawn;
 				BestWeight = TestWeight;
@@ -136,11 +139,9 @@ final function FindBestEnemy()
 		}
 	}
 
-	// If a better enemy is found than the current one switch to it
-	if(BestPawn != none && BestPawn != Enemy)
-	{
+	// If enemies are found switch to the best one
+	if(BestPawn != none)
 		SetEnemy(BestPawn);
-	}
 }
 
 function bool CheckEnemyState()
@@ -151,7 +152,18 @@ function bool CheckEnemyState()
 		GoToState('WaitForEnemy');
 		return false;
 	}
+	
 	return true;
+}
+
+function TargetBlocked()
+{
+	++FailedTargetCount;
+	if(FailedTargetCount > FailedTargetThresh)
+	{
+		FailedTargetCount = 0;
+		FindBestEnemy(Enemy);
+	}
 }
 
 simulated state WaitForEnemy // simulated to enable proxy 
@@ -207,21 +219,22 @@ simulated state FightEnemy
 		if(WorldInfo.NetMode != NM_DedicatedServer)
 			TurretOwner.PlaySoundBase(SoundCue'Turret_TF2.Sounds.sentry_spot_Cue');
 
-		TurretOwner.SetTimer(0.15f, false, 'DelayedFiring'); // Give time to turn turret skeletal mesh, play sound, and not be OP, then fire
+		TurretOwner.SetTimer(0.15f, false, 'BeginFiringPrimary'); // Give time to turn turret skeletal mesh, play sound, and not be OP, then fire
 	}
 	function EndState(name NewState)
 	{
+		// This covers all bases, if you dont need all this override the state and function to supply a slimmer set of calls
+		TurretOwner.ClearTimer('BeginFiringPrimary');
+		TurretOwner.ClearTimer('BeginFiringSecondary');
+		TurretOwner.ClearTimer('BeginFiringSpecial');
 		TurretOwner.ClearTimer('FirePrimary');
 		TurretOwner.ClearTimer('FireSecondary');
 		TurretOwner.ClearTimer('FireSpecial');
-	}
-
-	function DelayedFiring()
-	{
-		TurretOwner.SetTimer(TurretOwner.RoF, true, 'FirePrimary'); // Start firing as fast as possible
 	}
 }
 
 defaultproperties
 {
+	// Experimental value for testing. Not sure how tunable this needs to be once I zero it in.
+	FailedTargetThresh = 6
 }

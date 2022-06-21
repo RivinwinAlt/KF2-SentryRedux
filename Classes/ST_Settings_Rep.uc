@@ -4,19 +4,23 @@ Class ST_Settings_Rep extends ReplicationInfo
 	transient
 	config(SentryRedux);
 
-`define CONFIG_VERSION 2
+`define CONFIG_VERSION 1
 
 var config byte ConfigVersion;
-var config float SellMultiplier, MercySellMultiplier, PreviewRotationRate;
-var config int MaxPlayerTurrets, TurretHealthTickDown;
-var config int MaxMapTurrets;
+var config float SellMultiplier, MercySellMultiplier, PreviewRotationRate, StartingPrimaryAmmo, TurretPreviewDelay;
+var config int HitRepairAmount, MaxPlayerTurrets, TurretHealthTickDown, MaxMapTurrets;
+var config bool CanDropHammer;
 
 var transient int NumPlayerTurrets; // client variable, do not reference on server
 var transient int NumMapTurrets;
 var transient array<ST_Turret_Base> AllTurrets; // Only populated server side, use the Overlay array to reference turrets on client
 
-var float repPreviewRot, repSellMult, repMercySell; // Non-config versions to insulate clients.
-var int repHealthTick, repMaxPlayer, repMaxMap;
+var float repPreviewRot, repSellMult, repMercySell, repStartAmmo, repPrevDelay; // Non-config versions to insulate clients.
+var int repHitRepair, repHealthTick, repMaxPlayer, repMaxMap;
+var byte VariablesReplicated;
+var bool repDropHammer;
+
+var bool bClientInit; // Used client side to determine if Settings object is finished setting up/replicating
 
 struct TurretBuildInfo
 {
@@ -34,7 +38,30 @@ var array<TurretBuildInfo> PreBuildInfos;
 replication
 {
 	if(bNetDirty)
-		repSellMult, repMercySell, repMaxPlayer, repMaxMap, NumMapTurrets, repHealthTick;
+		repHitRepair, repPrevDelay, repSellMult, repMercySell, repMaxPlayer, repMaxMap, NumMapTurrets, repHealthTick, repStartAmmo, repDropHammer;
+}
+
+simulated event ReplicatedEvent(name VarName)
+{
+	switch(VarName)
+	{
+	case 'repHitRepair':
+	case 'repPreviewRot':
+	case 'repPrevDelay':
+	case 'repDropHammer':
+	case 'repStartAmmo':
+	case 'repSellMult':
+	case 'repMercySell':
+	case 'repMaxPlayer':
+	case 'repMaxMap':
+	case 'NumMapTurrets':
+	case 'repHealthTick':
+		if(!bClientInit && ++VariablesReplicated > 10)
+			bClientInit = true;
+		break;
+	default:
+		Super.ReplicatedEvent(VarName);
+	}
 }
 
 // Ensures there is always exactly one spawned instance of this class on the server.
@@ -87,11 +114,16 @@ function PostBeginPlay()
 
 function SyncClientVariables()
 {
+	repHitRepair = HitRepairAmount;
+	repPrevDelay = TurretPreviewDelay;
+	repDropHammer = CanDropHammer;
+	repStartAmmo = StartingPrimaryAmmo;
 	repSellMult = SellMultiplier;
 	repMercySell = MercySellMultiplier;
 	repMaxPlayer = MaxPlayerTurrets;
 	repMaxMap = MaxMapTurrets;
 	repHealthTick = TurretHealthTickDown;
+	repPreviewRot = PreviewRotationRate;
 }
 
 // These functions are intentionally asynchronous and unclamped to allow smooth networking
@@ -240,13 +272,17 @@ final function UpdateConfig()
 {
 	if(Default.ConfigVersion != `CONFIG_VERSION)
 	{
-		Default.TurretHealthTickDown = 35;
+		Default.HitRepairAmount = 35;
+		Default.TurretPreviewDelay = 0.3;
+		Default.CanDropHammer = True;
+		Default.TurretHealthTickDown = 70;
 		Default.SellMultiplier = 0.7f;
 		Default.MercySellMultiplier = 1.0f;
 		Default.MaxPlayerTurrets = 3;
 		Default.MaxMapTurrets = 50;
 		Default.ConfigVersion = `CONFIG_VERSION;
 		Default.PreviewRotationRate = 8.0f;
+		Default.StartingPrimaryAmmo = 0.2;
 		StaticSaveConfig();
 	}
 	SyncClientVariables();

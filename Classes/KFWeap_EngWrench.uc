@@ -1,13 +1,7 @@
 // Defines the behavior of the Sentry Hammer (needs to be completely rewritten into Engineers Wrench with new model and animations)
 
 class KFWeap_EngWrench extends KFWeap_Blunt_Pulverizer
-	dependson(ST_Settings_Rep)
-	config(SentryRedux);
-
-var config byte MaxTurretsPerUser, MapMaxTurrets;
-var config float MinPlacementDistance, RefundMultiplier, WeaponTextScale, TurretPreviewDelay;
-var config int  HealPerHit;
-var config bool bHeavyAttackToSell, bCanDropWeapon;
+	dependson(ST_Settings_Rep);
 
 var transient ST_Settings_Rep Settings;
 var transient TurretBuildInfo BuildInfo;
@@ -16,48 +10,36 @@ var SkeletalMeshComponent TurretPreview;
 var KFCharacterInfo_Monster BaseTurretArch;
 var MaterialInstanceConstant BaseTurSkin;
 var bool bPendingDeploy;
-var float PreviewRotationRate;
 
 simulated function PostBeginPlay()
 {
-	if(WorldInfo.NetMode == NM_DedicatedServer)
-	{
-		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
-		`log("KFWeap_EngWrench: PostBeginPlay() called on server");
-	}
+	// First hammer on map will return None client side while the server creates the Settings object and replicates ; RetryTurretSelection() solves this
+	Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
 
 	Super.PostBeginPlay();
 
-	if(WorldInfo.NetMode != NM_DedicatedServer)
-	{
-		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
-		`log("KFWeap_EngWrench: PostBeginPlay() called on server");
-	}
-
-	if(WorldInfo.NetMode != NM_DedicatedServer)
-	{
-		InitDisplay();
-	}
 	InitTurretSelection();
-}
-
-simulated final function InitDisplay()
-{
-	if(Settings == none)
-		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
-
-	TurretPreview.SetSkeletalMesh(BaseTurretArch.CharacterMesh);
-	TurretPreview.CreateAndSetMaterialInstanceConstant(0);
-	TurretPreview.SetMaterial(0, BaseTurSkin);
 }
 
 simulated function InitTurretSelection()
 {
+	if(Settings == none || !Settings.bClientInit)
+		SetTimer(0.3, false, 'RetryTurretSelection'); // Arbitrary time, err on the side of slower
+
+	BuildInfo = Settings.PreBuildInfos[0]; // TODO: Placeholder, hardcoded to load the first buildinfo for now
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		// TODO: rather than using BaseTurretArch here load the info based on BuildInfo
+		TurretPreview.SetSkeletalMesh(BaseTurretArch.CharacterMesh);
+		TurretPreview.CreateAndSetMaterialInstanceConstant(0);
+		TurretPreview.SetMaterial(0, BaseTurSkin);
+	}
+}
+simulated function RetryTurretSelection()
+{
 	if(Settings == none)
 		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
-
-	BuildInfo = Settings.PreBuildInfos[0]; // Placeholder, hardcoded to load the first buildinfo for now
-	PreviewRotationRate = Settings.repPreviewRot;
+	InitTurretSelection();
 }
 
 reliable client function ClientWeaponSet(bool bOptionalSet, optional bool bDoNotActivate)
@@ -151,7 +133,7 @@ reliable server function ServerDeployTurret()
 	}
 
 	// Spawn a new turret
-	NewRotation.Yaw += Instigator.Controller.Rotation.Pitch * PreviewRotationRate;
+	NewRotation.Yaw += Instigator.Controller.Rotation.Pitch * Settings.repPreviewRot;
 	NewTurret = Instigator.Spawn(BuildInfo.TurretClass, , , HitLocation, NewRotation);
 	
 	if(NewTurret != None)
@@ -195,7 +177,7 @@ simulated function UpdatePreview()
 	{
 		TurretPreview.SetTranslation(StartPos);
 	}
-	NewRotation.Yaw += Instigator.Controller.Rotation.Pitch * PreviewRotationRate;
+	NewRotation.Yaw += Instigator.Controller.Rotation.Pitch * Settings.repPreviewRot;
 	TurretPreview.SetRotation(NewRotation);
 }
 
@@ -208,7 +190,7 @@ simulated function NotifyMeleeCollision(Actor HitActor, optional vector HitLocat
 	{
 		if(WorldInfo.NetMode != NM_Client)
 		{
-			T.HealDamage(HealPerHit, Instigator.Controller, None);
+			T.HealDamage(Settings.repHitRepair, Instigator.Controller, None);
 		}
 		if (!IsTimerActive(nameof(BeginPulverizerFire)))
 			SetTimer(0.001f, false, nameof(BeginPulverizerFire));
@@ -245,7 +227,8 @@ simulated state MeleeHeavyAttacking
 		NotifyBeginState();
 		//bPulverizerFireReleased = false;
 
-		SetTimer(TurretPreviewDelay, false, 'BeginDeployment');
+		if(Settings != none && Settings.bClientInit) // <- This is so that the first user who doesn't have a Settings for less than a second doesnt have issues
+			SetTimer(Settings.repPrevDelay, false, 'BeginDeployment');
 	}
 
 	simulated function BeginDeployment()
@@ -336,7 +319,7 @@ simulated state MeleeHeavyAttacking
 // Overrides KFWeapon.uc behavior to match Weapon.uc, allows weapon dropping
 simulated function bool CanThrow()
 {
-	return bCanDropWeapon;
+	return Settings.repDropHammer;
 }
 
 // Hardcoding to overhead swing
@@ -365,8 +348,7 @@ defaultproperties
    PickupMeshName="SentryHammer.Mesh.Wep_SentryHammer_Pickup"
    AttachmentArchetypeName="SentryHammer.Wep_SentryHammer_3P"
 
-   bCanThrow = true
-   bDropOnDeath = true
+   bDropOnDeath = false
 
 	BaseTurretArch = KFCharacterInfo_Monster'Turret_TF2.Arch.Turret1Arch'
 	BaseTurSkin = MaterialInstanceConstant'Turret_TF2.Mat.Sentry1Red'

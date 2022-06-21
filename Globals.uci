@@ -1,4 +1,5 @@
 `define TEXT_COLOR			(R=236,G=227,B=203,A=255)
+`define NUM_WEAPONS 3
 
 `define BOX_INNERBORDER 					0
 `define	BOX_SMALL 							1

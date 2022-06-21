@@ -3,7 +3,6 @@ Class ST_Upgrades_TF2 extends ST_Upgrades_Base;
 
 var bool bRegen, bFireDamage, bFireArmor;
 var float SonicDamageMultiplier;
-var int Damage, BaseMaxAmmoCount, BaseMaxHealth;
 
 //Handles passive upgrade effects
 //NB: Only called when TurretLevel or PurchasedUpgrades is changed
@@ -47,10 +46,10 @@ simulated function UpdateUpgrades()
 					TurretOwner.HealthMax *= UpgradeInfos[i].FValue;
 					break;
 				case EUpFireRateA:
-					TurretOwner.RoF *= UpgradeInfos[i].FValue;
+					TurretOwner.RoF[EPrimaryFire] *= UpgradeInfos[i].FValue;
 					break;
 				case EUpFireRateB:
-					TurretOwner.RoF *= UpgradeInfos[i].FValue;
+					TurretOwner.RoF[EPrimaryFire] *= UpgradeInfos[i].FValue;
 					break;
 				case EUpRangeA:
 					TurretOwner.SetSightRadius(TurretOwner.SightRadius * UpgradeInfos[i].FValue);
@@ -119,14 +118,9 @@ simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType
 {
 	ShieldAbsorb(InDamage); // If you remove this line Armor will not be taken into account for the turret
 
-	// Percentage Sonic damage reduction
-	if(InDamageType.IsA('KFDT_Sonic')) // Try to cast to Sonic damage
-		InDamage *= SonicDamageMultiplier;
-
 	// Check for Fire damage reduction upgrade
 	if(bFireArmor)
 	{
-		TurretOwner.Controller.GotoState();
 		if(InDamageType.IsA('KFDT_Fire')) // Try to cast to Fire damage
 		{
 			InDamage *= UpgradeInfos[EUpDamageReduceA].FValue;
@@ -138,20 +132,11 @@ simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType
 //NB: Should be as slim as possible to decrease overhead
 simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, optional out class<KFDamageType> OutDamageType, optional int HitZoneIdx)
 {
-	// Check for Fire damage upgrade
-	if(bFireDamage)
-	{
-		//Every 10th bullet the damage type gets set to fire damage
-		if(ST_Turret_Base(Owner).FireCounter[EPrimaryFire] % 10 == 0) // TODO: Find faster math, maybe bitshift
-			OutDamageType = class'KFDT_Fire';
-	}
-
 }
 
 defaultproperties
 {
 	bRegen=false
-	SonicDamageMultiplier=0.1f // Reduces all sonic damage by 90%
 
 	//Turret Level Settings
 	LevelInfos(0)={(
@@ -161,76 +146,76 @@ defaultproperties
 		Title="Level 1",
 		Description="Low level TF2 sentry turret",
 
-		Cost=1000,
-		BaseDamage[0]=10,
-		BaseMaxHealth=350,
-		BaseRoF=0.3f,
-		BaseMaxAmmoCount[0]=1000,
-		BaseTurnRadius=0.6f,
-		BaseSightRadius=1800.0f,
-		BaseAccuracyMod=0.05f
+		Cost = 1000,
+		BaseMaxHealth = 350,
+		BaseRoF[EPrimaryFire] = 0.3f,
+		BaseDamage[EPrimaryFire] = 10,
+		BaseMaxAmmoCount[EPrimaryFire] = 1000,
+		BaseTurnRadius = 0.6f,
+		BaseSightRadius = 1800.0f,
+		BaseAccuracyMod[EPrimaryFire] = 0.05f
 	)}
 
-	LevelInfos(1)={(
-		IconIndex=`ICON_LEVEL_2,
-		TurretArch=KFCharacterInfo_Monster'Turret_TF2.Arch.Turret2Arch',
+	LevelInfos(1) = {(
+		IconIndex = `ICON_LEVEL_2,
+		TurretArch = KFCharacterInfo_Monster'Turret_TF2.Arch.Turret2Arch',
 
-		Title="Level 2",
-		Description="Mid level TF2 sentry turret",
+		Title = "Level 2",
+		Description = "Mid level TF2 sentry turret",
 
-		Cost=1500,
-		BaseDamage[0]=11,
-		BaseMaxHealth=400,
-		BaseRoF=0.125f,
-		BaseMaxAmmoCount[0]=1500,
-		BaseTurnRadius=0.6f,
-		BaseSightRadius=1800.0f,
-		BaseAccuracyMod=0.05f
+		Cost = 1500,
+		BaseDamage[EPrimaryFire] = 11,
+		BaseMaxHealth = 400,
+		BaseRoF[EPrimaryFire] = 0.125f,
+		BaseMaxAmmoCount[EPrimaryFire] = 1500,
+		BaseTurnRadius = 0.6f,
+		BaseSightRadius = 1800.0f,
+		BaseAccuracyMod[EPrimaryFire] = 0.05f
 	)}
 
-	LevelInfos(2)={(
-		IconIndex=`ICON_LEVEL_3,
-		TurretArch=KFCharacterInfo_Monster'Turret_TF2.Arch.Turret3Arch',
+	LevelInfos(2) = {(
+		IconIndex = `ICON_LEVEL_3,
+		TurretArch = KFCharacterInfo_Monster'Turret_TF2.Arch.Turret3Arch',
 
-		Title="Level 3",
-		Description="High level TF2 sentry turret",
+		Title = "Level 3",
+		Description = "High level TF2 sentry turret",
 
-		Cost=2500,
-		BaseDamage[0]=13,
-		BaseDamage[1]=1000,
-		BaseMaxHealth=600,
-		BaseRoF=0.1f,
-		BaseMaxAmmoCount[0]=2000,
-		BaseMaxAmmoCount[1]=50,
-		BaseTurnRadius=0.6f,
-		BaseSightRadius=1800.0f,
-		BaseAccuracyMod=0.05f
+		Cost = 2500,
+		BaseDamage[EPrimaryFire] = 13,
+		BaseDamage[ESecondaryFire] = 1000,
+		BaseMaxHealth = 600,
+		BaseRoF[EPrimaryFire] = 0.1f,
+		BaseMaxAmmoCount[EPrimaryFire] = 2000,
+		BaseMaxAmmoCount[ESecondaryFire] = 50,
+		BaseTurnRadius = 0.6f,
+		BaseSightRadius = 1800.0f,
+		BaseAccuracyMod[EPrimaryFire] = 0.05f
 	)}
 
 	// Ammo Settings
-	AmmoInfos(EPrimaryFire)=(CostPerRound=2, BuyAmount = 250)
-	AmmoInfos(ESecondaryFire)=(CostPerRound=20, BuyAmount = 20)
+	AmmoInfos(EPrimaryFire) = (CostPerRound = 2, BuyAmount = 250)
+	AmmoInfos(ESecondaryFire) = (CostPerRound = 20, BuyAmount = 20)
 
 	// Upgrade Settings
-	UpgradeInfos(EUpPrimaryDamageA)=(bIsEnabled=True)
-	UpgradeInfos(EUpPrimaryDamageB)=(bIsEnabled=True)
-	UpgradeInfos(EUpSecondaryDamageA)=(bIsEnabled=True)
-	UpgradeInfos(EUpSecondaryDamageB)=(bIsEnabled=True)
-	UpgradeInfos(EUpHealthUpA)=(bIsEnabled=True)
-	UpgradeInfos(EUpHealthUpB)=(bIsEnabled=True)
-	UpgradeInfos(EUpFireRateA)=(bIsEnabled=True)
-	UpgradeInfos(EUpFireRateB)=(bIsEnabled=True)
-	UpgradeInfos(EUpRangeA)=(bIsEnabled=True)
-	UpgradeInfos(EUpRangeB)=(bIsEnabled=True)
-	UpgradeInfos(EUpAccuracyA)=(bIsEnabled=True)
-	UpgradeInfos(EUpAccuracyB)=(bIsEnabled=True)
-	UpgradeInfos(EUpTurnRadiusA)=(bIsEnabled=True)
-	UpgradeInfos(EUpTurnRadiusB)=(bIsEnabled=True)
-	UpgradeInfos(EUpTurnRadiusC)=(bIsEnabled=True)
-	UpgradeInfos(EUpDamageReduceB)=(bIsEnabled=True)
-	UpgradeInfos(EUpPrimaryAmmoUp)=(bIsEnabled=True)
-	UpgradeInfos(EUpSecondaryAmmoUp)=(bIsEnabled=True)
-	UpgradeInfos(EUpHeadshots)=(bIsEnabled=True)
-	UpgradeInfos(EUpWeaponBehaviour)=(bIsEnabled=True)
-	UpgradeInfos(EUpAutoRepair)=(bIsEnabled=True)
+	UpgradeInfos(EUpPrimaryDamageA) = (bIsEnabled=True)
+	UpgradeInfos(EUpPrimaryDamageB) = (bIsEnabled=True)
+	UpgradeInfos(EUpSecondaryDamageA) = (bIsEnabled=True)
+	UpgradeInfos(EUpSecondaryDamageB) = (bIsEnabled=True)
+	UpgradeInfos(EUpHealthUpA) = (bIsEnabled=True)
+	UpgradeInfos(EUpHealthUpB) = (bIsEnabled=True)
+	UpgradeInfos(EUpFireRateA) = (bIsEnabled=True)
+	UpgradeInfos(EUpFireRateB) = (bIsEnabled=True)
+	UpgradeInfos(EUpRangeA) = (bIsEnabled=True)
+	UpgradeInfos(EUpRangeB) = (bIsEnabled=True)
+	UpgradeInfos(EUpAccuracyA) = (bIsEnabled=True)
+	UpgradeInfos(EUpAccuracyB) = (bIsEnabled=True)
+	UpgradeInfos(EUpTurnRadiusA) = (bIsEnabled=True)
+	UpgradeInfos(EUpTurnRadiusB) = (bIsEnabled=True)
+	UpgradeInfos(EUpTurnRadiusC) = (bIsEnabled=True)
+	UpgradeInfos(EUpDamageReduceB) = (bIsEnabled=True)
+	UpgradeInfos(EUpPrimaryAmmoUp) = (bIsEnabled=True)
+	UpgradeInfos(EUpSecondaryAmmoUp) = (bIsEnabled=True)
+	UpgradeInfos(EUpHeadshots) = (bIsEnabled=True)
+	UpgradeInfos(EUpWeaponBehaviour) = (bIsEnabled=True)
+	UpgradeInfos(EUpAutoRepair) = (bIsEnabled=True)
 }

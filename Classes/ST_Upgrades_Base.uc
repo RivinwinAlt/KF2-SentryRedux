@@ -41,54 +41,57 @@ enum UpgradeEnums
 
 struct LevelInfo
 {
-	var int IconIndex; // Used to reference an array of textures in ST_GUIStyle
-	var Color DrawColor;
+	var int IconIndex;				// Used to reference an array of textures in ST_GUIStyle
+	var Color DrawColor;			// Color to tint the icon
 
 	var KFCharacterInfo_Monster TurretArch;
 
 	var string Title, Description;
-	var int Cost, BaseDamage[3], BaseMaxHealth;
+	var int Cost, BaseDamage[`NUM_WEAPONS], BaseMaxHealth, BaseMaxAmmoCount[`NUM_WEAPONS];
 	var array<UpgradeEnums> RequiredUpgrades;
-	var float BaseRoF, BaseTurnRadius, BaseAccuracyMod, BaseSightRadius;
-
-	var int BaseMaxAmmoCount[3];
+	var float BaseRoF[`NUM_WEAPONS], BaseTurnRadius, BaseAccuracyMod[`NUM_WEAPONS], BaseSightRadius;
 
 	structdefaultproperties
 	{
-		IconIndex=`ICON_DEFAULT;
-		DrawColor = (R=220, G=220, B=0, A=255); // Default color is yellow
-		BaseTurnRadius = 0.6f;
-		BaseAccuracyMod = 0.06f;
+		IconIndex=`ICON_DEFAULT	// Defaults to "missing texture" icon
+		DrawColor = (R=220, G=220, B=0, A=255) // Default color is yellow
+		BaseTurnRadius = 0.6f
+		BaseAccuracyMod = 0.06f
 		BaseSightRadius = 2200.0f
-		BaseMaxAmmoCount[0] = 0;	// Disabled by default
-		BaseMaxAmmoCount[1] = 0;	// Disabled by default
-		BaseMaxAmmoCount[2] = 0;	// Disabled by default
 	}
 };
 var array<LevelInfo> LevelInfos;	// Holds all upgrades in an iterable list
 
 struct UpgradeInfo
 {
-	var int IconIndex;
+	var bool bIsEnabled;
+
+	var int IconIndex;				// Used to reference an array of textures in ST_GUIStyle
 	var Color DrawColor;
+	var bool bBuffUpgrade;			// Currently not used, in reserve for menu rendering logic
+	var string Title, Description;
 
 	var int Cost;
 	var byte RequiredLevel;			// Minimum turret level for upgrade to show in menu
 	var array<UpgradeEnums> RequiredUpgrades, ExcludedUpgrades;
+
 	var int Value;					// Reserved for integer math to increase speed during upgrade checks
 	var float FValue;				// Reserved for floating point math during upgrade checks
 	var float BValue;				// Base value set by modder
 	var float ValueModifier;		// Exposed in config file to allow effect scaling by end-user
-	var string Title, Description;
-	var bool bIsEnabled;
+
+	var bool bRebuyable;			// Set to true in order for the upgrade to have multiple levels
+	var byte CurrentLevel;			// Only use if bRebuyable is true, slower than HasUpgrade()
+	var byte NumUpgradeLevels;		// The max upgrade level
 
 	structdefaultproperties
 	{
-		IconIndex=`ICON_DEFAULT; // A "missing texture" icon by default
-		RequiredLevel = 0;
-		DrawColor = (R=255, G=255, B=255, A=255);	// Defaults to white icon
-		ValueModifier = 1.0f;
-		bIsEnabled = False;			// Will not show in menu unless enabled in extended upgrades class
+		IconIndex=`ICON_DEFAULT	// A "missing texture" icon by default
+		RequiredLevel = 0
+		DrawColor = (R=255, G=255, B=255, A=255)	// Defaults to white icon
+		ValueModifier = 1.0f
+		bIsEnabled = False			// Will not show in menu unless enabled in extended upgrades class
+		NumUpgradeLevels = 1
 	}
 };
 var array<UpgradeInfo> UpgradeInfos;
@@ -208,23 +211,27 @@ final function BoughtUpgrade(int Index)
 // Updates owner turret's variables to reflect current int TurretLevel
 simulated function TurretLevelChange()
 {
+	// Initialize mesh and materials (Also Resets AI)
+	TurretOwner.UpdateDisplayMesh();
+
 	// Operations to perform when turret is first initialized
 	if(!bInitialized)
 	{
 		TurretOwner.Health = LevelInfos[TurretLevel].BaseMaxHealth;
 		InitializeUpgrades();
 		SetTimer(TimerPeriod, true, 'UpgradesTimer');
-		bInitialized = true;
 	}
-
-	// Initialize mesh and materials (Resets AI)
-	TurretOwner.UpdateDisplayMesh();
-
+	
 	// Update level-up upgrade info
 	SetLevelUpgrade();
 
 	// Update turret stats
 	UpdateUpgrades();
+
+	if(!bInitialized)
+	{
+		bInitialized = true;
+	}
 }
 
 simulated function SetLevelUpgrade()
@@ -286,8 +293,8 @@ simulated function bool MeetsRequirements(int Index)
 	local bool passed;
 	local UpgradeEnums TempIndex;
 
-	// Check upgrade is enabled, not purchased, turret level meets requirement
-	if(!UpgradeInfos[Index].bIsEnabled || HasUpgrade(Index) || UpgradeInfos[Index].RequiredLevel > TurretLevel)
+	// Check upgrade is enabled, not purchased, turret level meets requirement, repeatable upgrades havent been maxed out
+	if(!UpgradeInfos[Index].bIsEnabled || (HasUpgrade(Index) && !UpgradeInfos[Index].bRebuyable) || UpgradeInfos[Index].RequiredLevel > TurretLevel || UpgradeInfos[Index].CurrentLevel >= UpgradeInfos[Index].NumUpgradeLevels)
 		return false;
 
 	// Initialize default value before checks
@@ -331,6 +338,8 @@ simulated function InitializeUpgrades()
 		// Store value to integer (for later optimization)
 		UpgradeInfos[i].Value = Round(UpgradeInfos[i].FValue);
 	}
+
+	TurretOwner.AmmoCount[EPrimaryFire] = TurretOwner.MaxAmmoCount[EPrimaryFire] * TurretOwner.Settings.repStartAmmo;
 }
 
 // Cleanup
@@ -345,18 +354,16 @@ simulated function UpdateUpgrades()
 	local int i;
 
 	// Set turret stats to the current level defaults
-	for(i = 0; i < 3; i++) // Iterate through the 3 firemodes to access the associated static arrays
+	for(i = 0; i < `NUM_WEAPONS; i++) // Iterate through the 3 firemodes to access the associated static arrays
 	{
+		TurretOwner.AccuracyMod[i] = LevelInfos[TurretLevel].BaseAccuracyMod[i];
+		TurretOwner.RoF[i] = LevelInfos[TurretLevel].BaseRoF[i];
 		TurretOwner.Damage[i] = LevelInfos[TurretLevel].BaseDamage[i];
-		TurretOwner.MaxAmmoCount[i] = LevelInfos[TurretLevel].BaseMaxAmmoCount[i];
-		if(!bInitialized)
-			TurretOwner.AmmoCount[i] = TurretOwner.MaxAmmoCount[i] * StartingAmmoModifier;
+		TurretOwner.MaxAmmoCount[i] = LevelInfos[TurretLevel].BaseMaxAmmoCount[i];			
 	}
-	TurretOwner.RoF = LevelInfos[TurretLevel].BaseRoF;
 	TurretOwner.HealthMax = LevelInfos[TurretLevel].BaseMaxHealth;
 	TurretOwner.SetTurnRadius(LevelInfos[TurretLevel].BaseTurnRadius);
 	TurretOwner.SetSightRadius(LevelInfos[TurretLevel].BaseSightRadius);
-	TurretOwner.AccuracyMod[EPrimaryFire] = LevelInfos[TurretLevel].BaseAccuracyMod;
 }
 
 // Armor calculations by FluX
@@ -392,10 +399,10 @@ simulated function ModifyDamageGiven( out int InDamage, optional Actor HitActor,
 
 defaultproperties
 {
-	bAlwaysRelevant = true // Replicates to all clients to ensure synchronization. May not be necessary
+	bAlwaysRelevant = true		// Replicates to all clients to ensure synchronization. May not be necessary
 	StartingAmmoModifier = 0.2f // TODO: Move to config
-	TurretLevel = 255 // Start on anything but 0 so that replication immediatly leads to state synchronization
-	TimerPeriod = 3.0f // Time between calls to UpgradesTimer()
+	TurretLevel = 255			// Start on anything but 0 so that replication immediatly leads to state synchronization
+	TimerPeriod = 3.0f			// Time between calls to UpgradesTimer()
 
 	AmmoInfos(EPrimaryFire) = {(
 		IconIndex = `ICON_DEFAULT,
@@ -555,7 +562,8 @@ defaultproperties
 	UpgradeInfos(EUpDamageReduceA)={(
 		Cost=500,
 		Title="Large Zed damage reduction",
-		Description="Reduces damage taken from large Zeds by ...",
+		Description="Reduces damage taken from large Zeds by 40%",
+		BValue=0.6f,
 		bIsEnabled=False
 	)}
 

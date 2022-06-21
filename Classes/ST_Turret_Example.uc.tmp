@@ -1,0 +1,78 @@
+Class ST_Turret_Example extends ST_Turret_Base;
+
+// Called when building turret or changing level
+simulated function UpdateDisplayMesh()
+{
+	// This is an opportunity to do technical things like detach to sockets
+
+	// The mesh itself is set from the Monster Archetype in ST_Upgrades
+	super.UpdateDisplayMesh();
+
+	// This is an opportunity to do technical things like attach to sockets
+}
+
+// Called when building OR changing turret level
+simulated function UpdateSounds()
+{
+	// WHEN A SOUND DOESNT CHANGE DURING GAMEPLAY PUT IT IN defaultproperties
+	switch(UpgradesObj.TurretLevel)
+	{
+		case 0:
+			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot_Cue';
+			break;
+		case 1:
+			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot2_Cue';
+			break;
+		case 2:
+			FiringSounds[EPrimaryFire] = SoundCue'Turret_TF2.Sounds.sentry_shoot3_Cue';
+			break;
+	}
+}
+
+// Called when building OR changing turret level
+simulated function PreBuildAnimation()
+{
+	super.PreBuildAnimation();
+
+	// This is an opportunity to do flavor things that accompany the animation starting
+}
+
+// Called when building OR changing turret level
+simulated function PostBuildAnimation()
+{
+	super.PostBuildAnimation();
+
+	// This is an opportunity to do flavor things that accompany the animation ending
+}
+
+// The 3 weapon slots have their own function calls for optimization
+simulated function FirePrimary()
+{
+	super.FirePrimary();
+
+	FireBullet();
+}
+simulated function FireSecondary()
+{
+	super.FireSecondary();
+
+	FireProjectile();
+	// FireProjectileLobbed();
+}
+simulated function FireSpecial(); // Do this when the weapon slot is never used by the turret
+
+defaultproperties
+{
+	BaseEyeHeight = 70.000000
+	EyeHeight = 70.000000
+
+	DamageTypes(EPrimaryFire) = class'KFDT_Ballistic' // Used for bullet damage
+	DamageTypes(ESecondaryFire) = class'KFDT_Explosive' // Used for missile damage
+
+	ControllerClass = Class'ST_AI_TF2'
+	UpgradesClass = Class'ST_Upgrades_TF2'
+
+	// Assign soundcues here if they don't change during gameplay
+	DamageTakenSound = SoundCue'Turret_TF2.Sounds.sentry_damage1_Cue'
+	DieingSound = SoundCue'Turret_TF2.Sounds.sentry_explode_Cue'
+}

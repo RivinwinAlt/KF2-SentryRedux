@@ -3,8 +3,6 @@ Class ST_Turret_Base extends KFPawn
 	config(SentryRedux)
 	dependson(ST_Upgrades_Base);
 
-`define NUM_WEAPONS 3
-
 // STRUCTS
 enum FireTypeEnums // Used to easily access each of the integrated weapons
 {
@@ -30,7 +28,7 @@ var transient ST_AI_Base AIController;
 // STATS / GENERAL
 var bool bRecentlyBuilt;
 var float RefundMultiplier; // This is a fallback value and can be set at any time. This should really be determined by a Main Replicated Object.
-var int HealthLostNoOwner, DoshValue, IntSightRadius, BuildRadius; // IntSightRadius is used for faster Integer math when comparing distances
+var int DoshValue, IntSightRadius, BuildRadius; // IntSightRadius is used for faster Integer math when comparing distances
 var float BuildTimer, NextTakeHitSound;
 var repnotify bool bWasSold; // Notifies proxies of sale going on, only set by server
 
@@ -38,14 +36,14 @@ var repnotify bool bWasSold; // Notifies proxies of sale going on, only set by s
 var class<DamageType> DamageTypes[`NUM_WEAPONS];
 var transient class<KFDamageType> TempDamageType; // Cached temporary value, faster to allocate once
 var class<KFProjectile> ProjectileTypes[`NUM_WEAPONS];
-var float AccuracyMod[`NUM_WEAPONS], TurnRadius, RoF, NextFireSoundTime;
+var float AccuracyMod[`NUM_WEAPONS], TurnRadius, RoF[`NUM_WEAPONS], NextFireSoundTime;
 var int WeaponRange[`NUM_WEAPONS], AmmoCount[`NUM_WEAPONS], MaxAmmoCount[`NUM_WEAPONS], Damage[`NUM_WEAPONS];
 var int TempDamage; // Float rather than int to allow precise muilti-float calculations nb efore using Round(), pulled from Weapon.uc
 var vector RepHitLocation; // Moving away from this being replicated, its just where to render the hit fx
 var repnotify byte FireCounter[`NUM_WEAPONS];
 
 // ANIMATION / FX
-var KFMuzzleFlash MuzzleFlash[4];
+var KFMuzzleFlash MuzzleFlash[4]; // Arbitrary, we can increase this as necesssary
 var byte MuzzleFlashIndex;
 var AnimNodeSlot AnimationNode, UpperAnimNode;
 var float ScanLocTimer;
@@ -107,8 +105,6 @@ simulated function PostBeginPlay()
 
 		Settings.TurretCreated(Self);
 	}
-
-	HealthLostNoOwner = Settings.TurretHealthTickDown;
 }
 
 simulated function InitBuild()
@@ -214,7 +210,7 @@ function CheckUserConnected()
 {
 	if(OwnerController == None)
 	{
-		Health -= HealthLostNoOwner;
+		Health -= Settings.TurretHealthTickDown;
 		if(Health <= 0)
 			KilledBy(None);
 	}
@@ -287,14 +283,16 @@ simulated function SetViewFocus(Actor Other)
 		return;
 
 	// I'm gonne be honest: idk what this section really does because it looks really dumb and I didnt want to research it.
-	// There must be a native way to do it instead
-	if(Other == None && !bIsScanning)
+	// There must be a native way to do it instead. Logically it's not necessary if we just tell it a location to look at in all states
+	if(Other == None)
 	{
 		YawControl.SetSkelControlStrength(0.0f, 0.15f);
 		if(PitchControl != None)
 		{
 			PitchControl.SetSkelControlStrength(0.0f, 0.15f);
 		}
+
+		GoToState('WaitForEnemy');
 	}
 	else
 	{
@@ -303,6 +301,8 @@ simulated function SetViewFocus(Actor Other)
 		{
 			PitchControl.SetSkelControlStrength(1.0f, 0.15f);
 		}
+
+		GoToState('FightEnemy');
 	}
 }
 
@@ -400,10 +400,14 @@ simulated function EndScanning() // Can be called automatically or from AI
 	//SetViewFocus(ViewFocusActor); // This makes the mesh look straight ahead? (60% sure)
 }
 
+simulated function BeginFiringPrimary(); // Use these to set up timers
+simulated function BeginFiringSecondary();
+simulated function BeginFiringSpecial();
+
 simulated function FirePrimary()
 {
 	// More efficient to do this here than to do it on a timer
-	if(!AIController.CheckEnemyState())
+	if(WorldInfo.NetMode != NM_Client && !AIController.CheckEnemyState())
 		return; // If the enemy is dead or can't be targeted just dont shoot
 
 	if(AmmoCount[EPrimaryFire] <= 0)
@@ -426,7 +430,7 @@ simulated function FirePrimary()
 		AnimationNode.PlayCustomAnim('Fire', 1.0f, 0.0f, 0.0f, false, true);
 		if(NextFireSoundTime < WorldInfo.TimeSeconds)
 		{
-			NextFireSoundTime = WorldInfo.TimeSeconds + 0.15f; // This is an arbitrary time, how do we fetch the soundcue length?
+			NextFireSoundTime = WorldInfo.TimeSeconds + 0.15f; // TODO: This is an arbitrary time, how do we fetch the soundcue length instead?
 			PlaySoundBase(FiringSounds[EPrimaryFire], true);
 		}
 	}
@@ -554,7 +558,7 @@ simulated function FireBullet()
 	local TraceHitInfo HitInfo;
 	local int HitZoneIndex;
 
-	if(Controller.Enemy == none)
+	if(ViewFocusActor == none)
 		return;
 
 	if(WorldInfo.NetMode != NM_Client && ViewFocusActor != Controller.Enemy)
@@ -570,7 +574,7 @@ simulated function FireBullet()
 
 	// N.B. - The goal is to have the client simulate firing and hitting but only the server actually dealing damage, server needs to replicate damage notification to client for damage numbers to pop up
 	// If trace hit a pawn (not on same team) deal damage
-	if(HitActor.IsA('KFPawn'))
+	if(KFPawn(HitActor) != none)
 	{
 		// Set up and run damage modification on both client and server
 		TempDamage = Damage[EPrimaryFire];
@@ -595,6 +599,10 @@ simulated function FireBullet()
 		//{
 		//	HitActor.TakeDamage(TempDamage, Controller, HitLocation, Dir * 10000.f, TempDamageType, HitInfo, Self);
 		//}
+	}
+	else
+	{
+		AIController.TargetBlocked(); // Server side logic for switching targets
 	}
 	
 	// Client side graphical effects

@@ -61,33 +61,25 @@ simulated function PostBuildAnimation()
 }
 
 // The 3 weapon slots have their own function calls for optimization
-simulated function FirePrimary()
+simulated function BeginFiringPrimary()
 {
-	local int i;
-	
+	SetTimer(RoF[EPrimaryFire], true, 'FirePrimary');
+}
+simulated function BeginFiringSecondary()
+{
+	SetTimer(RoF[ESecondaryFire], true, 'FireSecondary');
+}
+simulated function FirePrimary()
+{	
 	super.FirePrimary();
 
-	/*if(WorldInfo.NetMode != NM_Client)
-	{
-		if(AmmoCount[1] > 0 && NextMissileTimer[ESecondaryFire] < WorldInfo.TimeSeconds) // Disabled weapons will always have 0 ammo
-			CheckFireMissile();
-	}*/
-
-	for(i = 0; i < 5; ++i)
-	{
-		FireBullet();
-	}
+	FireBullet();
 	//FireProjectileLobbed
 	//FireProjectile
 }
 simulated function FireSecondary()
 {
 	super.FireSecondary();
-}
-simulated function FireSpecial()
-{
-	super.FireSecondary();
-	FireProjectileLobbed();
 }
 
 defaultproperties

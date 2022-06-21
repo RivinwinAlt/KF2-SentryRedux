@@ -107,7 +107,7 @@ defaultproperties
     WindowTitle="Sentry Redux Mod"
     XPosition=0
     YPosition=0
-    XSize=0.6
+    XSize=0.9 // up from 0.6
     YSize=0.8
     
     bAlwaysTop=true
