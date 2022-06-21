@@ -1,0 +1,1 @@
+Start "" %KFEditorEXE% brewcontent -platform=PC SentryRemake

@@ -360,7 +360,7 @@ simulated function UpdateUpgrades()
 }
 
 // Armor calculations by FluX
-simulated function ShieldAbsorb( out int InDamage )
+simulated function ShieldAbsorb(out int InDamage)
 {
 	local int AbsorbedDmg;
 
@@ -370,6 +370,20 @@ simulated function ShieldAbsorb( out int InDamage )
 	AbsorbedDmg = Min(Round(0.5 * InDamage), Armor);
 	Armor -= Max(AbsorbedDmg * 0.7, 1);
 	InDamage = Max(InDamage - AbsorbedDmg, 1);
+}
+
+simulated function ShieldReflect(out int InDamage, class<DamageType> InDamageType, Controller InstigatedBy)
+{
+	local int AbsorbedDmg;
+
+	if(Armor < 1)
+		return;
+
+	AbsorbedDmg = Min(Round(0.5 * InDamage), Armor);
+	Armor -= Max(AbsorbedDmg * 0.7, 1);
+	InDamage = Max(InDamage - AbsorbedDmg, 1);
+
+	// TODO: Deal damage to InstigatedBy.Pawn here
 }
 
 simulated function UpgradesTimer(); // Executed on a timer

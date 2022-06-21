@@ -34,7 +34,7 @@ var int HealthLostNoOwner, DoshValue, IntSightRadius, BuildRadius; // IntSightRa
 var float BuildTimer, NextTakeHitSound;
 var repnotify bool bWasSold; // Notifies proxies of sale going on, only set by server
 
-// WEAPONS - we have to use static arrays instead of dynamic arrays because dynamic arrays don't replicate well
+// WEAPONS - we have to use static arrays instead of dynamic arrays because dynamic arrays don't replicate quickly
 var class<DamageType> DamageTypes[`NUM_WEAPONS];
 var transient class<KFDamageType> TempDamageType; // Cached temporary value, faster to allocate once
 var class<KFProjectile> ProjectileTypes[`NUM_WEAPONS];
@@ -543,7 +543,7 @@ function vector GetAimPos(vector CamLoc, Pawn TPawn)
 		return tempLocation;
 	}
 	// Return the torso location by default
-	// TODO: lets actually return the first hitactor encountered between the turret and this point instead, so that we can simulate bullet FX on walls etc in between quickly
+	// TODO: We could keep track of these and switch targets after a number of bad shots
 	return TorsoLocation;
 }
 
@@ -568,6 +568,7 @@ simulated function FireBullet()
 	// I'm not happy about having to make this but its almost always going to be faster than Marco's way. This design concept is from Weapon.uc
 	RecursiveBulletTrace(HitActor, HitLocation, HitNormal, EndLocation, StartLocation, HitInfo);
 
+	// N.B. - The goal is to have the client simulate firing and hitting but only the server actually dealing damage, server needs to replicate damage notification to client for damage numbers to pop up
 	// If trace hit a pawn (not on same team) deal damage
 	if(HitActor.IsA('KFPawn'))
 	{
@@ -585,17 +586,16 @@ simulated function FireBullet()
 			KFPawn(HitActor).AddHitFX(TempDamage, Controller, HitZoneIndex, HitLocation, Dir * 10000.f, TempDamageType);
 
 			if(Controller != None) // Enemy may have exploded and killed the turret, check before assuming access to variable
-				Controller.bIsPlayer = true; // I dont know why this is a thing, but it means we should have access to SeeMonster() in the AI
+				Controller.bIsPlayer = true;
 			
 			if(Pawn(HitActor).Controller != None)
-				Pawn(HitActor).Controller.NotifyTakeHit(Controller, HitLocation, TempDamage, TempDamageType, Dir); // Add aggro to the target pawn
+				Pawn(HitActor).Controller.NotifyTakeHit(Controller, HitLocation, TempDamage, TempDamageType, Dir); // Add aggro to the hit pawn
 		}
 		//else
 		//{
 		//	HitActor.TakeDamage(TempDamage, Controller, HitLocation, Dir * 10000.f, TempDamageType, HitInfo, Self);
 		//}
 	}
-
 	
 	// Client side graphical effects
 	if(WorldInfo.NetMode != NM_DedicatedServer)
@@ -635,12 +635,12 @@ simulated function RecursiveBulletTrace(out actor HitActor, out vector HitLocati
 				}
 			}
 			RecursiveBulletTrace(HitActor, HitLocation, HitNormal, EndTrace, HitLocation, HitInfo, Extent);
-			TempActor.bProjTarget = true;
+			TempActor.bProjTarget = true; 	// Not sure this is relavent
 			TempActor.SetCollision(bOldCollideActors, bOldBlockActors);
 		}
 		else
 		{
-			// In Weapon.uc there is code here for bullets going through portals and hitting stuff on the other side. Fuck this for many reasons.
+			// In Weapon.uc there is code here for bullets going through portals and hitting stuff on the other side. Fuck that for many reasons.
 			HitActor = TempActor;
 		}
 	}
@@ -692,6 +692,7 @@ simulated function DrawBulletFX(Actor TargetActor, vector HitLocation, vector Hi
 
 simulated function KFSkinTypeEffects GetHitZoneSkinTypeEffects(int HitZoneIdx)
 {
+	// This defines the FX when the turret is shot
 	return KFSkinTypeEffects'FX_Impacts_ARCH.SkinTypes.Metal';
 }
 
@@ -827,6 +828,8 @@ function AddVelocity(vector NewVelocity, vector HitLocation, class<DamageType> d
 function AdjustDamage(out int InDamage, out vector Momentum, Controller InstigatedBy, vector HitLocation, class<DamageType> DamageType, TraceHitInfo HitInfo, Actor DamageCauser)
 {
 	UpgradesObj.ModifyDamageTaken(InDamage, DamageType, InstigatedBy);
+
+	// TODO: This call accounts for game difficulty and stuff; We may want to reimplement this code
 	Super.AdjustDamage(InDamage, Momentum, InstigatedBy, HitLocation, DamageType, HitInfo, DamageCauser);
 }
 
@@ -842,8 +845,8 @@ defaultproperties
 	Health = 350 // Immediatly overwritten by config, ensures turret isnt spawnerd with 0 health
 	HealthMax = 350 // Immediatly overwritten by config, ensures turret isnt spawnerd with 0 health
 	ControllerClass = Class'ST_AI_Base'
-	RefundMultiplier = 1.0f
-	WeaponRange(EPrimaryFire) = 10000.0f
+	RefundMultiplier = 1.0f // N.B. - While this is a hardcoded 100% mercy refund amount by default, we'll still make this set by the settings
+	WeaponRange(EPrimaryFire) = 10000.0f // Default for bullet tracing, decrease for ammo with limited range; Used to limit the range at which zeds are considered for attack and how far out to raytrace
 
 	DamageTypes(0) = class'KFDT_Ballistic'
 	ProjectileTypes(ESecondaryFire) = class'ST_Proj_Missile'

@@ -1,7 +1,7 @@
 // Upgrades class for the TF2 Turret
 Class ST_Upgrades_TF2 extends ST_Upgrades_Base;
 
-var bool bRegen, EUpPrimaryDamageType, bFireArmor;
+var bool bRegen, bFireDamage, bFireArmor;
 var float SonicDamageMultiplier;
 var int Damage, BaseMaxAmmoCount, BaseMaxHealth;
 
@@ -16,7 +16,8 @@ simulated function UpdateUpgrades()
 
 	// Reset booleans in case an upgrade has been sold
 	bRegen = false;
-	EUpPrimaryDamageType = false;
+	bFireDamage = false;
+	bFireArmor = false;
 
 	// Skipping the turret level-up upgrade iterate through all potential upgrades
 	for(i = 1; i < TotalUpgrades; i++) // TotalUpgrades is always the last upgrade enum value, can be used as int
@@ -104,7 +105,7 @@ simulated function UpdateUpgrades()
 simulated function UpgradesTimer()
 {
 	// Checks regen status boolean and if the turret is hurt applys effect
-	// TODO: use clock to test if running the Min() calculation every time is faster/equivalent to checking the current health every time
+	// TODO: use benchmarker to test if running the Min() calculation every time is faster/equivalent to checking the current health every time
 	if(bRegen && ST_Turret_Base(Owner).Health < ST_Turret_Base(Owner).HealthMax)
 	{
 		//Applys Effect (Min returns an integer)
@@ -116,7 +117,9 @@ simulated function UpgradesTimer()
 //NB: Should be reasonably slim to decrease overhead
 simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType> InDamageType, optional Controller InstigatedBy)
 {
-	// Flat Sonic damage reduction
+	ShieldAbsorb(InDamage); // If you remove this line Armor will not be taken into account for the turret
+
+	// Percentage Sonic damage reduction
 	if(InDamageType.IsA('KFDT_Sonic')) // Try to cast to Sonic damage
 		InDamage *= SonicDamageMultiplier;
 
@@ -136,10 +139,10 @@ simulated function ModifyDamageTaken(out int InDamage, optional class<DamageType
 simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, optional out class<KFDamageType> OutDamageType, optional int HitZoneIdx)
 {
 	// Check for Fire damage upgrade
-	if(EUpPrimaryDamageType)
+	if(bFireDamage)
 	{
 		//Every 10th bullet the damage type gets set to fire damage
-		if(ST_Turret_Base(Owner).FireCounter[0] % 10 == 0) // TODO: Find faster math, maybe bitshift
+		if(ST_Turret_Base(Owner).FireCounter[EPrimaryFire] % 10 == 0) // TODO: Find faster math, maybe bitshift
 			OutDamageType = class'KFDT_Fire';
 	}
 
@@ -154,7 +157,6 @@ defaultproperties
 	LevelInfos(0)={(
 		IconIndex=`ICON_LEVEL_1,
 		TurretArch=KFCharacterInfo_Monster'Turret_TF2.Arch.Turret1Arch',
-		FiringSounds[EPrimaryFire]=SoundCue'Turret_TF2.Sounds.sentry_shoot_Cue',
 
 		Title="Level 1",
 		Description="Low level TF2 sentry turret",
@@ -172,7 +174,6 @@ defaultproperties
 	LevelInfos(1)={(
 		IconIndex=`ICON_LEVEL_2,
 		TurretArch=KFCharacterInfo_Monster'Turret_TF2.Arch.Turret2Arch',
-		FiringSounds[EPrimaryFire]=SoundCue'Turret_TF2.Sounds.sentry_shoot2_Cue',
 
 		Title="Level 2",
 		Description="Mid level TF2 sentry turret",
@@ -190,7 +191,6 @@ defaultproperties
 	LevelInfos(2)={(
 		IconIndex=`ICON_LEVEL_3,
 		TurretArch=KFCharacterInfo_Monster'Turret_TF2.Arch.Turret3Arch',
-		FiringSounds[EPrimaryFire]=SoundCue'Turret_TF2.Sounds.sentry_shoot3_Cue',
 
 		Title="Level 3",
 		Description="High level TF2 sentry turret",
