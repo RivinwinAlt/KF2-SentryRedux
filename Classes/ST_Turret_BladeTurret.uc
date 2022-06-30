@@ -74,6 +74,8 @@ simulated function FirePrimary()
 	super.FirePrimary();
 
 	FireBullet();
+		FireProjectile
+		class<KFProj_Blade_Eviscerator>;
 	//FireProjectileLobbed
 	//FireProjectile
 }
@@ -90,11 +92,11 @@ defaultproperties
 	Health = 350 // Immediately overwritten by config, ensures turret is spawned with > 0 health
 	HealthMax = 350 // Immediately overwritten by upgrades object, ensures turret is spawned with > 0 health
 
-	DamageTypes(0) = class'KFDT_Ballistic' // Used for bullet damage
+	DamageTypes(0) = class'KFDT_Bleeding' // Used for bullet damage
 	DamageTypes(1) = class'KFDT_Explosive' // Used for missile damage
 
-	ControllerClass = Class'ST_AI_TF2'
-	UpgradesClass = Class'ST_Upgrades_TF2'
+	ControllerClass = Class'ST_AI_BladeTurret'
+	UpgradesClass = Class'ST_Upgrades_BladeTurret'
 
 
 	//FiringSounds(ESecondaryFire) = 

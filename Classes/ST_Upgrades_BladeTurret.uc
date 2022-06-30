@@ -1,5 +1,5 @@
 // Upgrades class for the TF2 Turret
-Class ST_Upgrades_TF2 extends ST_Upgrades_Base;
+Class ST_Upgrades_BladeTurret extends ST_Upgrades_Base;
 
 var bool bRegen, bFireDamage, bFireArmor;
 var float SonicDamageMultiplier;
