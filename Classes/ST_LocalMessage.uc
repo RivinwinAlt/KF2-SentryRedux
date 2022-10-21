@@ -1,13 +1,26 @@
 // Defines the messages which a turret can send to players
 
-class ST_Turret_LocalMessage extends LocalMessage
+class ST_LocalMessage extends LocalMessage
 	abstract;
 	//TODO Implement localization of messages? use P.myHUD.LocalizedMessage()
 	//TODO implement enums for message switch
 
+enum MessageEnums
+{
+	STM_LowDosh,
+	STM_CloseTurret,
+	STM_CloseOther,
+	STM_MaxTurretsOwner,
+	STM_Destroyed,
+	STM_NotOwner,
+	STM_MaxTurretsMap,
+	STM_LowDoshUpgrade,
+	STM_None
+};
+
 // Overrides to simplify and hardcode messages
 static function ClientReceive(
-	PlayerController P,
+	PlayerController PC,
 	optional int Switch,
 	optional PlayerReplicationInfo RelatedPRI_1,
 	optional PlayerReplicationInfo RelatedPRI_2,
@@ -15,48 +28,46 @@ static function ClientReceive(
 	)
 {
 	local string MessageString; // Holds the message to send
-	local KFPlayerController KFP; // Create a local variable to store a cast version of P into. P is not a pawn
+	local KFPlayerController KFP;
 
 	MessageString = static.GetString(Switch); // Get static string using a switch/case.
 	if (MessageString != "")
 	{
-		KFP = KFPlayerController(P);
+		KFP = KFPlayerController(PC);
 		if(KFP != None && KFP.MyGFxHUD != None)
 			KFP.MyGFxHUD.ShowNonCriticalMessage(MessageString);
-			
-		// How and where does it determine if the message is for the console? Is this necessary? Does it mean the player is using a console(XBox, etc)?
-		if(IsConsoleMessage(Switch) && LocalPlayer(P.Player) != None && LocalPlayer(P.Player).ViewportClient != None)
-			LocalPlayer(P.Player).ViewportClient.ViewportConsole.OutputText("<Turret>: "$MessageString);
 	}
 }
 
 //Overrides to provide static english strings
+// TODO: Reimplement localization
 static function string GetString(
     optional int Sw,
     optional bool bPRI1HUD,
     optional PlayerReplicationInfo RelatedPRI_1,
     optional PlayerReplicationInfo RelatedPRI_2,
-    optional Object OptionalObject
+    optional Object Optional89Object
    )
 {
 	switch(Sw)
 	{
-	case 0:
+	case STM_LowDosh:
 		return "Not enough dosh to buy this turret";
-	case 1:
+	case STM_CloseTurret:
 		return "Too close to another turret";
-	case 2:
+	case STM_CloseOther:
 		return "Can't place the turret here";
-	case 3:
+	case STM_MaxTurretsOwner:
 		return "You have reached the maximum turrets alive";
-	case 4:
+	case STM_Destroyed:
 		return "Turret destroyed!";
-	case 5:
+	case STM_NotOwner:
 		return "This turret does not belong to you!";
-	case 6:
+	case STM_MaxTurretsMap:
 		return "There are too many turrets in the game";
-	case 7:
+	case STM_LowDoshUpgrade:
 		return "Not enough dosh for this turret upgrade!";
+	STM_None:
 	default:
 		return "";
 	}

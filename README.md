@@ -16,8 +16,8 @@ Decompiled code will be kept seperate from the working classses and unchanged. A
 Workshop listings are currently maintained by Rivinwin, there is an alpha build listing and a beta build listing.
 | Build | Workshop ID | Notes |
 | ---: | :---: | :--- |
-| Alpha | 2727429858 | Usually broken, maintained by Rivinwin |
-| Beta | 2815922523 | Usually testable, maintained by Rowdy |
+| Alpha | 2825354864 | Usually broken, maintained by Rivinwin |
+| Beta | 2815922523 | Usually buggy, maintained by Rowdy |
 | Public Beta | | No release date |
 | Release | | No release date |
 

@@ -142,7 +142,7 @@ function InitStyle()
 
 
 function RenderWeaponTile(Canvas C);
-function RenderWrenchInfo();
+function RenderWrenchInfo(KFWeap_EngWrench W);
 function RenderWindowShadow( float WPos[4] );
 function RenderFramedWindow( KFGUI_FloatingWindow P );
 function RenderWindow( KFGUI_Page P );
@@ -182,7 +182,7 @@ function Font PickFont( out float Scaler, optional FFontType FontType )
 			return NameFont;
 		case FONT_NORMAL:
 		default:
-			return MainFont;
+			return MainFont; // Thin TF2 font
 	}
 }
 

@@ -4,49 +4,65 @@ Class ST_Overlay extends Interaction;
 var transient ST_Settings_Rep Settings;
 var array<ST_Turret_Base> ActiveTurrets;
 var PlayerController LocalPC;
-//var transient ST_GUIController GUI;
+var ST_GUIController GUI;
 var transient KFGUI_StyleBase GUIStyle;
+var transient ST_ClientSettings CSettings;
 var FontRenderInfo DrawInfo;
 var color OwnerColor, OtherColor;
 
 var transient vector CamLocation, XDir;
 var transient rotator CamRotation;
 var transient float XL, YL, ZDepth;
-
-var byte RefundPercent;
+var float TextScale;
 
 // Ensure the player always has one instance of the overlay spawned
 static final function ST_Overlay GetOverlay(PlayerController PC, WorldInfo Level)
 {
-	local ST_GUIController GUI;
 	local Interaction I;
 	local ST_Overlay S;
+
+	if(Level.NetMode == NM_DedicatedServer)
+	{
+		`log("ST_Overlay: Overlay not created on Server");
+		return none;
+	}
+
+	if(PC == none)
+	{
+		`log("ST_Overlay: PC is none");
+		return none;
+	}
 
 	// Iterate through all available interactions and if one is a ST_Overlay return it
 	foreach PC.Interactions(I)
 	{
 		S = ST_Overlay(I);
 		if(S != None)
-		{
-			`log("STOverlay: Found existing Overlay object");
 			return S;
-		}
 	}
+
 	// If there isnt one create it
-	`log("STOverlay: Creating New Overlay object");
+	`log("ST_Overlay: Creating New Overlay object");
 	S = new (PC) class'ST_Overlay';
 	S.LocalPC = PC;
 	PC.Interactions.AddItem(S);
 	S.Init();
 	
+	// Fetch settings reference for the new overlay
 	S.Settings = class'ST_Settings_Rep'.Static.GetSettings(Level);
 	if(S.Settings == none)
 		`log("ST_Overlay: Settings was not initialized correctly");
 
-	GUI = Class'ST_GUIController'.Static.GetGUIController(PC);
-	S.GUIStyle = GUI.CurrentStyle;
+	// Fetch GUI reference for the new overlay
+	S.GUI = Class'ST_GUIController'.Static.GetGUIController(PC);
+	S.GUIStyle = S.GUI.CurrentStyle;
 	if(S.GUIStyle == none)
-		`log("ST_Overlay: GUIStyle was not initialized correctly");
+		`log("ST_Overlay: GUI / GUIStyle was not initialized correctly");
+
+	// Fetch Client Settings reference for the new overlay
+	S.CSettings = Class'ST_ClientSettings'.Static.GetClientSettings(Level);
+	if(S.CSettings == none)
+		`log("ST_Overlay: Client Settings were not initialized");
 
 	return S;
 }
@@ -55,6 +71,7 @@ static final function ST_Overlay GetOverlay(PlayerController PC, WorldInfo Level
 event PostRender(Canvas Canvas)
 {
 	local float FontScale, ZDist, Scale;
+	local KFWeap_EngWrench Weap;
 	local ST_Turret_Base S;
 	local vector V;
 	local string Str;
@@ -68,14 +85,15 @@ event PostRender(Canvas Canvas)
 	XDir = vector(CamRotation);
 	ZDepth = CamLocation Dot XDir;
 
-	// All rendering done by the GUIController
-	if(GUIStyle != none)
+	// Check if the overlay has been turned off in the client settings
+	if(CSettings.ShowControlsOverlay)
 	{
-		// If holding a sentry hammer draw associated overlay
-		if(KFWeap_EngWrench(LocalPC.Pawn.Weapon) != None)
-			GUIStyle.RenderWrenchInfo();
+		// Check if the current weapon is a sentry hammer before rendering controls
+		Weap = KFWeap_EngWrench(LocalPC.Pawn.Weapon);
+		if(Weap != none && !GUI.bIsInMenuState)
+			GUIStyle.RenderWrenchInfo(Weap);
 	}
-	
+
 	// Get default overlay font variables
 	FontScale = class'KFGameEngine'.Static.GetKFFontScale();
 	Canvas.Font = class'KFGameEngine'.Static.GetKFCanvasFont();
@@ -98,7 +116,7 @@ event PostRender(Canvas Canvas)
 			continue;
 		
 		// Scales the font by distance to turret
-		Scale = FontScale * 2.f * (1.f - ZDist/1000.f); // Linear scale font size by distance.
+		Scale = FontScale * TextScale * (1.f - ZDist/1000.f); // Linear scale font size by distance.
 		Canvas.Font = GUIStyle.NameFont; // InfiniteFont, NumberFont, NameFont, MainFont
 
 		Canvas.DrawColor = (S.PlayerReplicationInfo == LocalPC.PlayerReplicationInfo) ? OwnerColor : OtherColor;
@@ -112,8 +130,7 @@ event PostRender(Canvas Canvas)
 		// If the Turret is closer than 600 draw additional text
 		if(ZDist<600.f)
 		{
-			// This line kicks the draw point down below the previously drawn text
-			V.Y += YL;
+			V.Y += YL; // This line kicks the draw point down below the previously drawn text
 			Str = S.GetAmmoStatus();
 			Canvas.TextSize(Str, XL, YL, Scale, Scale);
 			Canvas.SetPos(V.X - (XL * 0.5), V.Y - (YL * 0.5), Canvas.CurZ);
@@ -122,14 +139,10 @@ event PostRender(Canvas Canvas)
 	}
 }
 
-function UpdateTileVariables()
-{
-	RefundPercent = Round(Settings.SellMultiplier * 100);
-}
-
 defaultproperties
 {
-   DrawInfo = (bClipText = True, bEnableShadow = True, GlowInfo = (GlowColor = (R = 0.000000, G = 0.000000, B = 0.000000, A = 1.000000)))
-   OwnerColor = (B = 48, G = 255, R = 48, A = 255)
-   OtherColor = (B = 48, G = 200, R = 255, A = 255)
+	TextScale = 1.5
+	DrawInfo = (bClipText = True, bEnableShadow = True, GlowInfo = (GlowColor = (R = 0.000000, G = 0.000000, B = 0.000000, A = 1.000000)))
+	OwnerColor = (B = 48, G = 255, R = 48, A = 255)
+	OtherColor = (B = 48, G = 200, R = 255, A = 255)
 }

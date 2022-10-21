@@ -1,52 +1,59 @@
 Class ST_GUIStyle extends KFGUI_StyleBase;
 
-const TOOLTIP_BORDER=4;
+const TOOLTIP_BORDER = 4;
 
-function RenderWrenchInfo()
+var int BorderWidth; // Width in pixels that the border extends past the text
+
+function RenderWrenchInfo(KFWeap_EngWrench Weap)
 {
-	/*
-	local float X, Y, XL, YL, FontScale;
-	local byte i;
+	local float X, Y, W, WB, XL, YL, YT, FontScale;
 	local KeyBind BoundKey;
+	local string tempString;
+
+	if(Canvas == none)
+		return;
 
 	//Setup
-	Canvas.Font = PickFont(FontScale);
-	X = Canvas.ClipX * 0.99; // change to canvas.SizeX - amount
-	Y = Canvas.ClipY * 0.1;
+	Canvas.Font = PickFont(FontScale, FONT_NUMBER); // Blocky normal font
+	FontScale *= 1.5; // Increase text size
+	X = Canvas.SizeX * 0.99; // 99% from left of screen, could use (-) pixel values 
+	Y = Canvas.SizeY * 0.015; // 1.5% from top of screen
 
-	// Calc text line Max dimensions
-	Canvas.TextSize(ModeInfos[2], XL, YL, FontScale, FontScale);
+	// Calc text block max width, [2] is the longest string
+	Canvas.TextSize(Weap.ModeInfos[2], W, YL, FontScale, FontScale);
+	WB = W + (BorderWidth * 2);
+	YT = (Weap.ModeInfos.Length * YL) + (BorderWidth * 2); // Accumulate total height part 1
+	X -= W; // Get left justified position
 
-	// Draw transparent background
-	Canvas.SetDrawColor(255,255,255,255);
-	DrawTileStretched();
+	Canvas.Font = PickFont(FontScale, FONT_NAME);
+	Canvas.TextSize("-Controls-", XL, YL, FontScale, FontScale);
+	YT += YL; // Accumulate total height part 2
 
+	// Draw dark transparent background
+	Canvas.SetDrawColor(0,0,0,80);
+	Canvas.SetPos(X - BorderWidth, Y - BorderWidth);
+	Canvas.DrawRect(WB, YT); // Use width and total height to draw a background
+
+	// Set TF2 Text color
 	Canvas.SetDrawColor(236,227,203,255);
 	
-	// TODO: Get refund percentage from reference object and add it to refund string
 	// TODO: Use KFInput.GetKeyBindFromCommand(BoundKey, default.USE_COMMAND, false); etc to build strings
-	// TODO: Add a backer texture (small border), maybe semi-transparent
-	Canvas.TextSize(ModeInfos[2], XL, YL, FontScale, FontScale);
-	for(i = 0; i < ModeInfos.Length; ++i)
+	
+	// Draw header centered
+	Canvas.SetPos(X + (( W -  XL) / 2) , Y); // Center text
+	Canvas.DrawText("-Controls-", , FontScale, FontScale);
+	Y += YL;
+
+	// Pick font for controls and print to screen
+	Canvas.Font = PickFont(FontScale, FONT_NUMBER);
+	FontScale *= 1.5; // Increase text size
+	Canvas.TextSize("W", W, YL, FontScale, FontScale); // Only getting YL here, X is  already set
+	foreach Weap.ModeInfos(tempString)
 	{
-		Canvas.SetPos(X - XL, Y);
-		Canvas.DrawText(ModeInfos[i], , FontScale, FontScale);
+		Canvas.SetPos(X, Y);
+		Canvas.DrawText(tempString, , FontScale, FontScale);
 		Y += YL;
 	}
-	*/
-	
-	/*simulated final function RefreshOverlayValues()
-	{
-		ModeInfos[2] = Default.ModeInfos[2]$CurrentTurretType.Default.BuildCost@Chr(163)$")";
-		ModeInfos[3] = Default.ModeInfos[3]$Int(RefundMultiplier * 100)$Chr(37)$" refund)";
-	}
-	ModeInfos(0) = "Sentry Hammer Controls:"
-	ModeInfos(1) = "[Fire]  Repair"
-	ModeInfos(2) = "[Hold AltFire]  Build (Cost: "
-	ModeInfos(3) = "[AltFire]  Sell ("
-	AdminInfo = "Use Admin SentryHelp for commands"
-	
-	*/
 }
 
 function RenderWeaponTile(Canvas C)
@@ -471,5 +478,6 @@ function RenderColumnHeader( KFGUI_ColumnTop C, float XPos, float Width, int Ind
 
 defaultproperties
 {
-	MaxFontScale=5
+	MaxFontScale = 5
+	BorderWidth = 5
 }

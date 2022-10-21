@@ -4,29 +4,33 @@ Class ST_Settings_Rep extends ReplicationInfo
 	transient
 	config(SentryRedux);
 
-`define CONFIG_VERSION 1
+const SERVER_CONFIG_VERSION = 23; // Increment this value to force a config refresh on all clients
 
-var config byte ConfigVersion;
+// Give config variables nice long descriptive names
+var config byte ConfigVersion, StartingTurret;
 var config float SellMultiplier, MercySellMultiplier, PreviewRotationRate, StartingPrimaryAmmo, TurretPreviewDelay;
 var config int HitRepairAmount, MaxPlayerTurrets, TurretHealthTickDown, MaxMapTurrets;
-var config bool CanDropHammer;
+var config bool CanDropHammer, HeavyAttackToSell;
 
 var transient int NumPlayerTurrets; // client variable, do not reference on server
 var transient int NumMapTurrets;
 var transient array<ST_Turret_Base> AllTurrets; // Only populated server side, use the Overlay array to reference turrets on client
 
+// These are the replicated versions of the config variables, use these on the client
 var float repPreviewRot, repSellMult, repMercySell, repStartAmmo, repPrevDelay; // Non-config versions to insulate clients.
 var int repHitRepair, repHealthTick, repMaxPlayer, repMaxMap;
-var byte VariablesReplicated;
-var bool repDropHammer;
+var byte VariablesReplicated, repStartingTurret;
+var bool repDropHammer, repAttackSell;
 
-var bool bClientInit; // Used client side to determine if Settings object is finished setting up/replicating
+var bool bInitialized; // Used client side to determine if Settings object is finished setting up/replicating
 
 struct TurretBuildInfo
 {
 	var class<ST_Turret_Base> TurretClass;
 	var int BuildCost;
 	var int BuildRadius;
+	var bool bEnabled;
+	var string TypeString;
 
 	structdefaultproperties
 	{
@@ -37,27 +41,26 @@ var array<TurretBuildInfo> PreBuildInfos;
 
 replication
 {
-	if(bNetDirty)
-		repHitRepair, repPrevDelay, repSellMult, repMercySell, repMaxPlayer, repMaxMap, NumMapTurrets, repHealthTick, repStartAmmo, repDropHammer;
+	if(bNetInitial || bNetDirty)
+		repStartingTurret, repHitRepair, repPrevDelay, repSellMult, repMercySell, repMaxPlayer, repMaxMap, NumMapTurrets, repHealthTick, repStartAmmo, repDropHammer, repPreviewRot, repAttackSell, bInitialized;
 }
 
 simulated event ReplicatedEvent(name VarName)
 {
 	switch(VarName)
 	{
+	case 'repAttackSell':
 	case 'repHitRepair':
-	case 'repPreviewRot':
 	case 'repPrevDelay':
-	case 'repDropHammer':
-	case 'repStartAmmo':
 	case 'repSellMult':
 	case 'repMercySell':
 	case 'repMaxPlayer':
 	case 'repMaxMap':
 	case 'NumMapTurrets':
 	case 'repHealthTick':
-		if(!bClientInit && ++VariablesReplicated > 10)
-			bClientInit = true;
+	case 'repStartAmmo':
+	case 'repDropHammer':
+	case 'repPreviewRot':
 		break;
 	default:
 		Super.ReplicatedEvent(VarName);
@@ -109,21 +112,10 @@ function PostBeginPlay()
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 		PlayerCountTurrets();
 
-	UpdateConfig();
-}
-
-function SyncClientVariables()
-{
-	repHitRepair = HitRepairAmount;
-	repPrevDelay = TurretPreviewDelay;
-	repDropHammer = CanDropHammer;
-	repStartAmmo = StartingPrimaryAmmo;
-	repSellMult = SellMultiplier;
-	repMercySell = MercySellMultiplier;
-	repMaxPlayer = MaxPlayerTurrets;
-	repMaxMap = MaxMapTurrets;
-	repHealthTick = TurretHealthTickDown;
-	repPreviewRot = PreviewRotationRate;
+	if(ROLE==ROLE_Authority)
+	{
+		UpdateConfig();
+	}
 }
 
 // These functions are intentionally asynchronous and unclamped to allow smooth networking
@@ -140,6 +132,7 @@ function TurretCreated(optional ST_Turret_Base NewTurret)
 		}
 	}
 }
+
 function TurretDestroyed(optional ST_Turret_Base DestroyedTurret)
 {
 	--NumMapTurrets;
@@ -219,6 +212,7 @@ simulated function PlayerCountTurrets()
 			++NumPlayerTurrets;
 	}
 }
+
 function RebuildAllTurrets()
 {
 	local ST_Turret_Base tempTurret;
@@ -240,6 +234,8 @@ simulated function bool CheckNumMapTurrets(optional class<ST_Turret_Base> Turret
 
 simulated function bool CheckNumPlayerTurrets(class<ST_Turret_Base> TurretClass)
 {
+	PlayerCountTurrets();
+
 	if((NumPlayerTurrets < repMaxPlayer ) /*|| if(ADMIN_AUTHORITY)*/ )
 		return true;
 	return false;
@@ -267,32 +263,66 @@ simulated function int GetBuildCost(class<ST_Turret_Base> FindClass)
 	return 0; // Default behavior
 }
 
-// This function creates a config file if it didn't already exist, change the value of CONFIG_VERSION to force a refresh
+// This function creates a config file if it didn't already exist, change the value of SERVER_CONFIG_VERSION to force a refresh
 final function UpdateConfig()
 {
-	if(Default.ConfigVersion != `CONFIG_VERSION)
+	if(ConfigVersion != SERVER_CONFIG_VERSION)
 	{
-		Default.HitRepairAmount = 35;
-		Default.TurretPreviewDelay = 0.3;
-		Default.CanDropHammer = True;
-		Default.TurretHealthTickDown = 70;
-		Default.SellMultiplier = 0.7f;
-		Default.MercySellMultiplier = 1.0f;
-		Default.MaxPlayerTurrets = 3;
-		Default.MaxMapTurrets = 50;
-		Default.ConfigVersion = `CONFIG_VERSION;
-		Default.PreviewRotationRate = 8.0f;
-		Default.StartingPrimaryAmmo = 0.2;
-		StaticSaveConfig();
+		HeavyAttackToSell = True;
+		HitRepairAmount = 35;
+		TurretPreviewDelay = 0.3;
+		CanDropHammer = True;
+		TurretHealthTickDown = 70;
+		SellMultiplier = 0.7f;
+		MercySellMultiplier = 1.0f;
+		MaxPlayerTurrets = 3;
+		MaxMapTurrets = 50;
+		ConfigVersion = SERVER_CONFIG_VERSION;
+		PreviewRotationRate = 6.0f;
+		StartingPrimaryAmmo = 0.2;
+		StartingTurret = 0;
+		SaveConfig();
 	}
+
 	SyncClientVariables();
+}
+
+function SyncClientVariables()
+{
+	repAttackSell = HeavyAttackToSell;
+	repHitRepair = HitRepairAmount;
+	repPrevDelay = TurretPreviewDelay;
+	repDropHammer = CanDropHammer;
+	repStartAmmo = StartingPrimaryAmmo;
+	repSellMult = SellMultiplier;
+	repMercySell = MercySellMultiplier;
+	repMaxPlayer = MaxPlayerTurrets;
+	repMaxMap = MaxMapTurrets;
+	repHealthTick = TurretHealthTickDown;
+	repPreviewRot = PreviewRotationRate;
+
+	CheckStartingTurretEnabled();
+	repStartingTurret = StartingTurret;
+
+	bInitialized = true; // Must come after all rep variables are set.
+}
+
+function CheckStartingTurretEnabled()
+{
+	if(!PreBuildInfos[StartingTurret].bEnabled)
+	{
+		`log("ST_Settings_Rep: Starting turret is not enabled");
+	}
+	// TODO: default to first enabled turret
 }
 
 //TODO Expose net update frequency to config
 defaultproperties
 {
+	bInitialized = false
+
 	// The order of this list will determine the order of the list when shown in-game
-	PreBuildInfos.Add((TurretClass = class'ST_Turret_TF2', BuildCost = 500))
+	PreBuildInfos.Add((TurretClass = class'ST_Turret_TF2', TypeString = "TF2 Sentry", BuildCost = 500, bEnabled = true))
 
    //NetUpdateFrequency = 4.000000
 }

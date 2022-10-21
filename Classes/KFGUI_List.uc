@@ -96,7 +96,7 @@ function PreDraw()
 		ScrollBar.PreDraw();
 		
 		// Then downscale our selves to give room for scrollbar.
-		CompPos[2] -= ScrollBar.CompPos[2];
+		CompPos[2] -= ScrollBar.CompPos[2] * 1.25f;
 		Canvas.SetOrigin(CompPos[0],CompPos[1]);
 		Canvas.SetClip(CompPos[0]+CompPos[2],CompPos[1]+CompPos[3]);
 		DrawMenu();
@@ -213,7 +213,7 @@ defaultproperties
 		XPosition=0.96
 		YPosition=0
 		XSize=0.04
-		YSize=1.05
+		YSize=1.0
 		ID="Scrollbar"
 	End Object
 	Components.Add(ListScroller)

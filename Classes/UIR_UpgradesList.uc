@@ -36,9 +36,9 @@ function UpdateListLength()
 	UpgradeList.ChangeListSize(UObj.AvailableUpgrades.Length);
 }
 
-function bool CanAffordUpgrade(int Index)
+function bool CanAffordUpgrade(byte Index)
 {
-	return Owner.PlayerOwner.PlayerReplicationInfo.Score >= UObj.UpgradeInfos[Index].Cost;
+	return Owner.PlayerOwner.PlayerReplicationInfo.Score >= UObj.GetUpgradeCost(Index);
 }
 
 function DrawUpgradeInfo( Canvas C, int Index, float YOffset, float Height, float Width, bool bFocus )
@@ -99,11 +99,11 @@ function DrawUpgradeInfo( Canvas C, int Index, float YOffset, float Height, floa
 	C.DrawText(UObj.UpgradeInfos[Index].Title,,Sc,Sc);
 
 	// Draw the Upgrades Cost
-	C.TextSize("$" $ UObj.UpgradeInfos[Index].Cost, TempWidth, TempHeight, Sc, Sc);
+	C.TextSize("$" $ UObj.GetUpgradeCost(Index), TempWidth, TempHeight, Sc, Sc);
 	TempX = GridX + ((CellW - TempWidth) / 2.0f); // Coord position 0,1 of the grid
 	TempY = GridY + CellH + ((CellH - TempHeight) / 2.0f);
 	C.SetPos(TempX, TempY);
-	C.DrawText("$" $ UObj.UpgradeInfos[Index].Cost,,Sc,Sc);
+	C.DrawText("$" $ UObj.GetUpgradeCost(Index),,Sc,Sc);
 	
 	///Draw Desciption Text
 	TempX = GridX + CellW + ItemBorder * GridH; // Coord position 1,0 of the grid
@@ -121,9 +121,16 @@ function ClickedUpgrade( int Index, bool bRight, int MouseX, int MouseY )
 	TIndex = UObj.AvailableUpgrades[Index];
 	if(Index >= 0 && CanAffordUpgrade(TIndex))
 	{
-		P = UI_PurchasePopup(Owner.OpenMenu(class'UI_PurchasePopup'));
-		if(P != None)
-			P.SetUpgrade(TIndex);
+		if(!bRight) // Left Click
+		{
+			P = UI_PurchasePopup(Owner.OpenMenu(class'UI_PurchasePopup'));
+			if(P != None)
+				P.SetUpgrade(TIndex);
+		}
+		else // Right Click
+		{
+			Owner.NetworkObj.PerformPurchase(TIndex);
+		}
 	}
 }
 

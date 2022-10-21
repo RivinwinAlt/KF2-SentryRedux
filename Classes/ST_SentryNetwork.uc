@@ -8,22 +8,19 @@ var repnotify PlayerController PlayerOwner;
 var transient ST_Settings_Rep Settings;
 var transient byte SendIndex;
 var transient ST_GUIController GUIController;
-var transient bool bWasInitAlready, bActiveTimer;
+var transient bool bActiveTimer;
 
 replication
 {
-	// Variables the server should send ALL clients.
 	if( bNetDirty )
-		TurretOwner, PlayerOwner;
+		PlayerOwner;
 }
 
 simulated event ReplicatedEvent( name VarName )
 {
-	//if( TurretOwner!=None && PlayerOwner!=None && !bWasInitAlready)
 	if(VarName == 'PlayerOwner')
 	{
-		bWasInitAlready = true;
-		SetOwner(PlayerOwner);
+		SetOwner(PlayerOwner); // Enables function replication to owner
 	}
 	else
 	{
@@ -51,13 +48,57 @@ static final function ST_SentryNetwork GetNetwork(PlayerController PC)
 	return SN;
 }
 
-simulated reliable client function ClientOpenMenu()
+function UpdateTurretMessage(optional bool Enabled = true)
+{
+	local KFInterface_Usable UsableActor;
+
+	if(!Enabled)
+	{
+		ClearTimer(nameof(CheckTurretUsableActor));
+		PlayerOwner.ReceiveLocalizedMessage(class'ST_InteractMessage', STI_None);
+		return;
+	}
+
+	if(PlayerOwner != none)
+	{
+		UsableActor = KFPlayerController(PlayerOwner).GetCurrentUsableActor(PlayerOwner.Pawn);
+		if(ST_Trigger_Base(UsableActor) != none)
+		{
+			SetTimer(1.f, true, nameof(CheckTurretUsableActor));
+			PlayerOwner.ReceiveLocalizedMessage(class'ST_InteractMessage', STI_UseTurret, none, none, UsableActor);
+		}
+		else
+		{
+			ClearTimer(nameof(CheckTurretUsableActor));
+			PlayerOwner.ReceiveLocalizedMessage(class'ST_InteractMessage', STI_None);
+		}
+	}
+}
+
+function CheckTurretUsableActor()
+{
+	local KFInterface_Usable UsableActor;
+
+	UsableActor = KFPlayerController(PlayerOwner).GetCurrentUsableActor(PlayerOwner.Pawn);
+	if(ST_Trigger_Base(UsableActor) != none)
+	{
+		PlayerOwner.ReceiveLocalizedMessage(class'ST_InteractMessage', STI_UseTurret);
+	}
+	else
+	{
+		ClearTimer(nameof(CheckTurretUsableActor));
+		PlayerOwner.ReceiveLocalizedMessage( class'ST_InteractMessage', STI_None );
+	}
+}
+
+simulated reliable client function ClientOpenMenu(ST_Turret_Base NewTurret)
 {
 	if(WorldInfo.NetMode != NM_Client)
 		return;
+	TurretOwner = NewTurret;
 	if( GUIController==None )
 		GUIController = Class'ST_GUIController'.Static.GetGUIController(PlayerOwner);
-	GUIController.TurretOwner = TurretOwner;
+	GUIController.TurretOwner = NewTurret;
 	GUIController.NetworkObj = Self;
 	GUIController.OpenMenu(class'UI_SentryMenu');
 }
@@ -82,7 +123,7 @@ function SetInfo( ST_Turret_Base T, PlayerController PC)
 
 reliable server function PerformPurchase(int Index)
 {
-    PlayerOwner.PlayerReplicationInfo.Score -= TurretOwner.UpgradesObj.UpgradeInfos[Index].Cost;
+    PlayerOwner.PlayerReplicationInfo.Score -= TurretOwner.UpgradesObj.UpgradeInfos[Index].Costs[TurretOwner.UpgradesObj.PurchasedUpgrades[Index - 1]];
     TurretOwner.UpgradesObj.BoughtUpgrade(Index);
 }
 
@@ -100,6 +141,7 @@ reliable server function SellTurret()
 reliable server function ClosedMenu()
 {
 	GUIController = none;
+	UpdateTurretMessage();
 }
 
 simulated function Destroyed()

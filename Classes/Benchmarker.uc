@@ -8,7 +8,6 @@ simulated function RunAllBenchmarks()
 {
 	local float totalBenchTime;
 
-	Clock(totalBenchTime);
 	`log("ST_Benchmark: Each Test will be run " $ Cycles $ " times");
 	`log("ST_Benchmark: Filter by CanSee()   : " $ CanSeeFilterBench());
 	`log("ST_Benchmark: Filter by Render Time: " $ RenderTimeFilterBench());
@@ -24,9 +23,6 @@ simulated function RunAllBenchmarks()
 	`log("ST_Benchmark: Type Cast            : " $ CastBench());
 	`log("ST_Benchmark: IsA                  : " $ IsABench());
 	//`log("ST_Benchmark:  Benchmark Name: " $ ());
-	UnClock(totalBenchTime);
-
-	//`log("ST_Benchmark: All benchmarks completed in " $ totalBenchTime $ " seconds total";
 }
 
 /* EQUATIONS */

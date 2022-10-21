@@ -60,32 +60,31 @@ simulated function PostBuildAnimation()
 	TurretSpotLight.SetEnabled(true);
 }
 
-// The 3 weapon slots have their own function calls for optimization
-simulated function BeginFiringPrimary()
-{
-	SetTimer(RoF[EPrimaryFire], true, 'FirePrimary');
-}
-simulated function BeginFiringSecondary()
-{
-	SetTimer(RoF[ESecondaryFire], true, 'FireSecondary');
-}
 simulated function FirePrimary()
 {	
 	super.FirePrimary();
 
-	FireBullet();
+	if(AmmoCount[EPrimaryFire] > 0)
+	{
+		`log("ST_Turret_TF2: triggering FireBullet()");
+		FireBullet();
+	}
 	//FireProjectileLobbed
 	//FireProjectile
 }
 simulated function FireSecondary()
 {
 	super.FireSecondary();
+	if(AmmoCount[ESecondaryFire] > 0)
+	{
+		FireProjectile();
+	}
 }
 
 defaultproperties
 {
-	BaseEyeHeight = 70.000000
-	EyeHeight = 70.000000
+	BaseEyeHeight = 70.0
+	EyeHeight = 70.0
 
 	Health = 350 // Immediately overwritten by config, ensures turret is spawned with > 0 health
 	HealthMax = 350 // Immediately overwritten by upgrades object, ensures turret is spawned with > 0 health
@@ -96,6 +95,7 @@ defaultproperties
 	ControllerClass = Class'ST_AI_TF2'
 	UpgradesClass = Class'ST_Upgrades_TF2'
 
+	WeaponProjectiles(ESecondaryFire) = class'ST_Proj_Missile'
 
 	//FiringSounds(ESecondaryFire) = 
 	//EmptySounds(EPrimaryFire) = 

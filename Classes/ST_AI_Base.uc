@@ -131,6 +131,7 @@ final function FindBestEnemy(optional Pawn ExcludePawn)
 			// Sort enemies and only hold the best one
 			TestWeight = TestEnemy(TestPawn);
 
+			// This uses ExcludePawn to weight all other pawns more heavily
 			if(TestWeight < BestWeight / (1 + int(TestPawn == ExcludePawn)) || BestPawn == None)
 			{
 				BestPawn = TestPawn;
@@ -144,7 +145,7 @@ final function FindBestEnemy(optional Pawn ExcludePawn)
 		SetEnemy(BestPawn);
 }
 
-function bool CheckEnemyState()
+simulated function bool CheckEnemyState()
 {
 	if(Enemy == None || !CanSee(Enemy) || !Enemy.IsAliveAndWell())
 	{
@@ -166,14 +167,11 @@ function TargetBlocked()
 	}
 }
 
-simulated state WaitForEnemy // simulated to enable proxy 
+state WaitForEnemy // simulated to enable proxy 
 {
 	function BeginState(name OldState)
 	{
-		if(TurretOwner == None)
-			return;
-
-		if(WorldInfo.NetMode != NM_Client)
+		if(ROLE == ROLE_Authority)
 		{
 			FindBestEnemy(); // Look for a new enemy immediatly
 
@@ -193,12 +191,28 @@ simulated state WaitForEnemy // simulated to enable proxy
 
 	function EndState(name NewState)
 	{
-		TurretOwner.EndScanning();
 		ClearTimer('FindBestEnemy');
+		TurretOwner.EndScanning();
 	}
 }
 
-simulated state Disabled
+auto state SetupState
+{
+	function BeginState(name OldState)
+	{
+		TurretOwner = ST_Turret_Base(Pawn);
+		Enemy = None;
+		InitPlayerReplicationInfo();
+
+		GoToState('WaitForEnemy');
+	}
+
+	function EndState(name NewState)
+	{
+	}
+}
+
+state Disabled
 {
 	function BeginState(name OldState)
 	{
@@ -209,18 +223,13 @@ simulated state Disabled
 	}
 }
 
-simulated state FightEnemy
+state FightEnemy
 {
 	function BeginState(name OldState)
 	{
-		if(TurretOwner == None)
-			return;
-
-		if(WorldInfo.NetMode != NM_DedicatedServer)
-			TurretOwner.PlaySoundBase(SoundCue'Turret_TF2.Sounds.sentry_spot_Cue');
-
-		TurretOwner.SetTimer(0.15f, false, 'BeginFiringPrimary'); // Give time to turn turret skeletal mesh, play sound, and not be OP, then fire
+		TurretOwner.SetTimer(0.15f, false, 'BeginFiringPrimary'); // Server code only, executed in SetViewFocus for client
 	}
+
 	function EndState(name NewState)
 	{
 		// This covers all bases, if you dont need all this override the state and function to supply a slimmer set of calls
@@ -237,4 +246,5 @@ defaultproperties
 {
 	// Experimental value for testing. Not sure how tunable this needs to be once I zero it in.
 	FailedTargetThresh = 6
+	TargetingPriority = `TMODE_ANY
 }

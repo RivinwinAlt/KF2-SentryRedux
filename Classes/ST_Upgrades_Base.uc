@@ -14,9 +14,7 @@ enum UpgradeEnums
 	EUpFireRate,
 	EUpRange,
 	EUpAccuracy,
-	EUpTurnRadiusA,
-	EUpTurnRadiusB,
-	EUpTurnRadiusC,
+	EUpTurnRadius,
 	EUpDamageReduceA,
 	EUpDamageReduceB,
 	EUpDamageReduceC,
@@ -66,7 +64,7 @@ struct UpgradeInfo
 	var bool bBuffUpgrade;			// Currently not used, in reserve for menu rendering logic
 	var string Title, Description;
 
-	var int Cost, InitialCost;
+	var array<int> Costs;
 	var byte RequiredLevel;			// Minimum turret level for upgrade to show in menu
 	var array<UpgradeEnums> RequiredUpgrades, ExcludedUpgrades;
 
@@ -75,9 +73,7 @@ struct UpgradeInfo
 	var float BValue;				// Base value set by modder
 	var float ValueModifier;		// Exposed in config file to allow effect scaling by end-user
 
-	var bool bRebuyable;			// Set to true in order for the upgrade to have multiple levels
-	var byte CurrentLevel;			// Only use if bRebuyable is true, slower than HasUpgrade()
-	var byte NumUpgradeLevels;		// The max upgrade level
+	var byte MaxLevel;		// The max upgrade level
 
 	structdefaultproperties
 	{
@@ -86,7 +82,7 @@ struct UpgradeInfo
 		DrawColor = (R=255, G=255, B=255, A=255)	// Defaults to white icon
 		ValueModifier = 1.0f
 		bIsEnabled = False			// Will not show in menu unless enabled in extended upgrades class
-		NumUpgradeLevels = 1
+		MaxLevel = 1
 	}
 };
 var array<UpgradeInfo> UpgradeInfos;
@@ -110,7 +106,7 @@ var AmmoInfo AmmoInfos[3];
 
 var array<int> AvailableUpgrades;
 
-enum FireTypeEnums // Used to easily access 
+enum FireTypeEnums // Used to easily access built in weapons
 {
 	EPrimaryFire,
 	ESecondaryFire,
@@ -120,7 +116,7 @@ enum FireTypeEnums // Used to easily access
 };
 
 var repnotify byte TurretLevel;
-var repnotify int PurchasedUpgrades;
+var repnotify byte PurchasedUpgrades[30]; // Size has to be hardcoded for replication purposes, must be able to hold all upgrades
 var byte InitState;
 var repnotify ST_Turret_Base TurretOwner;
 var float StartingAmmoModifier, TimerPeriod;
@@ -148,6 +144,7 @@ simulated event ReplicatedEvent(name VarName)
 			TurretLevelChange();
 		break;
 	case 'PurchasedUpgrades':
+		`log("ST_Upgrades_Base: Upgrade purchased, calculating stats");
 		if(TurretOwner != none)
 		{
 			CalcAvailableUpgrades();
@@ -168,7 +165,7 @@ function SetTurretOwner(ST_Turret_Base T)
 	}
 }
 
-// Function to attach Self to pawn's variable
+// Function to attach Self to pawn's rference variable
 simulated function LinkTurret()
 {
 	if(TurretOwner != none)
@@ -178,14 +175,19 @@ simulated function LinkTurret()
 // Check if upgrade has been purchased
 simulated final function bool HasUpgrade(byte Index)
 {
-	return ((1 << Index - 1) & PurchasedUpgrades) > 0; // subtract 1 from Index because EUpLevelUp doesnt store to PurchasedVariables
+	return (PurchasedUpgrades[Index - 1]) > 0; // subtract 1 from Index because EUpLevelUp doesnt store to PurchasedVariables
+}
+
+simulated final function int GetUpgradeCost(byte Index)
+{
+	return UpgradeInfos[Index].Costs[ Index == 0 ? byte(0) : PurchasedUpgrades[Index - 1] ];
 }
 
 // Does not simulate on proxy-actor, TurretLevel and PurchasedUpgrades are replicated and trigger events on client
 // This function is called from the networking object inside a replicated server function
 final function BoughtUpgrade(int Index)
 {
-	TurretOwner.DoshValue += UpgradeInfos[Index].Cost;
+	TurretOwner.DoshValue += UpgradeInfos[Index].Costs[PurchasedUpgrades[Index - 1]];
 	if(Index == EUpLevelUp)
 	{
 		// If the turret level upgrade was purchased
@@ -195,9 +197,8 @@ final function BoughtUpgrade(int Index)
 	else
 	{
 		// If any other upgrade was purchased
-		PurchasedUpgrades = (1 << Index - 1) | PurchasedUpgrades; // This one line kicks off replication and state synchronization for the proxy actors
+		++PurchasedUpgrades[Index - 1]; // This one line kicks off replication and state synchronization for the proxy actors
 		
-		// While these don't need to be here for the server, they will need to be implemented here for single player and hosted games
 		CalcAvailableUpgrades();
 		UpdateUpgrades();
 	}
@@ -210,22 +211,23 @@ simulated function TurretLevelChange()
 	TurretOwner.UpdateDisplayMesh();
 
 	// Operations to perform when turret is first initialized
-	if(!bInitialized)
+	if(!bInitialized && TurretOwner.Settings != none && TurretOwner.Settings.bInitialized)
 	{
+		TurretLevel = 0;
+		UpdateUpgrades();
+		SetLevelUpgrade();
 		TurretOwner.Health = LevelInfos[TurretLevel].BaseMaxHealth;
 		InitializeUpgrades();
 		SetTimer(TimerPeriod, true, 'UpgradesTimer');
-	}
-	
-	// Update level-up upgrade info
-	SetLevelUpgrade();
-
-	// Update turret stats
-	UpdateUpgrades();
-
-	if(!bInitialized)
-	{
 		bInitialized = true;
+	}
+	else
+	{
+		// Update level-up upgrade info
+		SetLevelUpgrade();
+
+		// Update turret stats
+		UpdateUpgrades();
 	}
 }
 
@@ -238,7 +240,7 @@ simulated function SetLevelUpgrade()
 	{
 		UpgradeInfos[EUpLevelUp].IconIndex = LevelInfos[NextLevel].IconIndex;
 		UpgradeInfos[EUpLevelUp].DrawColor = LevelInfos[NextLevel].DrawColor;
-		UpgradeInfos[EUpLevelUp].Cost = LevelInfos[NextLevel].Cost;
+		UpgradeInfos[EUpLevelUp].Costs[0] = LevelInfos[NextLevel].Cost;
 		UpgradeInfos[EUpLevelUp].Description = LevelInfos[NextLevel].Description;
 		UpgradeInfos[EUpLevelUp].bIsEnabled = True;
 	}
@@ -268,7 +270,6 @@ simulated function CalcAvailableUpgrades()
 		AvailableUpgrades.AddItem(EUpLevelUp);
 
 	// Iterate through rest of upgrades
-	// TODO: this could be sped up by using foreach and making MeetsRequirements() a member of UpgradeInfo
 	for(i = 1; i < TotalUpgrades; i++) // TotalUpgrades must be the last value of UpgradeEnums
 	{
 		if(MeetsRequirements(i))
@@ -288,8 +289,11 @@ simulated function bool MeetsRequirements(int Index)
 	local bool passed;
 	local UpgradeEnums TempIndex;
 
+	if(Index >= UpgradeInfos.Length || !UpgradeInfos[Index].bIsEnabled)
+		return false;
+
 	// Check upgrade is enabled, not purchased, turret level meets requirement, repeatable upgrades havent been maxed out
-	if(!UpgradeInfos[Index].bIsEnabled || (HasUpgrade(Index) && !UpgradeInfos[Index].bRebuyable) || UpgradeInfos[Index].RequiredLevel > TurretLevel || UpgradeInfos[Index].CurrentLevel >= UpgradeInfos[Index].NumUpgradeLevels)
+	if(!UpgradeInfos[Index].bIsEnabled || PurchasedUpgrades[Index - 1] >= UpgradeInfos[Index].MaxLevel || UpgradeInfos[Index].RequiredLevel > TurretLevel)
 		return false;
 
 	// Initialize default value before checks
@@ -327,17 +331,19 @@ simulated function InitializeUpgrades()
 
 	for(i = 1; i < TotalUpgrades; i++)
 	{
-		// Calculate usable upgrade value as floating point
-		UpgradeInfos[i].FValue = UpgradeInfos[i].BValue * UpgradeInfos[i].ValueModifier;
+		if(UpgradeInfos[i].bIsEnabled)
+		{
+			// Calculate usable upgrade value as floating point
+			UpgradeInfos[i].FValue = UpgradeInfos[i].BValue * UpgradeInfos[i].ValueModifier;
 
-		// Store value to integer (for later optimization)
-		UpgradeInfos[i].Value = Round(UpgradeInfos[i].FValue);
-
-		// Set Cost to the Initial cost value
-		UpgradeInfos[i].Cost = UpgradeInfos[i].InitialCost;
+			// Store value to integer (for later optimization)
+			UpgradeInfos[i].Value = Round(UpgradeInfos[i].FValue);
+		}
 	}
 
 	TurretOwner.AmmoCount[EPrimaryFire] = TurretOwner.MaxAmmoCount[EPrimaryFire] * TurretOwner.Settings.repStartAmmo;
+	TurretOwner.AmmoCount[ESecondaryFire] = TurretOwner.MaxAmmoCount[ESecondaryFire] * TurretOwner.Settings.repStartAmmo;
+	TurretOwner.AmmoCount[ESpecialFire] = TurretOwner.MaxAmmoCount[ESpecialFire] * TurretOwner.Settings.repStartAmmo;
 }
 
 // Cleanup
@@ -417,153 +423,117 @@ defaultproperties
 		CostPerRound = 25
 	)}
 
-	UpgradeInfos(EUpLevelUp)={( // Never override this SPECIFIC upgrade, it is just a container for what you put in LevelInfos[]
-		InitialCost=9876,
+	UpgradeInfos(EUpLevelUp)={( // Only override the title and description for this upgrade
+		Costs=(9876),
 		Title="Turret Level",
-		Description="Upgrade to the next turret level to get higher base stats and more upgrade options",
-		bIsEnabled=False // Dont even try to enable this. Its automatically enabled when theres a levelup available.
+		Description="Upgrade to the next turret level to get higher base stats and more upgrade options"
 	)}
 
-		UpgradeInfos(EUpPrimaryDamage)={(
-		InitialCost=750,
-		bRebuyable = True,
-		Title="Primary Damage Up",
+	UpgradeInfos(EUpPrimaryDamage)={(
+		MaxLevel=2,
+		Costs=(750, 2000),
+		Title="Primary Damage",
 		Description="Increase Primary Damage by 20%",
-		BValue=1.2f, // cos(360 / 2)
-		bIsEnabled=False
+		BValue=1.2f
 	)}
 
-		UpgradeInfos(EUpSecondaryDamage)={(
-		InitialCost=1000,
-		bRebuyable = True,
-		Title="Secondary Damage Up",
+	UpgradeInfos(EUpSecondaryDamage)={(
+		Costs=(1000),
+		Title="Secondary Damage",
 		Description="Increase Secondary Damage by another 20%",
-		BValue=1.2f, // cos(360 / 2)
-		bIsEnabled=False
+		BValue=1.2f
 	)}
 
-		UpgradeInfos(EUpHealthUp)={(
-		InitialCost=600,
-		bRebuyable = True,
-		Title="Health Up",
+	UpgradeInfos(EUpHealthUp)={(
+		Costs=(600),
+		Title="Health",
 		Description="Max Health Increased by 30%",
-		BValue=1.3f, // cos(360 / 2)
-		bIsEnabled=False
+		BValue=1.3f
 	)}
 
-		UpgradeInfos(EUpFireRate)={(
-		InitialCost=600,
-		bRebuyable = True,
-		Title="Fire Rate Up",
+	UpgradeInfos(EUpFireRate)={(
+		Costs=(600),
+		Title="Fire Rate",
 		Description="Rate of Fire Increased by another 20%",
-		BValue=0.80f, // cos(360 / 2)
-		bIsEnabled=False
+		BValue=0.80f
 	)}
 
 	UpgradeInfos(EUpRange)={(
-		InitialCost=200,
-		bRebuyable = True,
+		Costs=(200),
 		Title="Eagle Eye",
 		Description="Increase range by 25%",
-		BValue=1.25f,
-		bIsEnabled=False
+		BValue=1.25f
 	)}
 
 	UpgradeInfos(EUpAccuracy)={(
-		InitialCost=200,
-		bRebuyable = True,
+		Costs=(200),
 		Title="Iron Sights",
 		Description="Reduce primary weapon spread by 25%",
-		BValue=0.75f,
-		bIsEnabled=False
+		BValue=0.75f
 	)}
 	
 	UpgradeInfos(EUpHeadshots)={(
-		InitialCost=700,
+		Costs=(700),
 		RequiredUpgrades=(EUpAccuracy),
 		Title="Head Popper",
-		Description="Turret will aim for it's target's head (if it has one)",
-		bIsEnabled=False
+		Description="Turret will aim for it's target's head (if it has one)"
 	)}
 	
 	UpgradeInfos(EUpWeaponBehaviour)={(
-		InitialCost=500,
+		Costs=(500),
 		RequiredUpgrades=(EUpAccuracy),
 		Title="Homing Missiles",
-		Description="Missiles will track their target after firing",
-		bIsEnabled=False
+		Description="Missiles will track their target after firing"
 	)}
 	
 	UpgradeInfos(EUpAutoRepair)={(
-		InitialCost=1000,
+		Costs=(1000),
 		Title="Auto Repair",
 		Description="Heals turret over time",
-		BValue=10.0f,
-		bIsEnabled=False
+		BValue=10.0f
 	)}
 	
 	UpgradeInfos(EUpPrimaryDamageType)={(
-		InitialCost=500,
+		Costs=(500),
 		Title="Fire Damage",
-		Description="Deals fire damage every ... attacks",
-		bIsEnabled=False
+		Description="Deals fire damage every ... attacks"
 	)}
 
 	UpgradeInfos(EUpDamageReduceA)={(
-		InitialCost=500,
-		Title="Large Zed damage reduction",
+		Costs=(500),
+		Title="Large Zed protection",
 		Description="Reduces damage taken from large Zeds by 40%",
-		BValue=0.6f,
-		bIsEnabled=False
+		BValue=0.6f
 	)}
 
 	UpgradeInfos(EUpDamageReduceB)={(
-		InitialCost=500,
+		Costs=(500),
 		Title="Fire Armor",
 		Description="Reduces all fire damage taken by 40%",
-		BValue=0.6f,
-		bIsEnabled=False
+		BValue=0.6f
 	)}
 
-	UpgradeInfos(EUpTurnRadiusA)={(
-		InitialCost=1000,
+	UpgradeInfos(EUpTurnRadius)={(
+		MaxLevel=3,
+		Costs=(1000, 1500, 2000),
 		Title="Turn Radius",
 		Description="Increases turn radius to 160 degrees",
 		BValue=0.1736f, // cos(160 / 2)
-		bIsEnabled=False
 	)}
 
-	UpgradeInfos(EUpTurnRadiusB)={(
-		InitialCost=1500,
-		RequiredUpgrades=(EUpTurnRadiusA),
-		Title="Turn Radius +",
-		Description="Increases turn radius to 210 degrees",
-		BValue=-0.2588f, // cos(210 / 2)
-		bIsEnabled=False
-	)}
-
-	UpgradeInfos(EUpTurnRadiusC)={(
-		InitialCost=2000,
-		RequiredUpgrades=(EUpTurnRadiusB),
-		Title="Zero Turn Mower",
-		Description="Allows the turret to turn in any direction",
-		BValue=-1f, // cos(360 / 2)
-		bIsEnabled=False
-	)}
-
-		UpgradeInfos(EUpPrimaryAmmoUp)={(
-		InitialCost=2000,
-		Title="Primary Ammo Up",
+	UpgradeInfos(EUpPrimaryAmmoUp)={(
+		MaxLevel=3,
+		Costs=(1500, 2000, 3500),
+		Title="Primary Ammo",
 		Description="Max Ammo for Primary Weapon Increased by 40%",
-		BValue=1.4f, // cos(360 / 2)
-		bIsEnabled=False
+		BValue=500f
 	)}
 
-		UpgradeInfos(EUpSecondaryAmmoUp)={(
-		InitialCost=2000,
-		Title="Secondary Ammo Up",
+	UpgradeInfos(EUpSecondaryAmmoUp)={(
+		MaxLevel=2,
+		Costs=(1500, 2500),
+		Title="Secondary Ammo",
 		Description="Max Ammo for Secondary Weapon Increased by 40%",
-		BValue=1.4f, // cos(360 / 2)
-		bIsEnabled=False
+		BValue=25f
 	)}
 }

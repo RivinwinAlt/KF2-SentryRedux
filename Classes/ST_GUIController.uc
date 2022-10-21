@@ -29,6 +29,7 @@ var bool bMouseWasIdle,bIsInMenuState,bAbsorbInput,bIsInvalid,bFinishedReplicati
 var ObjectReferencer RepObject, RepIcons; // Hacked in objectreferencer for direct referencing
 var ST_Turret_Base TurretOwner;
 var ST_SentryNetwork NetworkObj;
+var ST_ClientSettings CSettings;
 
 static function ST_GUIController GetGUIController( PlayerController PC )
 {
@@ -51,17 +52,22 @@ static function ST_GUIController GetGUIController( PlayerController PC )
 
 simulated function PostBeginPlay()
 {
+	// Assign reference variables for later use
 	PlayerOwner = PlayerController(Owner);
 	if(PlayerOwner == none)
 		`log("ST_GUIController: PlayerOwner is Null in PostBeginPlay()");
 	ClientViewport = LocalPlayer(PlayerOwner.Player).ViewportClient;
+
+	// Get local settigns
+	CSettings = Class'ST_ClientSettings'.Static.GetClientSettings(WorldInfo);
 	
+	// Create a new style object for menu graphics
 	CurrentStyle = new (None) DefaultStyle;
 	CurrentStyle.InitStyle();
 	CurrentStyle.Owner = self;
 	
-	SetTimer(0.25, true, 'SetupStyleTextures');
-	SetupStyleTextures();
+	SetTimer(0.25, true, 'SetupStyleTextures'); // Set up a retry before we even trigger the function
+	SetupStyleTextures(); // Trigger the function that will be retried
 }
 
 simulated function SetupStyleTextures()
@@ -133,7 +139,7 @@ simulated function SetupStyleTextures()
 		*/
 		
 		bFinishedReplication = true;
-		ClearTimer('SetupStyleTextures');
+		ClearTimer('SetupStyleTextures'); // Clear the retrys
 	}
 }
 

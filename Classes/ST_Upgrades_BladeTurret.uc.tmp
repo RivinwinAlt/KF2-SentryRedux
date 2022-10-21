@@ -1,5 +1,5 @@
-// Upgrades class for the TF2 Turret
-Class ST_Upgrades_TF2 extends ST_Upgrades_Base;
+123456789// Upgrades class for the TF2 Turret
+Class ST_Upgrades_BladeTurret extends ST_Upgrades_Base;
 
 var bool bRegen, bFireDamage, bFireArmor;
 var float SonicDamageMultiplier;
@@ -17,6 +17,16 @@ simulated function UpdateUpgrades()
 	bRegen = false;
 	bFireDamage = false;
 	bFireArmor = false;
+
+	switch(TurretLevel)
+	{
+		case 0:
+			TurretOwner.WeaponProjectiles[ESecondaryFire] = class''
+			break;
+		case 1:
+			TurretOwner.WeaponProjectiles[ESecondaryFire] = class''
+			break;
+	}
 
 	// Skipping the turret level-up upgrade iterate through all potential upgrades
 	for(i = 1; i < TotalUpgrades; i++) // TotalUpgrades is always the last upgrade enum value, can be used as int
@@ -125,6 +135,8 @@ simulated function ModifyDamageGiven(out int InDamage, optional Actor HitActor, 
 defaultproperties
 {
 	bRegen=false
+
+	WeaponRange(ESecondaryFire) = 1000.0f
 
 	//Turret Level Settings
 	LevelInfos(0)={(

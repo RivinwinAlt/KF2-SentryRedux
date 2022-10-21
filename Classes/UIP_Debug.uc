@@ -1,7 +1,7 @@
 Class UIP_Debug extends KFGUI_MultiComponent;
 
 var KFGUI_Button BenchmarkButton;
-var KFGUI_TextScroll SettingsBlock;
+var KFGUI_TextField SettingsBlock;
 var Benchmarker BM;
 var ST_Settings_Rep Settings;
 
@@ -11,6 +11,14 @@ function InitMenu()
 
 	Settings = class'ST_Settings_Rep'.Static.GetSettings(Owner.PlayerOwner.WorldInfo);
 	BM = Owner.PlayerOwner.Spawn(class'Benchmarker');
+	if(BM == none)
+	{
+		`log("UIP_Debug: BM object reference invalid");
+	}
+	else
+	{
+		BM.SetTickIsDisabled(false);
+	}
 
 	BenchmarkButton = AddButton("Run Benchmarks", 'BenchmarkB', , 0.0, 0.0);
 	SettingsBlock = AddTextBlock(FetchSettingsString(), 'CurrentSettings', 0.0, 0.1, 1.0, 0.9);
@@ -53,11 +61,11 @@ final function KFGUI_Button AddButton( string ButtonText, name IDN, optional str
 
 	return B;
 }
-final function KFGUI_TextScroll AddTextBlock(String Cap, name IDN, optional float newXPos = 0, optional float newYPos = 0, optional float newXSize = 1, optional float newYSize = 1)
+final function KFGUI_TextField AddTextBlock(String Cap, name IDN, optional float newXPos = 0, optional float newYPos = 0, optional float newXSize = 1, optional float newYSize = 1)
 {
-	local KFGUI_TextScroll TS;
+	local KFGUI_TextField TS;
 
-	TS = new(Self) class'KFGUI_TextScroll';
+	TS = new(Self) class'KFGUI_TextField';
 	TS.ID = IDN;
 	TS.XPosition = newXPos;
 	TS.YPosition = newYPos;

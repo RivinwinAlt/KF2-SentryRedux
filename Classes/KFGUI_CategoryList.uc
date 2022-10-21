@@ -50,7 +50,7 @@ function KFGUI_Base AddItemToCategory(name CatID, class<KFGUI_Base> ItemClass, o
 	local KFGUI_Base NewComp;
 
 	// Search for the specified KFGUI_Category
-	for(i = 0; i < Categories.length; i++)
+	for(i = 0; i < Categories.Length; i++)
 	{
 		if(Categories[i].CategoryID == CatID)
 		{
@@ -61,8 +61,8 @@ function KFGUI_Base AddItemToCategory(name CatID, class<KFGUI_Base> ItemClass, o
 	// If KFGUI_Category doesn't exist create it
 	if(!found)
 	{
-		i = Categories.length;
-		AddCategory(CatID, string(CatID)); // Use CatID as the button name
+		i = Categories.Length;
+		AddCategory(CatID, string(CatID)); // Use CatID as the category name
 	}
 
 	// At this point i is the index of Categories that corresponds to the CatID specified
@@ -359,7 +359,7 @@ function CloseMenu()
 	for(i = 0; i < Categories.Length; ++i)
 	{
 		Categories[i].HeaderComponent.CloseMenu();
-		for(j = 0; j < Categories[j].Components.Length; ++j)
+		for(j = 0; j < Categories[i].Components.Length; ++j)
 		{
 			Categories[i].Components[j].CloseMenu();
 		}
@@ -405,7 +405,7 @@ function MenuTick( float DeltaTime )
 	for(i = 0; i < Categories.Length; ++i)
 	{
 		Categories[i].HeaderComponent.MenuTick(DeltaTime);
-		for(j = 0; j < Categories[j].Components.Length; ++j)
+		for(j = 0; j < Categories[i].Components.Length; ++j)
 		{
 			Categories[i].Components[j].MenuTick(DeltaTime);
 		}

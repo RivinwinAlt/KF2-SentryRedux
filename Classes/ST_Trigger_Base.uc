@@ -27,15 +27,30 @@ simulated event ReplicatedEvent(name VarName)
 	}
 }
 
-simulated event Touch(Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal)
+event Touch(Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal)
 {
-	if( WorldInfo.NetMode!=NM_Client && KFPawn_Human(Other)!=None )
-		class'KFPlayerController'.static.UpdateInteractionMessages( Other );
+	local ST_SentryNetwork SN;
+
+	SetTimer(0.5);
+	if(ROLE == ROLE_Authority && KFPawn_Human(Other) != None)
+	{
+		SN = class'ST_SentryNetwork'.static.GetNetwork(PlayerController(Pawn(Other).Controller));
+		SN.UpdateTurretMessage();
+	}	
 }
-simulated event UnTouch(Actor Other)
+
+event UnTouch(Actor Other)
 {
-	if( WorldInfo.NetMode!=NM_Client && KFPawn_Human(Other)!=None )
-		class'KFPlayerController'.static.UpdateInteractionMessages( Other );
+	local ST_SentryNetwork SN;
+
+	if(ROLE == ROLE_Authority && KFPawn_Human(Other) != None)
+	{
+		SN = class'ST_SentryNetwork'.static.GetNetwork(PlayerController(Pawn(Other).Controller));
+
+		SN.UpdateTurretMessage();
+		if(SN.TurretOwner == TurretOwner)
+			SN.ClientCloseMenu();
+	}
 }
 
 function bool UsedBy(Pawn User)
@@ -47,7 +62,8 @@ function bool UsedBy(Pawn User)
 	{
 		SN = class'ST_SentryNetwork'.static.GetNetwork(PlayerController(User.Controller));
 		SN.SetInfo(TurretOwner, PlayerController(User.Controller));
-		SN.ClientOpenMenu();
+		SN.UpdateTurretMessage(false);
+		SN.ClientOpenMenu(TurretOwner);
 	}
 
 	return true;
@@ -62,7 +78,7 @@ simulated function bool GetIsUsable( Pawn User )
 /** Return the index for our interaction message. */
 simulated function int GetInteractionIndex( Pawn User )
 {
-	//return IMT_AcceptObjective;
+	// Causes the default handler to not show a message, shown using custom function below
 	return IMT_None;
 }
 

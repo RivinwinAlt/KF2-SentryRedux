@@ -28,36 +28,24 @@ simulated function UpdateUpgrades()
 			switch(i)
 			{
 				case EUpPrimaryDamage:
-					TurretOwner.Damage[EPrimaryFire] *= UpgradeInfos[i].FValue;
-					UpgradeInfos[EUpPrimaryDamage].Cost = UpgradeInfos[EUpPrimaryDamage].InitialCost * UpgradeInfos[EUpPrimaryDamage].CurrentLevel;
+					TurretOwner.Damage[EPrimaryFire] *= UpgradeInfos[i].FValue * PurchasedUpgrades[i - 1];
 					break;
 				case EUpSecondaryDamage:
-					TurretOwner.Damage[ESecondaryFire] *= UpgradeInfos[i].FValue;
-					UpgradeInfos[EUpSecondaryDamage].Cost = UpgradeInfos[EUpSecondaryDamage].InitialCost * UpgradeInfos[EUpSecondaryDamage].CurrentLevel;
+					TurretOwner.Damage[ESecondaryFire] *= UpgradeInfos[i].FValue * PurchasedUpgrades[i - 1];
 					break;
 				case EUpHealthUp:
-					TurretOwner.HealthMax *= UpgradeInfos[i].FValue;
-					UpgradeInfos[EUpHealthUp].Cost = UpgradeInfos[EUpHealthUp].InitialCost * UpgradeInfos[EUpHealthUp].CurrentLevel;
+					TurretOwner.HealthMax *= UpgradeInfos[i].FValue * PurchasedUpgrades[i - 1];
 					break;
 				case EUpFireRate:
-					TurretOwner.RoF[EPrimaryFire] *= UpgradeInfos[i].FValue;
-					UpgradeInfos[EUpFireRate].Cost = UpgradeInfos[EUpFireRate].InitialCost * UpgradeInfos[EUpFireRate].CurrentLevel;
+					TurretOwner.RoF[EPrimaryFire] *= UpgradeInfos[i].FValue * PurchasedUpgrades[i - 1];
 					break;
 				case EUpRange:
-					TurretOwner.SetSightRadius(TurretOwner.SightRadius * UpgradeInfos[i].FValue);
-					UpgradeInfos[EUpRange].Cost = UpgradeInfos[EUpRange].InitialCost * UpgradeInfos[EUpRange].CurrentLevel;
+					TurretOwner.SetSightRadius(TurretOwner.SightRadius * UpgradeInfos[i].FValue * PurchasedUpgrades[i - 1]);
 					break;
 				case EUpAccuracy:
-					TurretOwner.AccuracyMod[EPrimaryFire] *= UpgradeInfos[i].FValue;
-					UpgradeInfos[EUpAccuracy].Cost = UpgradeInfos[EUpAccuracy].InitialCost * UpgradeInfos[EUpAccuracy].CurrentLevel;
+					TurretOwner.AccuracyMod[EPrimaryFire] *= UpgradeInfos[i].FValue * PurchasedUpgrades[i - 1];
 					break;
-				case EUpTurnRadiusA:
-					if(HasUpgrade(EUpTurnRadiusB)) // Dont decrease the turn radius if a better one is purchased
-					break;
-				case EUpTurnRadiusB:
-					if(HasUpgrade(EUpTurnRadiusC)) // Dont decrease the turn radius if a better one is purchased
-					break;
-				case EUpTurnRadiusC:
+				case EUpTurnRadius:
 					TurretOwner.SetTurnRadius(UpgradeInfos[i].FValue); // Executed for all three turn radius upgrades
 				case EUpAutoRepair:
 					bRegen = true;
@@ -71,10 +59,10 @@ simulated function UpdateUpgrades()
 					bFireArmor = true;
 					break;
 				case EUpPrimaryAmmoUp:
-					TurretOwner.MaxAmmoCount[0] *= UpgradeInfos[i].FValue;
+					TurretOwner.MaxAmmoCount[0] += UpgradeInfos[i].FValue * PurchasedUpgrades[i - 1];
 					break;
 				case EUpSecondaryAmmoUp:
-					TurretOwner.MaxAmmoCount[1] *= UpgradeInfos[i].FValue;
+					TurretOwner.MaxAmmoCount[1] += UpgradeInfos[i].FValue * PurchasedUpgrades[i - 1];
 					break;
 				case EUpHeadshots:
 					break;
@@ -191,13 +179,11 @@ defaultproperties
 	UpgradeInfos(EUpFireRate) = (bIsEnabled=True)
 	UpgradeInfos(EUpRange) = (bIsEnabled=True)
 	UpgradeInfos(EUpAccuracy) = (bIsEnabled=True)
-	UpgradeInfos(EUpTurnRadiusA) = (bIsEnabled=True)
-	UpgradeInfos(EUpTurnRadiusB) = (bIsEnabled=True)
-	UpgradeInfos(EUpTurnRadiusC) = (bIsEnabled=True)
+	//UpgradeInfos(EUpTurnRadius) = (bIsEnabled=True)
 	UpgradeInfos(EUpDamageReduceB) = (bIsEnabled=True)
 	UpgradeInfos(EUpPrimaryAmmoUp) = (bIsEnabled=True)
 	UpgradeInfos(EUpSecondaryAmmoUp) = (bIsEnabled=True)
 	UpgradeInfos(EUpHeadshots) = (bIsEnabled=True)
-	UpgradeInfos(EUpWeaponBehaviour) = (bIsEnabled=True)
+	// UpgradeInfos(EUpWeaponBehaviour) = (bIsEnabled=True)
 	UpgradeInfos(EUpAutoRepair) = (bIsEnabled=True)
 }
