@@ -22,15 +22,21 @@ simulated static final function ST_ClientSettings GetClientSettings(WorldInfo Le
 	foreach Level.DynamicActors(class'ST_ClientSettings', SingletonRef)
 	{
 		if(SingletonRef != None)
+		{
+			`log("ST_ClientSettings: Serving reference to existing object");
 			return SingletonRef;
+		}
 	}
 	
 	// If none found create a new one
+	`log("ST_ClientSettings: Creating new object");
 	return Level.Spawn(class'ST_ClientSettings');
 }
 
 function PostBeginPlay()
 {
+	Super.PostBeginPlay();
+	
 	UpdateConfig();
 }
 
@@ -39,6 +45,8 @@ function UpdateConfig()
 {
 	if(ConfigVersion != CLIENT_CONFIG_VERSION)
 	{
+		`log("ST_ClientSettings: Settings version mismatch, replacing settings file");
+
 		// Default values
 		ShowControlsOverlay = True;
 	
@@ -47,7 +55,7 @@ function UpdateConfig()
 	}
 }
 
-// Use to set ShowControlsOverlay
+// Use to set ShowControlsOverlay, otherwise it wont be saved to config or effect the current overlay
 function SetShowControlsOverlay(bool NewSetting)
 {
 	ShowControlsOverlay = NewSetting;

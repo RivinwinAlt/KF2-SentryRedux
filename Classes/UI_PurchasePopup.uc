@@ -86,8 +86,8 @@ defaultproperties
 	WindowTitle="Confirm Upgrade Purchase"
 	XPosition=0
 	YPosition=0
-	XSize=0.2
-	YSize=0.2
+	XSize=0.3
+	YSize=0.3
 	
 	bAlwaysTop=true
 	bOnlyThisFocus=true

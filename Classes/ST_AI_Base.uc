@@ -16,6 +16,10 @@ event PostBeginPlay()
 {
 	Super.PreBeginPlay();
 	Restart(false);
+
+	TurretOwner = ST_Turret_Base(Pawn);
+	Enemy = None;
+	InitPlayerReplicationInfo();
 }
 
 function Restart(bool bVehicleTransition)
@@ -23,9 +27,8 @@ function Restart(bool bVehicleTransition)
 	TurretOwner = ST_Turret_Base(Pawn);
 	Enemy = None;
 	InitPlayerReplicationInfo();
-
-	GoToState('WaitForEnemy');
 }
+
 
 function InitPlayerReplicationInfo()
 {
@@ -69,10 +72,12 @@ function NotifyTakeHit(Controller InstigatedBy, vector HitLocation, int Damage, 
 
 function SetEnemy(Pawn Other)
 {
-	ClearTimer('FindNextEnemy');
 	Enemy = Other;
 	TurretOwner.SetViewFocus(Enemy);
-	GoToState('FightEnemy');
+	if(Enemy != none)
+	{
+		GoToState('FightEnemy');
+	}
 }
 
 function int TestEnemy(Pawn Other)
@@ -140,9 +145,7 @@ final function FindBestEnemy(optional Pawn ExcludePawn)
 		}
 	}
 
-	// If enemies are found switch to the best one
-	if(BestPawn != none)
-		SetEnemy(BestPawn);
+	SetEnemy(BestPawn);
 }
 
 simulated function bool CheckEnemyState()
@@ -171,21 +174,12 @@ state WaitForEnemy // simulated to enable proxy
 {
 	function BeginState(name OldState)
 	{
-		if(ROLE == ROLE_Authority)
-		{
-			FindBestEnemy(); // Look for a new enemy immediatly
+		FindBestEnemy(); // Look for a new enemy imediatly
 
-			if(Enemy == None) // If we dont find an enemy the first time set up a timer to look again every 0.5 seconds
-			{
-				TurretOwner.SetViewFocus(None);
-				TurretOwner.BeginScanning();
-				SetTimer(0.5, true, 'FindBestEnemy');
-			}
-		}
-		else
+		if(Enemy == None) // If we dont find an enemy the first time set up a timer to look again every 0.5 seconds
 		{
-			TurretOwner.SetViewFocus(None);
 			TurretOwner.BeginScanning();
+			SetTimer(0.5, true, 'FindBestEnemy');
 		}
 	}
 
@@ -196,23 +190,7 @@ state WaitForEnemy // simulated to enable proxy
 	}
 }
 
-auto state SetupState
-{
-	function BeginState(name OldState)
-	{
-		TurretOwner = ST_Turret_Base(Pawn);
-		Enemy = None;
-		InitPlayerReplicationInfo();
-
-		GoToState('WaitForEnemy');
-	}
-
-	function EndState(name NewState)
-	{
-	}
-}
-
-state Disabled
+auto state Disabled
 {
 	function BeginState(name OldState)
 	{

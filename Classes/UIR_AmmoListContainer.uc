@@ -7,7 +7,7 @@ var int BuyAmount[6];
 
 var float ItemBorder, GridBorder, ItemPadding;
 
-var Texture2D AmmoBackground[2];
+var Texture2D AmmoBackground;
 
 function InitMenu()
 {
@@ -66,14 +66,7 @@ function DrawAmmoInfo( Canvas C, int Index, float YOffset, float Height, float W
 
 	// Draw Item Background
 	C.SetDrawColor(255,255,255, 255);
-	if(!HasAmmo(Index))
-	{
-		Owner.CurrentStyle.DrawTileStretched(AmmoBackground[0], TempX, TempY, Width, GridH);
-	}
-	else
-	{
-		Owner.CurrentStyle.DrawTileStretched(AmmoBackground[1], TempX, TempY, Width, GridH);
-	}
+	Owner.CurrentStyle.DrawTileStretched(AmmoBackground, TempX, TempY, Width, GridH);
 
 	// Offset and Calculate Icon's Size
 	TempX += ItemBorder * GridH;
@@ -83,8 +76,15 @@ function DrawAmmoInfo( Canvas C, int Index, float YOffset, float Height, float W
 	C.DrawColor = Owner.TurretOwner.UpgradesObj.AmmoInfos[Index].DrawColor;
 	Owner.CurrentStyle.DrawLibraryIcon(Owner.TurretOwner.UpgradesObj.AmmoInfos[Index].IconIndex, TempX, TempY, IconSize, IconSize);
 
-	// Select Text Color
-	C.SetDrawColor(236,227,203,255);
+	// Select Text Color for ammo amount
+	if(!HasAmmo(Index))
+	{
+		C.SetDrawColor(236,227,203,255); // TF2 text color when has ammo
+	}
+	else
+	{
+		C.SetDrawColor(236,227,203,255); // Red text when out of ammo
+	}
 
 	// Draw the Current Ammo and Max
 	C.TextSize(Owner.TurretOwner.AmmoCount[Index] $ " / " $ Owner.TurretOwner.MaxAmmoCount[Index], TempWidth, TempHeight, Sc, Sc);
@@ -94,6 +94,7 @@ function DrawAmmoInfo( Canvas C, int Index, float YOffset, float Height, float W
 	C.DrawText(Owner.TurretOwner.AmmoCount[Index] $ " / " $ Owner.TurretOwner.MaxAmmoCount[Index],,Sc,Sc);
 
 	// Draw cost for partial ammo
+	C.SetDrawColor(236,227,203,255);
 	TempStr = "$" $ BuyAmount[Index * 2] * Owner.TurretOwner.UpgradesObj.AmmoInfos[Index].CostPerRound;
 	C.TextSize(TempStr, TempWidth, TempHeight, Sc, Sc);
 	TempX = GridX + (CellW * 2.0f) + ((CellW - TempWidth) / 2.0f); // Coord position 2,1 of the grid
@@ -117,6 +118,7 @@ function DrawAmmoInfo( Canvas C, int Index, float YOffset, float Height, float W
 		TempWidth = (CellW / AmmoList.CompPos[2]) - (GridBorder * 2.0f) / AmmoList.CompPos[2];
 		TempHeight = (CellH / AmmoList.CompPos[3]) - (GridBorder * 2.0f) / AmmoList.CompPos[3];
 		BuyButtons[Index * 2] = AddButton(Index * 2, TempX, TempY, TempWidth, TempHeight); // X Y W H
+		BuyAmount[Index * 2] = Owner.TurretOwner.UpgradesObj.AmmoInfos[Index].BuyAmount;
 		TempX += CellW / AmmoList.CompPos[2]; // Move one cell to the right
 		BuyButtons[(Index * 2) + 1] = AddButton((Index * 2) + 1, TempX, TempY, TempWidth, TempHeight); // X Y W H
 	}
@@ -135,8 +137,15 @@ function Timer()
 	{
 		if(AmmoTypeEnabled(i) && BuyButtons[i * 2] != none)
 		{
-			v = Owner.TurretOwner.MaxAmmoCount[i] - Owner.TurretOwner.AmmoCount[i];
-			BuyAmount[i * 2] = Min(v, Owner.TurretOwner.UpgradesObj.AmmoInfos[i].BuyAmount);
+			v = Min(Owner.PlayerOwner.PlayerReplicationInfo.Score / Owner.TurretOwner.UpgradesObj.AmmoInfos[i].CostPerRound, Owner.TurretOwner.MaxAmmoCount[i] - Owner.TurretOwner.AmmoCount[i]);
+			if(v < BuyAmount[i * 2])
+			{
+				BuyButtons[i * 2].SetLocked(true);
+			}
+			else
+			{
+				BuyButtons[i * 2].SetLocked(false);
+			}
 			BuyAmount[(i * 2) + 1] = v;
 			BuyButtons[i * 2].bEnabled = true;
 			BuyButtons[i * 2].ButtonText = "Buy " $ BuyAmount[i * 2];
@@ -144,8 +153,9 @@ function Timer()
 		}
 		else if(BuyButtons[i * 2] != none)
 		{
-			BuyButtons[i * 2].bEnabled = false;
-			BuyButtons[(i * 2) + 1].bEnabled = false;
+			// TODO: Just free the memory here I think, only happens when an ammo type is taken away during upgrade or downgrade
+			//BuyButtons[i * 2].bEnabled = false;
+			//BuyButtons[(i * 2) + 1].bEnabled = false;
 		}
 	}
 }
@@ -157,9 +167,7 @@ function GetStyleTextures()
 		return;
 	}
 	
-	AmmoBackground[0] = Owner.CurrentStyle.ItemBoxTextures[`ITEMBOX_BAR_HIGHLIGHTED];
-	AmmoBackground[1] = Owner.CurrentStyle.ItemBoxTextures[`ITEMBOX_BAR_NORMAL];
-	
+	AmmoBackground = Owner.CurrentStyle.ItemBoxTextures[`ITEMBOX_BAR_NORMAL];
 	AmmoList.OnDrawItem = DrawAmmoInfo;
 	
 	bTextureInit = true;

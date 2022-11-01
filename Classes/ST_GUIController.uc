@@ -24,30 +24,42 @@ var transient KFGUI_StyleBase CurrentStyle;
 var transient Console OrgConsole;
 var transient KFGUIConsoleHack HackConsole;
 
-var bool bMouseWasIdle,bIsInMenuState,bAbsorbInput,bIsInvalid,bFinishedReplication,bUsingGamepad,bForceEngineCursor,bNoInputReset;
+var bool 	bMouseWasIdle,
+			bIsInMenuState,
+			bAbsorbInput,
+			bIsInvalid,
+			bFinishedReplication,
+			bUsingGamepad,
+			bForceEngineCursor,
+			bNoInputReset;
 
 var ObjectReferencer RepObject, RepIcons; // Hacked in objectreferencer for direct referencing
-var ST_Turret_Base TurretOwner;
-var ST_SentryNetwork NetworkObj;
-var ST_ClientSettings CSettings;
+var transient ST_Turret_Base TurretOwner; // Used to reference the turret used to open the current menu
+var transient ST_SentryNetwork NetworkObj;
+var transient ST_ClientSettings CSettings;
+var transient ST_Settings_Rep Settings;
 
 static function ST_GUIController GetGUIController( PlayerController PC )
 {
 	local ST_GUIController G;
 
-	if( PC.Player==None )
-		return None;
-		
-	foreach PC.ChildActors(class'ST_GUIController',G)
+	if(PC.Player == None)
 	{
-		if( !G.bIsInvalid )
-			break;
+		`log("ST_GUIController: PC.Player is none, cannot get GUIController");
+		return None;
+	}
+		
+	foreach PC.ChildActors(class'ST_GUIController', G)
+	{
+		if(G != none)
+		{
+			`log("ST_GUIController: Returning reference to existing object");
+			return G;
+		}
 	}
 	
-	if( G==None )
-		G = PC.Spawn(class'ST_GUIController',PC);
-		
-	return G;
+	`log("ST_GUIController: Creating new object");
+	return PC.Spawn(class'ST_GUIController', PC);
 }
 
 simulated function PostBeginPlay()
@@ -58,8 +70,11 @@ simulated function PostBeginPlay()
 		`log("ST_GUIController: PlayerOwner is Null in PostBeginPlay()");
 	ClientViewport = LocalPlayer(PlayerOwner.Player).ViewportClient;
 
-	// Get local settigns
+	// Get client settings object
 	CSettings = Class'ST_ClientSettings'.Static.GetClientSettings(WorldInfo);
+
+	SetTimer(0.2, true, 'RetryFetchSettings');
+	RetryFetchSettings();
 	
 	// Create a new style object for menu graphics
 	CurrentStyle = new (None) DefaultStyle;
@@ -67,7 +82,14 @@ simulated function PostBeginPlay()
 	CurrentStyle.Owner = self;
 	
 	SetTimer(0.25, true, 'SetupStyleTextures'); // Set up a retry before we even trigger the function
-	SetupStyleTextures(); // Trigger the function that will be retried
+	SetupStyleTextures(); // Trigger the function that will be retried	
+}
+
+simulated function RetryFetchSettings()
+{
+	Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+	if(Settings != none)
+		ClearTimer('RetryTurretSelection');
 }
 
 simulated function SetupStyleTextures()

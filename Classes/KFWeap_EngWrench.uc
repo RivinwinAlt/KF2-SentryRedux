@@ -5,6 +5,7 @@ class KFWeap_EngWrench extends KFWeap_MeleeBase
 
 var transient ST_Settings_Rep Settings;
 var transient TurretBuildInfo BuildInfo;
+var transient ST_Overlay Overlay;
 
 var SkeletalMeshComponent TurretPreview;
 var bool bPendingDeploy, bTurretDeployed; // Used by firing state code to determine when to place a turret vs attack
@@ -17,26 +18,47 @@ var MaterialInstanceConstant BaseTurSkin;
 
 simulated function PostBeginPlay()
 {
-	local ST_Overlay tempOverlay;
-
-	// First hammer on map will return None client side while the server creates the Settings object and replicates ; RetryTurretSelection() solves this
-	Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
-
-	tempOverlay = class'ST_Overlay'.Static.GetOverlay(GetALocalPlayerController(), WorldInfo);
-
 	Super.PostBeginPlay();
 
-	InitTurretSelection();
+	`log("KFWeap_EngWrench: Owner class is: " $ Owner.Class);
+
+	// First hammer on map will return None client side while the server creates the Settings object and replicates ; RetryTurretSelection() solves this
+	SetTimer(0.2, true, 'RetryFetchSettings');
+	RetryFetchSettings();
+
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		SetTimer(0.2, true, 'RetryFetchOverlay');
+		RetryFetchOverlay();
+	}
+}
+
+simulated function RetryFetchSettings()
+{
+	if(Settings == none)
+		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+	if(Settings != none && Settings.bInitialized)
+	{
+		ClearTimer('RetryTurretSelection');
+		InitTurretSelection();
+	}
+	else
+	{
+		`log("KFWeap_EngWrench: Server Settings not initialized, rechecking in 0.2");
+	}
+}
+
+simulated function RetryFetchOverlay()
+{
+	Overlay = class'ST_Overlay'.Static.GetOverlay(GetALocalPlayerController(), WorldInfo);
+	if(Overlay != none || WorldInfo.Netmode == NM_DedicatedServer)
+		ClearTimer('RetryFetchOverlay');
+	else
+		`log("KFWeap_EngWrench: Overlay not created, retrying in 0.2");
 }
 
 simulated function InitTurretSelection()
 {
-	if(Settings == none || !Settings.bInitialized)
-	{
-		SetTimer(0.3, false, 'RetryTurretSelection'); // Arbitrary time, err on the side of slower
-		return;
-	}
-
 	BuildInfo = Settings.PreBuildInfos[Settings.repStartingTurret];
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 	{
@@ -47,13 +69,6 @@ simulated function InitTurretSelection()
 		TurretPreview.CreateAndSetMaterialInstanceConstant(0);
 		TurretPreview.SetMaterial(0, BaseTurSkin);
 	}
-}
-
-simulated function RetryTurretSelection()
-{
-	if(Settings == none)
-		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
-	InitTurretSelection();
 }
 
 simulated function SetOverlayValues()
@@ -69,7 +84,7 @@ reliable server function ServerDeployTurret()
 	local rotator NewRotation;
 	local vector Pos, HitLocation, HitNormal;
 
-	ServerSideSettings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+	ServerSideSettings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo); // Might not have to do this, might be able to pass local reference
 	
 	// Does the player have enough Dosh?
 	if(Instigator.PlayerReplicationInfo == None || Instigator.PlayerReplicationInfo.Score < BuildInfo.BuildCost)

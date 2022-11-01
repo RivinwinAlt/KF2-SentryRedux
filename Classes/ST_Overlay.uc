@@ -1,7 +1,6 @@
 // Handles drawing the info text for each turret during play
 Class ST_Overlay extends Interaction;
 
-var transient ST_Settings_Rep Settings;
 var array<ST_Turret_Base> ActiveTurrets;
 var PlayerController LocalPC;
 var ST_GUIController GUI;
@@ -21,9 +20,9 @@ static final function ST_Overlay GetOverlay(PlayerController PC, WorldInfo Level
 	local Interaction I;
 	local ST_Overlay S;
 
-	if(Level.NetMode == NM_DedicatedServer)
+	if(Level == none || Level.NetMode == NM_DedicatedServer)
 	{
-		`log("ST_Overlay: Overlay not created on Server");
+		`log("ST_Overlay: WorldInfo not valid or on server");
 		return none;
 	}
 
@@ -38,34 +37,33 @@ static final function ST_Overlay GetOverlay(PlayerController PC, WorldInfo Level
 	{
 		S = ST_Overlay(I);
 		if(S != None)
+		{
+			`log("ST_Overlay: Returning reference to existing object");
 			return S;
+		}
 	}
 
-	// If there isnt one create it
-	`log("ST_Overlay: Creating New Overlay object");
+	// If there isn't one create it
+	`log("ST_Overlay: Creating new object");
 	S = new (PC) class'ST_Overlay';
 	S.LocalPC = PC;
 	PC.Interactions.AddItem(S);
-	S.Init();
 	
-	// Fetch settings reference for the new overlay
-	S.Settings = class'ST_Settings_Rep'.Static.GetSettings(Level);
-	if(S.Settings == none)
-		`log("ST_Overlay: Settings was not initialized correctly");
-
-	// Fetch GUI reference for the new overlay
 	S.GUI = Class'ST_GUIController'.Static.GetGUIController(PC);
 	S.GUIStyle = S.GUI.CurrentStyle;
 	if(S.GUIStyle == none)
-		`log("ST_Overlay: GUI / GUIStyle was not initialized correctly");
+		`log("ST_Overlay: GUIStyle = None");
 
-	// Fetch Client Settings reference for the new overlay
-	S.CSettings = Class'ST_ClientSettings'.Static.GetClientSettings(Level);
+	S.CSettings = Class'ST_ClientSettings'.Static.GetClientSettings(level);
 	if(S.CSettings == none)
-		`log("ST_Overlay: Client Settings were not initialized");
+		`log("ST_Overlay: CSettings = None");
+
+	S.Init();
 
 	return S;
 }
+
+
 
 // Executes every frame after all actors are rendered in 3d
 event PostRender(Canvas Canvas)
@@ -85,7 +83,7 @@ event PostRender(Canvas Canvas)
 	XDir = vector(CamRotation);
 	ZDepth = CamLocation Dot XDir;
 
-	// Check if the overlay has been turned off in the client settings
+	// Check if the controls section has been turned off in the client settings
 	if(CSettings.ShowControlsOverlay)
 	{
 		// Check if the current weapon is a sentry hammer before rendering controls

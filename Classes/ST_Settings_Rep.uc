@@ -12,7 +12,7 @@ var config float SellMultiplier, MercySellMultiplier, PreviewRotationRate, Start
 var config int HitRepairAmount, MaxPlayerTurrets, TurretHealthTickDown, MaxMapTurrets;
 var config bool CanDropHammer, HeavyAttackToSell;
 
-var transient int NumPlayerTurrets; // client variable, do not reference on server
+var transient int NumPlayerTurrets; // Client variable, do not reference on server
 var transient int NumMapTurrets;
 var transient array<ST_Turret_Base> AllTurrets; // Only populated server side, use the Overlay array to reference turrets on client
 
@@ -76,12 +76,16 @@ simulated static final function ST_Settings_Rep GetSettings(WorldInfo Level)
 	foreach Level.DynamicActors(class'ST_Settings_Rep', SingletonRef)
 	{
 		if(SingletonRef != None)
+		{
+			`log("ST_Settings_Rep: Returning reference to existing object");
 			return SingletonRef;
+		}
 	}
 
 	// If server and none exists spawn a new instance
-	if(Level.NetMode != NM_Client)
+	if(Level.NetMode != NM_Client) // TODO: replace with ROLE model for networking compatability
 	{
+		`log("ST_Settings_Rep: Creating new object");
 		SingletonRef = Level.Spawn(class'ST_Settings_Rep');
 		return SingletonRef;
 	}
@@ -92,6 +96,8 @@ simulated static final function ST_Settings_Rep GetSettings(WorldInfo Level)
 function PostBeginPlay()
 {
 	local KFGameInfo GameInfo;
+
+	Super.PostBeginPlay();
 
 	// Replace scriptwarning spewing DialogManager.
 	GameInfo = KFGameInfo(WorldInfo.Game);
@@ -105,17 +111,13 @@ function PostBeginPlay()
 				GameInfo.DialogManager = Spawn(class'ST_DialogManager');
 			}
 		}
-		else if(GameInfo.DialogManagerClass == Class'KFDialogManager')
-			GameInfo.DialogManagerClass=class'ST_DialogManager';
+		GameInfo.DialogManagerClass=class'ST_DialogManager';
 	}
 
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 		PlayerCountTurrets();
 
-	if(ROLE==ROLE_Authority)
-	{
-		UpdateConfig();
-	}
+	UpdateConfig();
 }
 
 // These functions are intentionally asynchronous and unclamped to allow smooth networking
@@ -133,14 +135,32 @@ function TurretCreated(optional ST_Turret_Base NewTurret)
 	}
 }
 
+simulated function LocalTurretCreated(PlayerController TurretOwner)
+{
+	if(WorldInfo.NetMode == NM_DedicatedServer)
+		return;
+
+	if(GetALocalPlayerController() == TurretOwner)
+	{
+		NumPlayerTurrets++;
+	}
+}
+
 function TurretDestroyed(optional ST_Turret_Base DestroyedTurret)
 {
 	--NumMapTurrets;
 
 	if(DestroyedTurret != none)
-	{
 		AllTurrets.RemoveItem(DestroyedTurret);
-	}
+}
+
+simulated function LocalTurretDestroyed(PlayerController TurretOwner)
+{
+	if(WorldInfo.NetMode == NM_DedicatedServer)
+		return;
+		
+	if(GetALocalPlayerController() == TurretOwner && TurretOwner != none) // Have to have the second boolean in case both are none
+		NumPlayerTurrets--;
 }
 
 // Make this run once every long while to support big sprawling high wave servers
@@ -234,7 +254,7 @@ simulated function bool CheckNumMapTurrets(optional class<ST_Turret_Base> Turret
 
 simulated function bool CheckNumPlayerTurrets(class<ST_Turret_Base> TurretClass)
 {
-	PlayerCountTurrets();
+	PlayerCountTurrets(); // Safety, once the LocalTurretCreated/dDestroyed system is stable well just use NumPlayerTurrets
 
 	if((NumPlayerTurrets < repMaxPlayer ) /*|| if(ADMIN_AUTHORITY)*/ )
 		return true;

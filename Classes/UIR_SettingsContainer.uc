@@ -81,7 +81,20 @@ function ButtonClicked( KFGUI_Button Sender )
 	switch(Sender.ID)
 	{
 		case 'OrphanTurret':
-			Owner.TurretOwner.SetTurretOwner(None);
+			`log("UIR_SettingsContainer: Pressed orphan button locally");
+			if(Owner.NetworkObj != none)
+			{
+				`log("UIR_SettingsContainer: Orphaning turret");
+				Owner.NetworkObj.Orphan();
+			}
+			else if(Owner == none)
+			{
+				`log("UIR_SettingsContainer: Cant access GUIController");
+			}
+			else
+			{
+				`log("UIR_SettingsContainer: SentryNetwork reference is none");
+			}
 			break;
 	}
 }

@@ -74,8 +74,7 @@ simulated function FirePrimary()
 	super.FirePrimary();
 
 	FireBullet();
-		FireProjectile
-		class<KFProj_Blade_Eviscerator>;
+	//	FireProjectile(class<KFProj_Blade_Eviscerator>);
 	//FireProjectileLobbed
 	//FireProjectile
 }

@@ -20,7 +20,7 @@ var ST_Trigger_Base ActiveTrigger; // The object responsable for interactng with
 
 // CACHED REFERENCES
 var repnotify Pawn ViewFocusActor; // Where the turret mesh should be looking, set by server along with controller.enemy
-var PlayerController OwnerController; // The player authorized to sell/downgrade the turret
+var PlayerController OwnerController, LastOwner; // The player authorized to sell/downgrade the turret, the previous owner
 var transient ST_Overlay LocalOverlay; // The completely local player overlay object to tie into HUD rendering
 var transient ST_Settings_Rep Settings;
 var transient ST_AI_Base AIController;
@@ -74,6 +74,9 @@ simulated event ReplicatedEvent(name VarName)
 	case 'ViewFocusActor':
 		SetViewFocus(ViewFocusActor);
 		break;
+	case 'OwnerController':
+		OwnerChanged();
+		break;
 	default:
 		Super.ReplicatedEvent(VarName);
 	}
@@ -84,21 +87,10 @@ simulated function PostBeginPlay()
 {
 	Super.PostBeginPlay();
 
-	Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+	SetTimer(0.2, true, 'RetryFetchSettings');
+	RetryFetchSettings();
 
-	if(ROLE == ROLE_Authority)
-	{
-		// Create a collision actor that enables the 'Use' message to appear for clients and enables opening the turret upgrade menu
-		ActiveTrigger = Spawn(class'ST_Trigger_Base');
-		ActiveTrigger.TurretOwner = Self;
-		ActiveTrigger.SetBase(Self);
-
-		// Create an object that defines what upgrades are available and what they do
-		UpgradesObj = Spawn(UpgradesClass, Self);
-		UpgradesObj.SetTurretOwner(Self);
-
-		Settings.TurretCreated(Self); // Adds reference to self to the list of turrets stored in Settings object
-	}
+	CreateTrigger();
 
 	// Initiates green overlay text on clients, ignored for server
 	if(WorldInfo.NetMode != NM_DedicatedServer)
@@ -108,6 +100,47 @@ simulated function PostBeginPlay()
 	if(Controller == None)
 		SpawnDefaultController();
 	AIController = ST_AI_Base(Controller); // Assigns a reference to the AI object thats typed and easily accessible
+}
+
+// Handles removing local entries for old owner and creating local entries for new owner
+simulated function OwnerChanged()
+{
+	if(Settings != none && LastOwner != OwnerController)
+	{
+		Settings.LocalTurretDestroyed(LastOwner);
+		Settings.LocalTurretCreated(OwnerController);
+		LastOwner = OwnerController;
+	}
+}
+
+simulated function RetryFetchSettings()
+{
+	if(Settings == none)
+		Settings = class'ST_Settings_Rep'.Static.GetSettings(WorldInfo);
+	if(Settings != none && Settings.bInitialized)
+	{
+		ClearTimer('RetryFetchSettings');
+		Settings.TurretCreated(Self); // Adds reference to self to the list of turrets stored in Settings object
+		LastOwner = OwnerController;
+		Settings.LocalTurretCreated(OwnerController);
+	}
+	else
+	{
+		`log("ST_Turret_Base: Server Settings not initialized, rechecking in 0.2");
+	}
+}
+
+// NOT simulated, can only be run with ROLE_Authority
+function CreateTrigger()
+{
+	// Create a collision actor that enables the 'Use' message to appear for clients and enables opening the turret upgrade menu
+	ActiveTrigger = Spawn(class'ST_Trigger_Base');
+	ActiveTrigger.TurretOwner = Self;
+	ActiveTrigger.SetBase(Self);
+
+	// Create an object that defines what upgrades are available and what they do
+	UpgradesObj = Spawn(UpgradesClass, Self);
+	UpgradesObj.SetTurretOwner(Self);
 }
 
 simulated function InitBuild()
@@ -121,26 +154,25 @@ simulated function InitBuild()
 
 	PreBuildAnimation(); // TODO: is there any optimization when using events instead of functions?
 	// Fetch the build animation length in seconds then queue PostBuildAnimation() when it finishes
-	BuildTimer = FClamp(AnimationNode.PlayCustomAnim('Build',1.f,0.f,0.f,false,true),0.5,5.0f); // 5.0 max up from 3.0
-	SetTimer(BuildTimer, false, 'PostBuildAnimation');
+	BuildTimer = FMax(AnimationNode.PlayCustomAnim('Build',1.f,0.f,0.f,false,true), UpperAnimNode.PlayCustomAnim('Build',1.f,0.f,0.f,false,true));
 
-	// Play build animation on clients
-	if( WorldInfo.NetMode != NM_DedicatedServer && UpperAnimNode!=None )
-		UpperAnimNode.PlayCustomAnim('Build',1.f,0.f,0.f,false,true);
+	SetTimer(BuildTimer, false, 'PostBuildAnimation');
 }
 
 simulated function PreBuildAnimation()
 {
 	// Disable AI targeting during build animation
-	if(Controller != None)
+	if(AIController != None && ROLE == ROLE_Authority)
 		AIController.GoToState('Disabled');
+	bRecentlyBuilt = true;
 }
 
 simulated function PostBuildAnimation()
 {
 	// Reenable AI targeting
-	if(Controller != None)
+	if(AIController != None && ROLE == ROLE_Authority)
 		AIController.GoToState('WaitForEnemy');
+	bRecentlyBuilt = false; // Tells joining players not to play build animation
 }
 
 // Client side only, sets turret mesh, anims, and materials
@@ -181,7 +213,14 @@ simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 
 	Super(Pawn).PostInitAnimTree(SkelComp);
 
-	InitBuild();
+	if(bRecentlyBuilt)
+	{
+		InitBuild();
+	}
+	else
+	{
+		PostBuildAnimation();
+	}
 }
 
 simulated final function AddHUDOverlay()
@@ -191,7 +230,7 @@ simulated final function AddHUDOverlay()
 	PC = GetALocalPlayerController();
 	if(PC == None)
 	{
-		`log("ST_Overlay: AddHUDOverlay() failed - PC = none");
+		`log("ST_Overlay: AddHUDOverlay() failed, PC is None");
 		return;
 	}
 
@@ -217,7 +256,8 @@ function CheckUserConnected()
 	if(OwnerController == None)
 	{
 		Health -= Settings.TurretHealthTickDown;
-		if(Health <= 0)
+
+		if(Health <= 0) // Not sure this should be here, seams like something thats already handled by tripwire
 			KilledBy(None);
 	}
 }
@@ -226,43 +266,50 @@ function SetTurretOwner(PlayerController Other)
 {
 	ClearTimer('CheckUserConnected');
 	SetTimer(4, true, 'CheckUserConnected');
-	OwnerController = Other;
-	PlayerReplicationInfo = Other.PlayerReplicationInfo;
 
-	if(Other == None)
+	OwnerController = Other;
+	if(Other != none) // This avoids accessing Other when it's none and throwing a script warning
 	{
-		// Take Over button enabled
+		PlayerReplicationInfo = Other.PlayerReplicationInfo; // Makes it so we earn dosh for our turret kills
 	}
 	else
 	{
-		// button disabled
+		PlayerReplicationInfo = none;
 	}
 }
 
-function AddAmmo(coerce byte Index, int Amount) // Intentionally cast Index to byte for faster overflow checking
+function int AddAmmo(coerce byte Index, int Amount) // Intentionally cast Index to byte for faster overflow checking
 {
+	local int AmountAdded;
+
 	if(Index < 3)
-		AmmoCount[Index] = Min(AmmoCount[Index] + Amount, MaxAmmoCount[Index]);
+	{
+		AmountAdded = Min(Amount, MaxAmmoCount[Index] - AmmoCount[Index]);
+		AmmoCount[Index] += AmountAdded;
+	}
+
+	return AmountAdded; // Base dosh charged for purchase on this value
 }
 
+// Used by ST_Overlay to get formatted text describing the turret
 simulated function string GetInfo()
 {
-	local float F;
-
-	F = float(Health) / float(HealthMax) * 100.f;
-	return (PlayerReplicationInfo!=None ? (PlayerReplicationInfo.PlayerName $"'s") : "No Owner")$" ("$(Health<HealthMax ? Clamp(F,1,99) : 100)$"% HP)";
+	return (PlayerReplicationInfo != None ? (PlayerReplicationInfo.PlayerName $ "'s") : "No Owner") $ " (" $ GetHealth() $ " HP)";
 }
 
-simulated function string GetName()
+// Used by menus to get turret owner name
+simulated function string GetOwnerName()
 {
-	return "Owner: "$(PlayerReplicationInfo!=None ? PlayerReplicationInfo.PlayerName : "None");
+	return PlayerReplicationInfo != None ? PlayerReplicationInfo.PlayerName : "No Owner";
 }
 
-simulated function string GetHealth() //for overlay
+// Used by menus to get current health as percent
+simulated function string GetHealth()
 {
-	return "Health: " $ class'ST_StaticHelper'.static.FormatPercent(Health, HealthMax);
+	return Round((float(Health) / float(HealthMax)) * 99.f + 1) $ "%"; // Puts the percentage in the range of 1 to 100 so it never reads 0%;
 }
 
+// Used by ST_Overlay to get formatted text describing the turret
 simulated function string GetAmmoStatus(optional int Index = 3)
 {
 	local string S;
@@ -287,11 +334,7 @@ simulated function string GetAmmoStatus(optional int Index = 3)
 	return S;
 }
 
-simulated function string GetOwnerName()
-{
-	return (PlayerReplicationInfo != None ? PlayerReplicationInfo.PlayerName : "None");
-}
-
+// Swings the model to point towards the targeted zed, 
 simulated function SetViewFocus(Pawn Other)
 {
 	if(ROLE == ROLE_Authority) // replicated to client, set on server
@@ -418,8 +461,11 @@ simulated function ScanSound()
 }
 simulated function EndScanning() // Can be called on timer or from AI
 {
-	bIsScanning = false;
-	ClearTimer('ScanSound');
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		bIsScanning = false;
+		ClearTimer('ScanSound');
+	}
 }
 
 // The 3 weapon slots have their own function calls for optimization
@@ -769,21 +815,20 @@ simulated function KFSkinTypeEffects GetHitZoneSkinTypeEffects(int HitZoneIdx)
 	return KFSkinTypeEffects'FX_Impacts_ARCH.SkinTypes.Metal';
 }
 
+/*
 function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLocation)
 {
 	return Super.Died(Killer, DamageType, HitLocation);
-}
+}*/
 
 simulated function Destroyed()
 {
-	if(WorldInfo.NetMode != NM_Client)
+	if(OwnerController != none && Settings != none)
+		Settings.LocalTurretDestroyed(OwnerController);
+
+	if(WorldInfo.NetMode != NM_Client && Settings != none)
 	{
 		Settings.TurretDestroyed(self);
-	}
-	if(WorldInfo.NetMode != NM_DedicatedServer)
-	{
-		if(Settings != none)
-			--Settings.NumPlayerTurrets;
 	}
 
 	if(LocalOverlay != None)
@@ -918,6 +963,7 @@ function AdjustDamage(out int InDamage, out vector Momentum, Controller Instigat
 defaultproperties
 {
 	bWasSold = false
+	bRecentlyBuilt = true
 
 	UpgradesClass = class'ST_Upgrades_Base'
 

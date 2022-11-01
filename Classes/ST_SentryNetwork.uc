@@ -40,9 +40,16 @@ static final function ST_SentryNetwork GetNetwork(PlayerController PC)
 	local ST_SentryNetwork SN;
 	
 	foreach PC.ChildActors(class'ST_SentryNetwork', SN)
-		break;
-	if(SN == None)
-		SN = PC.Spawn(class'ST_SentryNetwork', PC);
+	{
+		if(SN != none)
+		{
+			`log("ST_SentryNetwork: Returning reference to existing object");
+			return SN;
+		}
+	}
+
+	`log("ST_SentryNetwork: Creating new object");
+	SN = PC.Spawn(class'ST_SentryNetwork', PC);
 	SN.PlayerOwner = PC;
 	
 	return SN;
@@ -123,19 +130,29 @@ function SetInfo( ST_Turret_Base T, PlayerController PC)
 
 reliable server function PerformPurchase(int Index)
 {
-    PlayerOwner.PlayerReplicationInfo.Score -= TurretOwner.UpgradesObj.UpgradeInfos[Index].Costs[TurretOwner.UpgradesObj.PurchasedUpgrades[Index - 1]];
-    TurretOwner.UpgradesObj.BoughtUpgrade(Index);
+	PlayerOwner.PlayerReplicationInfo.Score -= TurretOwner.UpgradesObj.UpgradeInfos[Index].Costs[TurretOwner.UpgradesObj.PurchasedUpgrades[Index - 1]];
+	TurretOwner.UpgradesObj.BoughtUpgrade(Index);
 }
 
 reliable server function PerformAmmoPurchase(int Index, int Amount)
 {
-    PlayerOwner.PlayerReplicationInfo.Score -= Amount * TurretOwner.UpgradesObj.AmmoInfos[Index].CostPerRound;
-    TurretOwner.AddAmmo(Index, Amount);
+	PlayerOwner.PlayerReplicationInfo.Score -= TurretOwner.AddAmmo(Index, Amount) * TurretOwner.UpgradesObj.AmmoInfos[Index].CostPerRound;
 }
 
 reliable server function SellTurret()
 {
-    TurretOwner.TryToSellTurret(PlayerOwner);
+	TurretOwner.TryToSellTurret(PlayerOwner);
+}
+
+reliable server function TakeTurret()
+{
+	if(TurretOwner.OwnerController == none)
+		TurretOwner.SetTurretOwner(PlayerOwner);
+}
+
+reliable server function Orphan()
+{
+	TurretOwner.SetTurretOwner(None);
 }
 
 reliable server function ClosedMenu()

@@ -17,7 +17,7 @@ function InitMenu()
 	}
 	else
 	{
-		BM.SetTickIsDisabled(false);
+		//BM.SetTickIsDisabled(false);
 	}
 
 	BenchmarkButton = AddButton("Run Benchmarks", 'BenchmarkB', , 0.0, 0.0);

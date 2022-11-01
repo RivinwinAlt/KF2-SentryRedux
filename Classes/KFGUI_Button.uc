@@ -5,11 +5,11 @@ var() string ButtonText,GamepadButtonName;
 var() color TextColor;
 var() Canvas.FontRenderInfo TextFontInfo;
 var() byte FontScale,ExtravDir;
-var bool bIsHighlighted, bEnabled;
+var bool bIsHighlighted;
 
 function DrawMenu()
 {
-    if(bEnabled)
+    if(!bDisabled)
         Owner.CurrentStyle.RenderButton(Self);
 }
 
@@ -37,7 +37,6 @@ Delegate bool DrawOverride(Canvas C, KFGUI_Button B)
 
 defaultproperties
 {
-    bEnabled=true
     ButtonText="Button!"
     TextColor=(R=236,G=227,B=203,A=255) // From TF2 menu text
     TextFontInfo=(bClipText=true,bEnableShadow=true)

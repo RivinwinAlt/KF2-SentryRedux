@@ -14,7 +14,7 @@ function InitMenu()
 	UpgradeBox.YPosition=0.0;
 	UpgradeBox.XSize=1.0;
 	UpgradeBox.YSize=1.0;
-	UpgradeBox.WindowTitle="Upgrade List";
+	UpgradeBox.WindowTitle="Upgrades";
 	AddComponent(UpgradeBox, 0, 0, 1, 2); // X, Y, W, H
 
 	AmmoList = new (Self) class'UIR_AmmoListContainer';
@@ -23,7 +23,7 @@ function InitMenu()
 	AmmoList.YPosition=0.0;
 	AmmoList.XSize=1.0;
 	AmmoList.YSize=1.0;
-	AmmoList.WindowTitle="Ammo List";
+	AmmoList.WindowTitle="Ammo";
 	AddComponent(AmmoList, 1, 0, 1, 1); // X, Y, W, H
 
 	TurretStatus = new (Self) class'UIR_TurretInfoContainer';
@@ -32,7 +32,7 @@ function InitMenu()
 	TurretStatus.YPosition=0.0;
 	TurretStatus.XSize=1.0;
 	TurretStatus.YSize=1.0;
-	TurretStatus.WindowTitle="Turret Info";
+	TurretStatus.WindowTitle="Stats";
 	AddComponent(TurretStatus, 1, 1, 1, 1); // X, Y, W, H
 }
 

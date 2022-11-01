@@ -6,7 +6,7 @@ var int Cycles;
 
 simulated function RunAllBenchmarks()
 {
-	local float totalBenchTime;
+	//local float totalBenchTime;
 
 	`log("ST_Benchmark: Each Test will be run " $ Cycles $ " times");
 	`log("ST_Benchmark: Filter by CanSee()   : " $ CanSeeFilterBench());
@@ -51,7 +51,8 @@ simulated function float CanSeeFilterBench()
 	}
 	UnClock(BenchTime);
 
-	//`log("ST_Benchmark: Filter by CanSee()   : Filtered " $ filteredPawns $ " of " $ totalPawns $ " Pawns";
+	`log("Filtered " $ filteredPawns $ " of " $ totalPawns $ " Pawns");
+	`log("ST_Benchmark: Filter by CanSee()   : " $ BenchTime);
 
 	return BenchTime;
 }
@@ -305,5 +306,5 @@ simulated function float IsABench()
 
 defaultproperties
 {
-	Cycles = 2000
+	Cycles = 300
 }

@@ -10,8 +10,8 @@ var() array<FPageInfo> Pages;
 
 //var KFGUI_Button ;
 
-var transient KFGUI_Button PrevButton;
-var transient int NumButtons, NumButtonRows;
+var transient KFGUI_Button TakeOverButton;
+var transient int NumButtons;
 
 function InitMenu()
 {
@@ -21,10 +21,11 @@ function InitMenu()
     PageSwitcher = KFGUI_SwitchMenuBar(FindComponentID('Pager'));
     Super(KFGUI_Page).InitMenu();
     
-    AddMenuButton('Sell',"Sell","Sell this turret");
-    AddMenuButton('Close',"Close","Close this menu");
+    AddMenuButton('Sell', "Sell", "Sell this turret");
+    TakeOverButton = AddMenuButton('Take', "Take", "Take ownership of this turret");
+    AddMenuButton('Close', "Close", "Close this menu");
     
-    for( i=0; i<Pages.Length; ++i )
+    for(i = 0; i < Pages.Length; ++i)
     {
         PageSwitcher.AddPage(Pages[i].PageClass,Pages[i].Caption,Pages[i].Hint,B).InitMenu();
     }
@@ -37,6 +38,15 @@ function Timer()
     PRI = GetPlayer().PlayerReplicationInfo;
     if( PRI==None )
         return;
+
+    if(!TakeOverButton.bEnabled && Owner.TurretOwner.OwnerController == none)
+    {
+        TakeOverButton.SetLocked(false);
+    }
+    else if(TakeOverButton.bEnabled && Owner.TurretOwner.OwnerController != none)
+    {
+        TakeOverButton.SetLocked(true);
+    }
         
     if( KFPlayerController(GetPlayer()).IsBossCameraMode() )
     {
@@ -68,6 +78,10 @@ function ButtonClicked( KFGUI_Button Sender )
             DoClose();
         }
         break;
+    case 'Take':
+        if(Owner.Settings != none && Owner.Settings.CheckNumPlayerTurrets(Owner.TurretOwner.Class))
+            Owner.NetworkObj.TakeTurret();
+        break;
     case 'Close':
         DoClose();
         break;
@@ -91,8 +105,8 @@ final function KFGUI_Button AddMenuButton( name ButtonID, string Text, optional 
     B.OnClickLeft = ButtonClicked;
     B.OnClickRight = ButtonClicked;
     B.ID = ButtonID;
-    B.XPosition = 0.175 + NumButtons*0.5;
     B.XSize = 0.15;
+    B.XPosition = (float(NumButtons) * 0.333f) + 0.166f - (B.XSize * 0.5f); // Have to be careful with autocasting to int in this line
     B.YPosition = 0.92;
     B.YSize = 0.08;
 

@@ -17,7 +17,7 @@ function PostRender( Canvas Canvas )
 }
 
 // Postprocess the player's input
-function PlayerInput( float DeltaTime )
+event PlayerInput( float DeltaTime )
 {
     // Do not move.
     ControllerOwner.MenuInput(DeltaTime);

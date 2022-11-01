@@ -400,7 +400,7 @@ function RenderButton( KFGUI_Button B )
 	bDrawOverride = B.DrawOverride(Canvas, B);
 	if( !bDrawOverride )
 	{
-		if( B.bDisabled )
+		if( !B.bEnabled )
 			Mat = ButtonTextures[`BUTTON_DISABLED];
 		else if( B.bPressedDown )
 			Mat = ButtonTextures[`BUTTON_PRESSED];

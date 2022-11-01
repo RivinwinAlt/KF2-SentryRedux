@@ -3,6 +3,7 @@ Class KFGUI_Clickable extends KFGUI_Base
 
 var() int IntIndex; // More user variables.
 var() string ToolTip;
+var bool bEnabled;
 
 var KFGUI_Tooltip ToolTipItem;
 
@@ -48,6 +49,7 @@ function MouseEnter()
         PlayMenuSound(MN_FocusHover);
 }
 
+// Can't be clicked, does not render
 function SetDisabled( bool bDisable )
 {
     Super.SetDisabled(bDisable);
@@ -55,6 +57,22 @@ function SetDisabled( bool bDisable )
     PressedDown[0] = 0;
     PressedDown[1] = 0;
     bPressedDown = false;
+}
+
+// Can't be clicked, renders 'disabled' texture
+function SetLocked( bool bLocked )
+{
+    if(!bDisabled)
+    {
+        bClickable = !bLocked;
+        bEnabled = !bLocked;
+        if(bLocked)
+        {
+            PressedDown[0] = 0;
+            PressedDown[1] = 0;
+            bPressedDown = false;
+        }
+    }
 }
 
 function NotifyMousePaused()
@@ -81,6 +99,7 @@ final function ChangeToolTip( string S )
         ToolTipItem.SetText(S);
     else ToolTip = S;
 }
+
 function SetVisibility(bool Visible)
 {
     Super.SetVisibility(Visible);
@@ -91,5 +110,6 @@ function HandleMouseClick( bool bRight );
 
 defaultproperties
 {
-    bHoverSound=true
+    bEnabled = true
+    bHoverSound = true
 }

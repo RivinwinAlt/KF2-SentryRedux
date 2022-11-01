@@ -89,7 +89,14 @@ function DrawUpgradeInfo( Canvas C, int Index, float YOffset, float Height, floa
 	Owner.CurrentStyle.DrawLibraryIcon(UObj.UpgradeInfos[Index].IconIndex, TempX, TempY, IconSize, IconSize);
 
 	// Select Text Color
-	C.SetDrawColor(236,227,203,255);
+	if(!CanAffordUpgrade(Index))
+	{
+		C.SetDrawColor(189,59,61,255); // TF2 Red, arbitrary pick
+	}
+	else
+	{
+		C.SetDrawColor(236,227,203,255); // TF2 Text color
+	}
 
 	// Draw the Upgrades Name
 	C.TextSize(UObj.UpgradeInfos[Index].Title, TempWidth, TempHeight, Sc, Sc);
@@ -104,6 +111,8 @@ function DrawUpgradeInfo( Canvas C, int Index, float YOffset, float Height, floa
 	TempY = GridY + CellH + ((CellH - TempHeight) / 2.0f);
 	C.SetPos(TempX, TempY);
 	C.DrawText("$" $ UObj.GetUpgradeCost(Index),,Sc,Sc);
+
+	C.SetDrawColor(236,227,203,255); // TF2 Text color
 	
 	///Draw Desciption Text
 	TempX = GridX + CellW + ItemBorder * GridH; // Coord position 1,0 of the grid
