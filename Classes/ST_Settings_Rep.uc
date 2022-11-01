@@ -300,7 +300,7 @@ final function UpdateConfig()
 		ConfigVersion = SERVER_CONFIG_VERSION;
 		PreviewRotationRate = 6.0f;
 		StartingPrimaryAmmo = 0.2;
-		StartingTurret = 0;
+		StartingTurret = 1;
 		SaveConfig();
 	}
 
@@ -343,6 +343,6 @@ defaultproperties
 
 	// The order of this list will determine the order of the list when shown in-game
 	PreBuildInfos.Add((TurretClass = class'ST_Turret_TF2', TypeString = "TF2 Sentry", BuildCost = 500, bEnabled = true))
-
+	PreBuildInfos.Add((TurretClass = class'ST_Turret_Blade', TypeString = "Blade Sentry", BuildCost = 500, bEnabled = true))
    //NetUpdateFrequency = 4.000000
 }

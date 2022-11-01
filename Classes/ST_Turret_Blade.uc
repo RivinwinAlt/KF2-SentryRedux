@@ -1,5 +1,5 @@
 //Main Turret object class extends pawn, but notably not _Monster or _Human
-Class ST_Turret_BladeTurret extends ST_Turret_Base
+Class ST_Turret_Blade extends ST_Turret_Base
 	config(SentryRedux);
 
 var SpotLightComponent TurretSpotLight;
@@ -60,43 +60,43 @@ simulated function PostBuildAnimation()
 	TurretSpotLight.SetEnabled(true);
 }
 
-// The 3 weapon slots have their own function calls for optimization
-simulated function BeginFiringPrimary()
-{
-	SetTimer(RoF[EPrimaryFire], true, 'FirePrimary');
-}
-simulated function BeginFiringSecondary()
-{
-	SetTimer(RoF[ESecondaryFire], true, 'FireSecondary');
-}
 simulated function FirePrimary()
 {	
 	super.FirePrimary();
 
-	FireBullet();
-	//	FireProjectile(class<KFProj_Blade_Eviscerator>);
+	if(AmmoCount[EPrimaryFire] > 0)
+	{
+		`log("ST_Turret_TF2: triggering FireBullet()");
+		FireProjectile();
+	}
 	//FireProjectileLobbed
 	//FireProjectile
 }
 simulated function FireSecondary()
 {
 	super.FireSecondary();
+	if(AmmoCount[ESecondaryFire] > 0)
+	{
+		FireProjectile();
+	}
 }
 
 defaultproperties
 {
-	BaseEyeHeight = 70.000000
-	EyeHeight = 70.000000
+	BaseEyeHeight = 70.0
+	EyeHeight = 70.0
 
 	Health = 350 // Immediately overwritten by config, ensures turret is spawned with > 0 health
 	HealthMax = 350 // Immediately overwritten by upgrades object, ensures turret is spawned with > 0 health
 
-	DamageTypes(0) = class'KFDT_Bleeding' // Used for bullet damage
+	DamageTypes(0) = class'KFDT_Ballistic' // Used for bullet damage
 	DamageTypes(1) = class'KFDT_Explosive' // Used for missile damage
 
-	ControllerClass = Class'ST_AI_BladeTurret'
-	UpgradesClass = Class'ST_Upgrades_BladeTurret'
+	ControllerClass = Class'ST_AI_Blade'
+	UpgradesClass = Class'ST_Upgrades_Blade'
 
+	WeaponProjectiles(EPrimaryFire) = class'ST_Proj_Sawblade'
+	WeaponProjectiles(ESecondaryFire) = class'ST_Proj_FragMissile'
 
 	//FiringSounds(ESecondaryFire) = 
 	//EmptySounds(EPrimaryFire) = 
